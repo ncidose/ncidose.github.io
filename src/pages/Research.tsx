@@ -21,7 +21,7 @@ const portalCards = [
     title: "NCI Dose Tools Documentation Portal",
     description:
       "Technical documentation and user-support resources for NCI Dose Tools, including tool summaries, manuals, API resources, FAQs, and update-oriented materials.",
-    href: "https://ncidosimetry.github.io/ncidosetools/",
+    href: "https://ncidose.github.io/",
     linkText: "Current site",
   },
   {
