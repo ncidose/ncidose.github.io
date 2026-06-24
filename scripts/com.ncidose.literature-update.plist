@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "https://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>com.ncidose.literature-update</string>
+
+  <key>ProgramArguments</key>
+  <array>
+    <string>/Users/choonsiklee/ncidose_frontend/ncidose.github.io/scripts/update-literature-weekly.sh</string>
+  </array>
+
+  <key>WorkingDirectory</key>
+  <string>/Users/choonsiklee/ncidose_frontend/ncidose.github.io</string>
+
+  <key>StartCalendarInterval</key>
+  <dict>
+    <key>Weekday</key>
+    <integer>1</integer>
+    <key>Hour</key>
+    <integer>9</integer>
+    <key>Minute</key>
+    <integer>0</integer>
+  </dict>
+
+  <key>StandardOutPath</key>
+  <string>/Users/choonsiklee/ncidose_frontend/ncidose.github.io/logs/literature-update.launchd.out.log</string>
+
+  <key>StandardErrorPath</key>
+  <string>/Users/choonsiklee/ncidose_frontend/ncidose.github.io/logs/literature-update.launchd.err.log</string>
+
+  <key>RunAtLoad</key>
+  <false/>
+</dict>
+</plist>
