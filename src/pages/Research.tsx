@@ -36,7 +36,7 @@ const portalCards = [
   {
     icon: BookOpen,
     eyebrow: "Repository",
-    title: "GitHub: ncidosimetry/ncidosetools",
+    title: "GitHub: ncidose/ncidosetools",
     description:
       "The source repository for documentation content, release information, version history, Q&A, REST API resources, and implementation-oriented materials.",
     href: portalLinks.github,
