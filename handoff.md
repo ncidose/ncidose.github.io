@@ -5,7 +5,7 @@
 Website repo root:
 
 ```text
-/Users/choonsiklee/ncidose_frontend/ncidose.github.io
+/Users/choonsiklee/Sites/ncidose.github.io
 ```
 
 GitHub repository:
@@ -67,7 +67,7 @@ That directory is intentionally ignored by git and must not be committed.
 Repo-local git config is set to use:
 
 ```text
-core.sshCommand = ssh -F /Users/choonsiklee/ncidose_frontend/ncidose.github.io/.ssh/config
+core.sshCommand = ssh -F /Users/choonsiklee/Sites/ncidose.github.io/.ssh/config
 ```
 
 The SSH host alias is:
@@ -81,7 +81,7 @@ The key is authorized on GitHub account `choonsiklee` and SAML-authorized for th
 To verify:
 
 ```bash
-ssh -F /Users/choonsiklee/ncidose_frontend/ncidose.github.io/.ssh/config -T git@github.com-choonsiklee
+ssh -F /Users/choonsiklee/Sites/ncidose.github.io/.ssh/config -T git@github.com-choonsiklee
 ```
 
 Expected response includes:
@@ -93,6 +93,7 @@ Hi choonsiklee! You've successfully authenticated
 ## Recent Changes
 
 - Site was moved from `/Users/choonsiklee/Sites/ncidosetools`.
+- Site was moved from Synology sync folder `/Users/choonsiklee/ncidose_frontend/ncidose.github.io` to `/Users/choonsiklee/Sites/ncidose.github.io`.
 - GitHub Pages deploy is live at `https://ncidose.github.io/`.
 - Internal navigation was changed from `BrowserRouter` to `HashRouter`.
 - Old documentation portal link `https://ncidosimetry.github.io/ncidosetools/` was changed to `https://ncidose.github.io/`.

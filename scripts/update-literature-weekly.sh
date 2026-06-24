@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 
-PROJECT_DIR="/Users/choonsiklee/ncidose_frontend/ncidose.github.io"
+PROJECT_DIR="/Users/choonsiklee/Sites/ncidose.github.io"
 NPM="/opt/homebrew/bin/npm"
 LOG_DIR="$PROJECT_DIR/logs"
 LOG_FILE="$LOG_DIR/literature-update.log"

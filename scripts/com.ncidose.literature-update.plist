@@ -7,11 +7,11 @@
 
   <key>ProgramArguments</key>
   <array>
-    <string>/Users/choonsiklee/ncidose_frontend/ncidose.github.io/scripts/update-literature-weekly.sh</string>
+    <string>/Users/choonsiklee/Sites/ncidose.github.io/scripts/update-literature-weekly.sh</string>
   </array>
 
   <key>WorkingDirectory</key>
-  <string>/Users/choonsiklee/ncidose_frontend/ncidose.github.io</string>
+  <string>/Users/choonsiklee/Sites/ncidose.github.io</string>
 
   <key>StartCalendarInterval</key>
   <dict>
@@ -24,10 +24,10 @@
   </dict>
 
   <key>StandardOutPath</key>
-  <string>/Users/choonsiklee/ncidose_frontend/ncidose.github.io/logs/literature-update.launchd.out.log</string>
+  <string>/Users/choonsiklee/Sites/ncidose.github.io/logs/literature-update.launchd.out.log</string>
 
   <key>StandardErrorPath</key>
-  <string>/Users/choonsiklee/ncidose_frontend/ncidose.github.io/logs/literature-update.launchd.err.log</string>
+  <string>/Users/choonsiklee/Sites/ncidose.github.io/logs/literature-update.launchd.err.log</string>
 
   <key>RunAtLoad</key>
   <false/>
