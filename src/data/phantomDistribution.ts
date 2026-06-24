@@ -1,4 +1,4 @@
-// Generated from ncict4/data_wed.csv first columns and the Xojo phantom_size mapping.
+// Generated from the NCICT phantom-size source table and Xojo phantom_size mapping.
 // Groups 1-4 are plotted as group, height_cm, weight_kg distribution points.
 export type PhantomGroupId = 1 | 2 | 3 | 4;
 
