@@ -91,6 +91,29 @@ const filteredNciTeamYears = (tool: LiteratureTool) =>
     })
     .filter((year) => year.articles.length > 0);
 
+const cumulativeLiteratureSeries = (tools: LiteratureTool[]) => {
+  const countsByYear = new Map<number, number>();
+
+  tools.forEach((tool) => {
+    tool.years.forEach((yearGroup) => {
+      const year = Number.parseInt(yearGroup.year, 10);
+
+      if (Number.isFinite(year)) {
+        countsByYear.set(year, (countsByYear.get(year) ?? 0) + yearGroup.count);
+      }
+    });
+  });
+
+  let cumulative = 0;
+
+  return Array.from(countsByYear.entries())
+    .sort(([leftYear], [rightYear]) => leftYear - rightYear)
+    .map(([year, count]) => {
+      cumulative += count;
+      return { year, count, cumulative };
+    });
+};
+
 const Literature = () => {
   const { toolId } = useParams();
   const [searchParams] = useSearchParams();
@@ -140,6 +163,11 @@ const Literature = () => {
     [data],
   );
 
+  const publicationGrowth = useMemo(
+    () => (data ? cumulativeLiteratureSeries(data.tools) : []),
+    [data],
+  );
+
   const isDetailPage = Boolean(toolId);
   const showNciTeamOnly = isDetailPage && searchParams.get("team") === "lee-c";
   const listedPapers = selectedTool
@@ -181,6 +209,10 @@ const Literature = () => {
                   : "Choose a tool below to view a focused, year-by-year publication list. Each page is generated from NCBI PubMed and PubMed Central searches using tool-specific and modality-specific terms."}
               </p>
             </motion.div>
+
+            {!isDetailPage && publicationGrowth.length > 0 && (
+              <PublicationGrowthChart points={publicationGrowth} />
+            )}
 
             <motion.div
               initial={{ opacity: 0, y: 20 }}
@@ -267,6 +299,167 @@ const StatCard = ({
     <div className="mt-1 text-sm text-foreground">{value}</div>
   </div>
 );
+
+const PublicationGrowthChart = ({
+  points,
+}: {
+  points: { year: number; count: number; cumulative: number }[];
+}) => {
+  const width = 720;
+  const height = 220;
+  const chartLeft = 34;
+  const chartRight = 686;
+  const chartTop = 26;
+  const chartBottom = 166;
+  const chartWidth = chartRight - chartLeft;
+  const chartHeight = chartBottom - chartTop;
+  const maxCumulative = Math.max(...points.map((point) => point.cumulative), 1);
+  const total = points[points.length - 1]?.cumulative ?? 0;
+  const startYear = points[0]?.year;
+  const endYear = points[points.length - 1]?.year;
+
+  const toX = (index: number) =>
+    points.length === 1
+      ? chartLeft + chartWidth / 2
+      : chartLeft + (index / (points.length - 1)) * chartWidth;
+  const toY = (value: number) =>
+    chartTop + (1 - value / maxCumulative) * chartHeight;
+
+  const linePoints = points
+    .map((point, index) => `${toX(index).toFixed(1)},${toY(point.cumulative).toFixed(1)}`)
+    .join(" ");
+  const areaPoints = `${chartLeft},${chartBottom} ${linePoints} ${chartRight},${chartBottom}`;
+  const labels = points.filter((_, index) => {
+    if (index === 0 || index === points.length - 1) {
+      return true;
+    }
+
+    return points.length > 8 && index % Math.ceil(points.length / 4) === 0;
+  });
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 24 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.7, delay: 0.08, ease: [0.16, 1, 0.3, 1] }}
+      className="mt-10 max-w-4xl border border-border bg-white p-5"
+    >
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <div>
+          <div className="font-mono text-xs uppercase tracking-widest text-primary">
+            Publication growth
+          </div>
+          <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
+            Cumulative listed papers across all NCI Dose Tools by publication year.
+          </p>
+        </div>
+        <div className="text-right">
+          <div className="text-3xl font-light text-slate-900">{total}</div>
+          <div className="font-mono text-[11px] uppercase tracking-widest text-muted-foreground">
+            total papers
+          </div>
+        </div>
+      </div>
+
+      <div className="mt-5 overflow-hidden">
+        <svg
+          viewBox={`0 0 ${width} ${height}`}
+          role="img"
+          aria-label={`Cumulative literature count from ${startYear} to ${endYear}`}
+          className="h-auto w-full"
+        >
+          <defs>
+            <linearGradient id="publication-growth-fill" x1="0" x2="0" y1="0" y2="1">
+              <stop offset="0%" stopColor="hsl(var(--primary))" stopOpacity="0.2" />
+              <stop offset="100%" stopColor="hsl(var(--primary))" stopOpacity="0.02" />
+            </linearGradient>
+          </defs>
+
+          {[0, 0.5, 1].map((ratio) => {
+            const y = chartTop + ratio * chartHeight;
+            return (
+              <line
+                key={ratio}
+                x1={chartLeft}
+                x2={chartRight}
+                y1={y}
+                y2={y}
+                stroke="hsl(var(--border))"
+                strokeWidth="1"
+              />
+            );
+          })}
+
+          <polygon points={areaPoints} fill="url(#publication-growth-fill)" />
+          <polyline
+            points={linePoints}
+            fill="none"
+            stroke="hsl(var(--primary))"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth="3"
+          />
+
+          {points.map((point, index) => {
+            const x = toX(index);
+            const y = toY(point.cumulative);
+            const isEndpoint = index === 0 || index === points.length - 1;
+
+            return (
+              <circle
+                key={point.year}
+                cx={x}
+                cy={y}
+                r={isEndpoint ? 4 : 2.3}
+                fill={isEndpoint ? "hsl(var(--primary))" : "white"}
+                stroke="hsl(var(--primary))"
+                strokeWidth="2"
+              />
+            );
+          })}
+
+          <text
+            x={chartLeft}
+            y={chartTop - 8}
+            className="fill-muted-foreground font-mono text-[11px]"
+          >
+            {maxCumulative} papers
+          </text>
+          <text
+            x={chartLeft}
+            y={chartBottom + 34}
+            className="fill-muted-foreground font-mono text-[11px]"
+          >
+            {startYear}
+          </text>
+          <text
+            x={chartRight}
+            y={chartBottom + 34}
+            textAnchor="end"
+            className="fill-muted-foreground font-mono text-[11px]"
+          >
+            {endYear}
+          </text>
+
+          {labels.slice(1, -1).map((point) => {
+            const index = points.findIndex((item) => item.year === point.year);
+            return (
+              <text
+                key={point.year}
+                x={toX(index)}
+                y={chartBottom + 34}
+                textAnchor="middle"
+                className="fill-muted-foreground font-mono text-[11px]"
+              >
+                {point.year}
+              </text>
+            );
+          })}
+        </svg>
+      </div>
+    </motion.div>
+  );
+};
 
 const LiteratureNav = ({
   activeToolId,
