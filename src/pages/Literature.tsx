@@ -62,6 +62,9 @@ const formatGeneratedDate = (value: string) =>
     timeStyle: "short",
   }).format(new Date(value));
 
+const assetPath = (path: string) =>
+  `${import.meta.env.BASE_URL.replace(/\/$/, "")}/${path.replace(/^\//, "")}`;
+
 const sourceTone = (source: string) =>
   source.includes("PMC")
     ? "border-emerald-200 bg-emerald-50 text-emerald-700"
@@ -98,7 +101,7 @@ const Literature = () => {
   useEffect(() => {
     let cancelled = false;
 
-    fetch(new URL("literature.json", import.meta.env.BASE_URL).toString(), { cache: "no-store" })
+    fetch(assetPath("literature.json"), { cache: "no-store" })
       .then((response) => {
         if (!response.ok) {
           throw new Error(`literature.json returned ${response.status}`);
