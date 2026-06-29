@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-06-24T20:35:28.130Z",
+  "generatedAt": "2026-06-29T13:00:19.856Z",
   "source": "NCBI E-utilities PubMed and PubMed Central searches",
   "note": "Searches combine tool-specific identifiers with modality terms to reduce unrelated full-text matches.",
   "tools": [
@@ -18,16 +18,16 @@
       },
       "counts": {
         "pubmedTitleAbstract": 42,
-        "pmcFullTextRecords": 68,
-        "pmcMappedPmids": 66,
+        "pmcFullTextRecords": 69,
+        "pmcMappedPmids": 67,
         "pmcWithoutPmid": 2,
-        "combinedUniquePmids": 90,
-        "displayedArticles": 90
+        "combinedUniquePmids": 91,
+        "displayedArticles": 91
       },
       "years": [
         {
           "year": "2026",
-          "count": 11,
+          "count": 12,
           "articles": [
             {
               "pmid": "42188702",
@@ -209,6 +209,28 @@
               ],
               "pubmedUrl": "https://pubmed.ncbi.nlm.nih.gov/42315308/",
               "pmcUrl": null
+            },
+            {
+              "pmid": "42346038",
+              "pmcid": "PMC13298471",
+              "title": "Optimising Patient Safety During the Use of Intraoperative Imaging for the Surgical Management of Facial Fractures: A Pilot Study",
+              "journal": "Craniomaxillofacial trauma & reconstruction",
+              "pubdate": "2026 May 25",
+              "year": "2026",
+              "authors": [
+                "Garcia N",
+                "Badawy M",
+                "DiPasquale J",
+                "Maciburko S",
+                "Seifman M"
+              ],
+              "nciTeamAuthored": false,
+              "doi": "10.3390/cmtr19020026",
+              "sources": [
+                "PMC full text"
+              ],
+              "pubmedUrl": "https://pubmed.ncbi.nlm.nih.gov/42346038/",
+              "pmcUrl": "https://pmc.ncbi.nlm.nih.gov/articles/PMC13298471/"
             },
             {
               "pmid": "41396419",
@@ -2107,16 +2129,16 @@
       },
       "counts": {
         "pubmedTitleAbstract": 11,
-        "pmcFullTextRecords": 9,
-        "pmcMappedPmids": 9,
+        "pmcFullTextRecords": 10,
+        "pmcMappedPmids": 10,
         "pmcWithoutPmid": 0,
-        "combinedUniquePmids": 16,
-        "displayedArticles": 16
+        "combinedUniquePmids": 17,
+        "displayedArticles": 17
       },
       "years": [
         {
           "year": "2026",
-          "count": 4,
+          "count": 5,
           "articles": [
             {
               "pmid": "41706156",
@@ -2163,6 +2185,28 @@
               ],
               "pubmedUrl": "https://pubmed.ncbi.nlm.nih.gov/41207961/",
               "pmcUrl": null
+            },
+            {
+              "pmid": "42346038",
+              "pmcid": "PMC13298471",
+              "title": "Optimising Patient Safety During the Use of Intraoperative Imaging for the Surgical Management of Facial Fractures: A Pilot Study",
+              "journal": "Craniomaxillofacial trauma & reconstruction",
+              "pubdate": "2026 May 25",
+              "year": "2026",
+              "authors": [
+                "Garcia N",
+                "Badawy M",
+                "DiPasquale J",
+                "Maciburko S",
+                "Seifman M"
+              ],
+              "nciTeamAuthored": false,
+              "doi": "10.3390/cmtr19020026",
+              "sources": [
+                "PMC full text"
+              ],
+              "pubmedUrl": "https://pubmed.ncbi.nlm.nih.gov/42346038/",
+              "pmcUrl": "https://pmc.ncbi.nlm.nih.gov/articles/PMC13298471/"
             },
             {
               "pmid": "40756629",
