@@ -83,6 +83,11 @@ export const GlobalMap = () => {
     { name: "Hungary", isoA3: "HUN", users: 1 },
   ].filter((location) => !excludedCountryIsoA3.has(location.isoA3)), []);
 
+  const totalUsers = useMemo(
+    () => locations.reduce((sum, location) => sum + location.users, 0),
+    [locations],
+  );
+
   const mapUpdatedAt = "July 7, 2026";
 
   const geoUrl = "https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json";
@@ -299,7 +304,7 @@ export const GlobalMap = () => {
             </div> */}
           </div>
           <div className="mt-3 text-center font-mono text-[11px] uppercase tracking-wider text-muted-foreground">
-            Updated {mapUpdatedAt}
+            Total users: {totalUsers.toLocaleString()} · Updated {mapUpdatedAt}
           </div>
           <div className="mt-3 px-1 sm:hidden">
             <div className="flex items-center justify-between gap-4">
