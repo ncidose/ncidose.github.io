@@ -197,7 +197,7 @@ const Researchers = () => {
         </section>
 
         {/* Access and Use */}
-        <section className="py-24">
+        <section id="request-access" className="scroll-mt-24 py-24">
           <div className="container mx-auto px-6">
             <div className="max-w-4xl mx-auto">
               <motion.div
@@ -280,7 +280,7 @@ const Researchers = () => {
                 Documentation and Support
               </span>
               <h2 className="mt-4 text-section-md lg:text-section">
-                Resources for Approved Users
+                Resources for Users
               </h2>
             </motion.div>
 
@@ -301,7 +301,7 @@ const Researchers = () => {
                   <div>
                     <h3 className="text-foreground font-medium mb-3">Technical documentation</h3>
                     <p className="text-sm text-muted-foreground mb-4">
-                      User manuals, and version history available for approved users
+                      Public user manuals, release notes, and version history for researchers and vendors
                     </p>
                     <a
                       href="https://github.com/ncidose/ncidosetools"
