@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-07-06T13:00:22.933Z",
+  "generatedAt": "2026-07-13T13:00:17.822Z",
   "source": "NCBI E-utilities PubMed and PubMed Central searches",
   "note": "Searches combine tool-specific identifiers with modality terms to reduce unrelated full-text matches.",
   "tools": [
@@ -18,9 +18,9 @@
       },
       "counts": {
         "pubmedTitleAbstract": 42,
-        "pmcFullTextRecords": 69,
+        "pmcFullTextRecords": 68,
         "pmcMappedPmids": 67,
-        "pmcWithoutPmid": 2,
+        "pmcWithoutPmid": 1,
         "combinedUniquePmids": 91,
         "displayedArticles": 91
       },
