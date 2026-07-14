@@ -17,8 +17,8 @@ import {
 const portalCards = [
   {
     icon: Globe2,
-    eyebrow: "Documentation Portal",
-    title: "NCI Dose Tools Documentation Portal",
+    eyebrow: "GitHub Technical Site",
+    title: "NCI Dose Tools GitHub Technical Site",
     description:
       "Technical documentation and user-support resources for NCI Dose Tools, including tool summaries, manuals, API resources, FAQs, and update-oriented materials.",
     href: "https://ncidose.github.io/",
@@ -26,12 +26,12 @@ const portalCards = [
   },
   {
     icon: BadgeCheck,
-    eyebrow: "Official NCI Source",
+    eyebrow: "Official NCI Website",
     title: "DCEG Radiation Dosimetry Tools",
     description:
-      "The authoritative NCI page for official context, access instructions, and the Software Transfer Agreement pathway for non-commercial research use.",
+      "The authoritative NCI website for official context, access instructions, and the Software Transfer Agreement pathway for non-commercial research use.",
     href: portalLinks.officialNci,
-    linkText: "Open official NCI page",
+    linkText: "Open official NCI website",
   },
   {
     icon: BookOpen,
@@ -63,7 +63,7 @@ const userPaths = [
   },
   {
     title: "Research user",
-    text: "Use the DCEG page and STA form for official access, then use GitHub and the approved-user group after approval.",
+    text: "Use the official NCI website and STA form for official access, then use GitHub and the approved-user group after approval.",
     href: "/researchers",
     linkText: "Research access path",
     external: false,
@@ -77,9 +77,9 @@ const userPaths = [
   },
   {
     title: "Technical implementer",
-    text: "Use the documentation portal and GitHub repository for manuals, release notes, technical questions, version history, and REST API-oriented details.",
+    text: "Use the GitHub technical site for manuals, release notes, technical questions, version history, and REST API-oriented details.",
     href: portalLinks.github,
-    linkText: "Open GitHub portal",
+    linkText: "Open GitHub technical site",
     external: true,
   },
 ];
@@ -102,14 +102,14 @@ const Research = () => {
                 Links & Resources
               </span>
               <h1 className="mt-4 text-hero-md lg:text-hero">
-                Documentation Portal,
-                <span className="block text-muted-foreground">Official Source, Approved Access</span>
+                GitHub Technical Site,
+                <span className="block text-muted-foreground">Official Website, Approved Access</span>
               </h1>
               <p className="mt-6 max-w-3xl text-lg text-muted-foreground">
-                The official NCI/DCEG page, this GitHub Pages documentation portal,
+                The official NCI website, this GitHub Pages technical site,
                 and the approved-user file repository each serve a different purpose.
                 This site supports documentation and user support while keeping the
-                DCEG page as the authoritative institutional source.
+                official NCI website as the authoritative institutional source.
               </p>
             </motion.div>
           </div>
@@ -225,8 +225,8 @@ const Research = () => {
                   What this site should do
                 </h2>
                 <p className="mt-5 text-muted-foreground leading-relaxed">
-                  This documentation portal should be easier to update than the
-                  official NCI page and more user-oriented than repository issue
+                  This GitHub technical site should be easier to update than the
+                  official NCI website and more user-oriented than repository issue
                   threads. Its role is to explain, orient, announce, and route
                   visitors to the correct official, technical, or approved-access
                   channel.
@@ -242,7 +242,7 @@ const Research = () => {
               >
                 {[
                   "Keep public summaries current when tool capabilities, access routes, or documentation locations change.",
-                  "Keep DCEG/cancer.gov as the authoritative institutional source for official context and access policy.",
+                  "Keep the official NCI website as the authoritative institutional source for official context and access policy.",
                   "Avoid burying new visitors in issue threads, release tags, or implementation details.",
                   "Send approved users to the controlled group when they need restricted files, and to GitHub for documentation and technical support.",
                 ].map((item) => (

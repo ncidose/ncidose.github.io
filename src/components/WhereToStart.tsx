@@ -33,7 +33,7 @@ const startingPoints = [
   {
     icon: ExternalLink,
     title: "Links & Resources",
-    description: "See how this public site, the official NCI page, GitHub, and the approved-user group fit together.",
+    description: "See how this public site, the official NCI website, GitHub, and the approved-user group fit together.",
     link: "/resources",
     linkText: "Open Resources",
     external: false,

@@ -61,7 +61,7 @@ const strengths = [
     icon: ScrollText,
     title: "Research-validated and documented",
     description:
-      "A maintained documentation portal and a growing publication registry provide technical and scientific context.",
+      "A maintained GitHub technical site and a growing publication registry provide technical and scientific context.",
   },
 ];
 

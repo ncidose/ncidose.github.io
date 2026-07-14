@@ -45,7 +45,7 @@ export const Hero = () => {
             className="mx-auto max-w-2xl text-lg text-muted-foreground"
           >
             Technical documentation and user-support resources for NCI-developed
-            radiation dosimetry software. The official NCI/DCEG page remains the
+            radiation dosimetry software. The official NCI website remains the
             authoritative institutional source for access policy.
           </motion.p>
 
@@ -56,8 +56,8 @@ export const Hero = () => {
             className="mx-auto flex max-w-2xl flex-wrap justify-center gap-2 text-xs"
           >
             {[
-              { label: "Official NCI source", href: portalLinks.officialNci },
-              { label: "Documentation portal", href: portalLinks.github },
+              { label: "Official NCI website", href: portalLinks.officialNci },
+              { label: "GitHub technical site", href: portalLinks.github },
               { label: "Approved-user updates", href: portalLinks.googleGroup },
             ].map((link) => (
               <a

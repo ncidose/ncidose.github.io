@@ -44,14 +44,14 @@ export const WhatAreTools = () => {
             </div>
             <div className="p-4 bg-slate-200/40">
               <p className="text-sm text-muted-foreground">
-                <span className="text-foreground font-medium">NCI Dose Tools Documentation Portal</span> complements the{" "}
+                <span className="text-foreground font-medium">NCI Dose Tools GitHub Technical Site</span> complements the{" "}
                 <a 
                   href={portalLinks.officialNci}
                   target="_blank" 
                   rel="noopener noreferrer"
                   className="text-primary hover:underline"
                 >
-                  official NCI/DCEG page
+                  official NCI website
                 </a>{" "}
                 and the{" "}
                 <a 
@@ -63,7 +63,7 @@ export const WhatAreTools = () => {
                   GitHub repository
                 </a>{" "}
                 by providing technical documentation and user-support resources. The
-                DCEG page remains the authoritative institutional source for official
+                official NCI website remains the authoritative institutional source for official
                 context and access policy.
               </p>
             </div>

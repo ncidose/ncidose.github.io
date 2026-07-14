@@ -314,7 +314,7 @@ const Protocols = () => {
               </p>
               <p className="mt-4 max-w-3xl text-muted-foreground leading-relaxed">
                 This page is intentionally high level. Detailed manuals, release notes,
-                and support discussions live in the documentation portal and GitHub repository.
+                and support discussions live in the GitHub technical site.
               </p>
             </motion.div>
           </div>
