@@ -30,7 +30,7 @@ const FeatureCard = ({ icon, title, description, delay = 0 }: { icon: React.Reac
 };
 
 const researchAccessItems = [
-  <>Available at no cost for non-commercial research use</>,
+  <>Available at no cost for non-commercial research use (direct clinical use and redistribution are not permitted)</>,
   <>
     Access requires an approved{" "}
     <a
@@ -43,8 +43,19 @@ const researchAccessItems = [
       <ExternalLink className="w-3 h-3" />
     </a>
   </>,
-  <>Tools are distributed through controlled NCI pathways after approval</>,
-  <>Direct clinical use and redistribution are not permitted</>,
+  <>
+    Tools are distributed through{" "}
+    <a
+      href="https://drive.google.com/drive/folders/1B2cI9eewJzRn5DJMaOGJ1RloNv0blxSF"
+      target="_blank"
+      rel="noopener noreferrer"
+      className="text-primary hover:underline inline-flex items-center gap-1 font-medium"
+    >
+      Google Drive invitation only
+      <ExternalLink className="w-3 h-3" />
+    </a>{" "}
+    after approval
+  </>,
 ];
 
 const Researchers = () => {
