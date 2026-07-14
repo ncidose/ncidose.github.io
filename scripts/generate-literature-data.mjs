@@ -232,6 +232,13 @@ const buildToolData = async (definition) => {
         return null;
       }
       const authors = extractAuthors(summary);
+      if (definition.id === "phantom") {
+        const hasBolch = authors.some((a) => a.includes("Bolch"));
+        const hasLee = authors.includes("Lee C");
+        if (hasBolch && !hasLee) {
+          return null;
+        }
+      }
       const pmcIds = [...(pmcByPmid.get(pmid) ?? [])];
       const sources = [];
       if (pubmedPmids.includes(pmid)) {
