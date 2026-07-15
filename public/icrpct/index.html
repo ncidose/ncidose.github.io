@@ -1,0 +1,1340 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>ICRPCT Dose Calculator</title>
+  <style>
+    :root {
+      --bg: #f6f7f9;
+      --panel: #ffffff;
+      --line: #c8ced8;
+      --text: #1f2933;
+      --muted: #5c6675;
+      --blue: #0647ff;
+      --red: #d81e1e;
+      --green: #10743c;
+      --warn: #b3261e;
+      --shadow: 0 12px 32px rgba(31, 41, 51, 0.12);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-width: 320px;
+      background: var(--bg);
+      color: var(--text);
+      font-family: Arial, Helvetica, sans-serif;
+      font-size: 14px;
+      letter-spacing: 0;
+    }
+
+    button,
+    input {
+      font: inherit;
+    }
+
+    button {
+      min-height: 36px;
+      border: 1px solid #9aa6b8;
+      border-radius: 6px;
+      background: #f7f9fc;
+      color: var(--text);
+      cursor: pointer;
+    }
+
+    button:hover:not(:disabled) {
+      background: #eaf0f8;
+    }
+
+    button:disabled,
+    input:disabled {
+      cursor: not-allowed;
+      opacity: 0.62;
+    }
+
+    input[type="number"],
+    input[type="text"] {
+      width: 100%;
+      min-height: 38px;
+      border: 1px solid #aeb7c5;
+      border-radius: 4px;
+      padding: 7px 9px;
+      background: #fff;
+      color: var(--text);
+    }
+
+    input[readonly] {
+      background: #eef2f6;
+    }
+
+    fieldset {
+      margin: 0;
+      padding: 14px 16px;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      background: var(--panel);
+    }
+
+    legend {
+      padding: 0 6px;
+      font-weight: 700;
+      color: #111827;
+    }
+
+    label {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      min-height: 24px;
+      line-height: 1.25;
+      color: var(--text);
+    }
+
+    .app {
+      width: min(1284px, calc(100vw - 32px));
+      margin: 0 auto;
+      padding: 14px 0 28px;
+    }
+
+    .title-row {
+      display: grid;
+      grid-template-columns: 220px 1fr 220px;
+      align-items: center;
+      gap: 16px;
+      margin-bottom: 14px;
+    }
+
+    .logo {
+      height: 42px;
+      object-fit: contain;
+      justify-self: start;
+    }
+
+    h1 {
+      margin: 0;
+      color: #0067b1;
+      font-family: "Avenir Next", "Inter", "Segoe UI", Helvetica, Arial, sans-serif;
+      font-size: 31px;
+      font-weight: 800;
+      line-height: 1.08;
+      text-align: center;
+      letter-spacing: 0;
+    }
+
+    .status {
+      justify-self: end;
+      max-width: 220px;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.35;
+      text-align: right;
+    }
+
+    .status.error {
+      color: var(--warn);
+      font-weight: 700;
+    }
+
+    .layout {
+      display: grid;
+      grid-template-columns: 348px minmax(500px, 1fr) 316px;
+      gap: 14px;
+      align-items: start;
+    }
+
+    .left-stack,
+    .middle-stack,
+    .right-stack {
+      display: grid;
+      gap: 12px;
+    }
+
+    .two-col {
+      display: grid;
+      grid-template-columns: 1fr 1.22fr;
+      gap: 18px;
+      align-items: start;
+    }
+
+    .radio-list {
+      display: grid;
+      gap: 2px;
+      margin-top: 6px;
+    }
+
+    #viewOptions label {
+      white-space: nowrap;
+    }
+
+    .scanner-grid {
+      display: grid;
+      grid-template-columns: 1fr 98px;
+      gap: 14px 16px;
+      align-items: start;
+    }
+
+    .scanner-grid .full {
+      grid-column: 1 / -1;
+    }
+
+    .value-blue {
+      color: var(--blue);
+      font-weight: 700;
+    }
+
+    .scan-range-panel {
+      width: 500px;
+      max-width: 100%;
+      justify-self: start;
+      margin: 8px 0 0;
+      border: 0;
+      border-radius: 0;
+      background: transparent;
+      padding: 0;
+    }
+
+    .scan-range-panel legend {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      overflow: hidden;
+      clip: rect(0 0 0 0);
+      white-space: nowrap;
+    }
+
+    .scan-grid {
+      display: grid;
+      grid-template-columns: 112px 126px 112px 126px;
+      gap: 8px;
+      align-items: center;
+    }
+
+    .scan-field-label,
+    .scan-length-label,
+    .slice-info {
+      min-height: 38px;
+      color: #20242a;
+      font-size: 14px;
+      line-height: 1.15;
+      font-weight: 400;
+    }
+
+    .scan-field-label,
+    .scan-length-label {
+      display: flex;
+      align-items: center;
+    }
+
+    .scan-range-panel input[type="number"],
+    .scan-range-panel input[type="text"] {
+      width: 126px;
+      min-height: 38px;
+      border: 2px solid #d9dee5;
+      border-radius: 9px;
+      padding: 7px 9px;
+      color: #20242a;
+      font-size: 14px;
+      line-height: 1;
+    }
+
+    .scan-range-panel input[type="number"]::-webkit-outer-spin-button,
+    .scan-range-panel input[type="number"]::-webkit-inner-spin-button {
+      margin: 0;
+      appearance: none;
+    }
+
+    .scan-range-panel input[type="number"] {
+      appearance: textfield;
+    }
+
+    .scan-range-panel input[readonly] {
+      background: #e8ebef;
+    }
+
+    .slice-info {
+      grid-column: 3 / 5;
+      display: flex;
+      align-items: center;
+      white-space: nowrap;
+      font-size: 14px;
+    }
+
+    .slice-info #sliceThickness {
+      margin-left: 6px;
+      color: #20242a;
+      font-weight: 400;
+    }
+
+    .tcm-warning {
+      min-height: 18px;
+      margin: 2px 0 6px;
+      color: #0067b1;
+      font-weight: 700;
+    }
+
+    .phantom-wrap {
+      position: relative;
+      width: 500px;
+      max-width: 100%;
+      justify-self: start;
+      margin: 0;
+    }
+
+    canvas {
+      display: block;
+      width: 500px;
+      max-width: 100%;
+      aspect-ratio: 1 / 1;
+      border: 1px solid #9aa6b8;
+      background: #fff;
+      cursor: default;
+      touch-action: none;
+    }
+
+    .dose-panel {
+      overflow: hidden;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      background: var(--panel);
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      table-layout: fixed;
+    }
+
+    th,
+    td {
+      border-bottom: 1px solid #d7dde6;
+      padding: 7px 10px;
+      text-align: left;
+      word-break: keep-all;
+      overflow-wrap: anywhere;
+    }
+
+    th {
+      position: sticky;
+      top: 0;
+      z-index: 1;
+      background: #edf2f8;
+      color: #111827;
+      font-weight: 700;
+    }
+
+    td:last-child,
+    th:last-child {
+      text-align: right;
+    }
+
+    .dose-scroll {
+      max-height: 555px;
+      overflow: auto;
+    }
+
+    .effective-row {
+      display: grid;
+      grid-template-columns: 1fr 120px;
+      gap: 12px;
+      align-items: center;
+      padding: 10px 12px;
+      border-top: 1px solid var(--line);
+      background: #fbfcfe;
+      font-weight: 700;
+    }
+
+    .effective-row .dose {
+      text-align: right;
+      font-weight: 700;
+    }
+
+    .export-row {
+      display: flex;
+      justify-content: flex-end;
+      padding-top: 8px;
+    }
+
+    .copy-message {
+      min-height: 24px;
+      padding-top: 8px;
+      color: var(--muted);
+      font-size: 14px;
+      line-height: 1.35;
+      text-align: right;
+    }
+
+    .copy-message.error {
+      color: var(--warn);
+      font-weight: 700;
+    }
+
+    .loading-mask {
+      position: fixed;
+      inset: 0;
+      z-index: 10;
+      display: grid;
+      place-items: center;
+      padding: 24px;
+      background: rgba(246, 247, 249, 0.82);
+      backdrop-filter: blur(2px);
+    }
+
+    .loading-box {
+      width: min(460px, 100%);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #fff;
+      box-shadow: var(--shadow);
+      padding: 20px;
+    }
+
+    .loading-title {
+      margin: 0 0 8px;
+      font-size: 18px;
+      font-weight: 700;
+    }
+
+    .loading-text {
+      margin: 0;
+      color: var(--muted);
+      line-height: 1.45;
+    }
+
+    .hidden {
+      display: none !important;
+    }
+
+    @media (max-width: 1180px) {
+      .layout {
+        grid-template-columns: 348px minmax(500px, 1fr);
+      }
+
+      .right-stack {
+        grid-column: 1 / -1;
+      }
+
+      .dose-scroll {
+        max-height: 420px;
+      }
+    }
+
+    @media (max-width: 860px) {
+      .app {
+        width: min(100vw - 20px, 640px);
+        padding-top: 10px;
+      }
+
+      .title-row,
+      .layout {
+        grid-template-columns: 1fr;
+      }
+
+      .logo,
+      .status {
+        justify-self: center;
+        text-align: center;
+      }
+
+      h1 {
+        font-size: 24px;
+      }
+
+      .scan-range-panel {
+        width: 100%;
+      }
+
+      .scan-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .scan-field-label,
+      .scan-length-label,
+      .slice-info {
+        min-height: 38px;
+        font-size: 14px;
+      }
+
+      .scan-range-panel input[type="number"],
+      .scan-range-panel input[type="text"],
+      .slice-info {
+        width: 100%;
+      }
+
+      .scan-range-panel input[type="number"],
+      .scan-range-panel input[type="text"] {
+        min-height: 38px;
+        font-size: 14px;
+      }
+
+      .slice-info {
+        grid-column: auto;
+      }
+
+    }
+  </style>
+</head>
+<body>
+  <main class="app">
+    <div class="title-row">
+      <img class="logo" src="icrplogo.png" alt="ICRP logo">
+      <h1>ICRP CT DOSE CALCULATOR ver. 20260427</h1>
+      <div id="status" class="status"></div>
+    </div>
+
+    <section class="layout" aria-label="ICRP CT dose calculator">
+      <div class="left-stack">
+        <fieldset>
+          <legend>Phantom</legend>
+          <div class="two-col">
+            <div>
+              <strong>Phantom Age</strong>
+              <div class="radio-list" id="ageOptions">
+                <label><input type="radio" name="age" value="0" checked>Newborn</label>
+                <label><input type="radio" name="age" value="1">1-year</label>
+                <label><input type="radio" name="age" value="2">5-year</label>
+                <label><input type="radio" name="age" value="3">10-year</label>
+                <label><input type="radio" name="age" value="4">15-year</label>
+                <label><input type="radio" name="age" value="5">Adult</label>
+              </div>
+            </div>
+            <div>
+              <strong>Phantom Gender</strong>
+              <div class="radio-list" id="genderOptions">
+                <label><input type="radio" name="gender" value="0" checked>Female</label>
+                <label><input type="radio" name="gender" value="1">Male</label>
+              </div>
+              <div style="height:12px"></div>
+              <strong>Phantom View</strong>
+              <div class="radio-list" id="viewOptions">
+                <label><input type="radio" name="view" value="0" checked>With Skeleton</label>
+                <label><input type="radio" name="view" value="1">Without Skeleton</label>
+                <label><input type="radio" name="view" value="2">Scout</label>
+              </div>
+            </div>
+          </div>
+        </fieldset>
+
+        <fieldset>
+          <legend>CT Scanner parameters</legend>
+          <div class="scanner-grid">
+            <div>
+              <strong>Tube potential (kV)</strong>
+              <div class="radio-list" id="kvpOptions"></div>
+            </div>
+            <div></div>
+
+            <div>
+              <strong>Bowtie filters</strong>
+              <div class="radio-list">
+                <label><input type="radio" name="filter" value="0" checked>Head Filter</label>
+                <label><input type="radio" name="filter" value="1">Body Filter</label>
+              </div>
+            </div>
+            <div></div>
+
+            <div class="full">
+              <strong>Tube current modulation</strong>
+              <div id="tcmWarning" class="tcm-warning" aria-live="polite"></div>
+              <div class="radio-list">
+                <label><input type="radio" name="tcm" value="0" checked>No TCM</label>
+                <label><input type="radio" name="tcm" value="1">Longitudinal TCM</label>
+                <label><input type="radio" name="tcm" value="2">Longitudinal &amp; angular TCM</label>
+              </div>
+            </div>
+
+            <label id="ctdiLabel" for="inputCtdi">CTDIvol (mGy)</label>
+            <input id="inputCtdi" type="number" min="0" max="99.999" step="0.1" value="10">
+
+            <label for="outputDlp">DLP (mGy-cm)</label>
+            <input id="outputDlp" type="text" readonly>
+          </div>
+        </fieldset>
+      </div>
+
+      <div class="middle-stack">
+        <div class="phantom-wrap">
+          <canvas id="phantomCanvas" width="500" height="500" aria-label="Phantom scan range canvas"></canvas>
+        </div>
+
+        <fieldset class="scan-range-panel">
+          <legend>Scan range</legend>
+          <div class="scan-grid">
+            <label class="scan-field-label" for="inputStart">Scan start (cm)</label>
+            <input id="inputStart" type="number" step="0.1" value="0" aria-label="Scan start cm">
+            <label class="scan-field-label" for="inputEnd">Scan end (cm)</label>
+            <input id="inputEnd" type="number" step="0.1" aria-label="Scan end cm">
+
+            <label class="scan-length-label" for="scanLength">Scan length (cm)</label>
+            <input id="scanLength" type="text" readonly>
+            <div class="slice-info">Slice thickness (cm): <span id="sliceThickness"></span></div>
+          </div>
+        </fieldset>
+      </div>
+
+      <div class="right-stack">
+        <section class="dose-panel" aria-label="Organ dose output">
+          <div class="dose-scroll">
+            <table>
+              <thead>
+                <tr>
+                  <th>Organ</th>
+                  <th>Dose (mGy)</th>
+                </tr>
+              </thead>
+              <tbody id="organDoseRows"></tbody>
+            </table>
+          </div>
+          <div class="effective-row">
+            <span id="effectiveLabel">E103F (mSv)</span>
+            <span id="effectiveDose" class="dose">0</span>
+          </div>
+        </section>
+        <div class="export-row">
+          <button id="copyDose" type="button">Copy Dose to Clipboard</button>
+        </div>
+        <div id="copyMessage" class="copy-message hidden" aria-live="polite"></div>
+      </div>
+
+    </section>
+  </main>
+
+  <div id="loadingMask" class="loading-mask">
+    <div class="loading-box">
+      <p class="loading-title">Loading calculation data</p>
+      <p id="loadingText" class="loading-text">Preparing CSV tables...</p>
+    </div>
+  </div>
+
+  <script>
+    "use strict";
+
+    const ORGANS = 29;
+    const DISPLAY_ORGANS = 28;
+    const SLICES = 600;
+    const DOSE_SPECTRA = 8;
+    const TCM_SPECTRA = 4;
+    const TCM_COLUMNS = 3;
+    const PHANTOMS = 12;
+    const DOSE_LINES = PHANTOMS * DOSE_SPECTRA * ORGANS;
+    const TCM_LINES = PHANTOMS * TCM_SPECTRA * TCM_COLUMNS;
+    const DRAG_HANDLE_DISTANCE = 18;
+    const KEYBOARD_STEP = 0.1;
+    const LITTLE_ENDIAN = new Uint8Array(new Uint16Array([1]).buffer)[0] === 1;
+
+    const ctdiAirToW = [
+      0.63714, 0.30933, 0.69260, 0.35215,
+      0.72164, 0.37742, 0.73740, 0.39360
+    ];
+
+    const phantoms = [
+      { height: 47.471, thickness: 0.1326, label: "0.1326" },
+      { height: 47.471, thickness: 0.1326, label: "0.1326" },
+      { height: 76.440, thickness: 0.1400, label: "0.14" },
+      { height: 76.440, thickness: 0.1400, label: "0.14" },
+      { height: 110.282, thickness: 0.1928, label: "0.1928" },
+      { height: 110.282, thickness: 0.1928, label: "0.1928" },
+      { height: 139.680, thickness: 0.2425, label: "0.2425" },
+      { height: 139.680, thickness: 0.2425, label: "0.2425" },
+      { height: 161.479, thickness: 0.2828, label: "0.2828" },
+      { height: 165.955, thickness: 0.2832, label: "0.2832" },
+      { height: 168.432, thickness: 0.4840, label: "0.484" },
+      { height: 177.600, thickness: 0.8000, label: "0.8" }
+    ];
+
+    const femaleOrgans = [
+      "R-marrow", "Colon", "Lungs", "St-wall", "Breast", "Gonads",
+      "UB-wall", "Oesophagus", "Liver", "Thyroid", "Endost-BS", "Brain",
+      "S-glands", "Skin", "Adrenals", "ET", "GB-wall", "Ht-wall",
+      "Kidneys", "Lymph", "Muscle", "O-mucosa", "Pancreas", "Uterus",
+      "SI-wall", "Spleen", "Thymus", "Lens"
+    ];
+
+    const maleOrgans = [
+      "R-marrow", "Colon", "Lungs", "St-wall", "Breast", "Gonads",
+      "UB-wall", "Oesophagus", "Liver", "Thyroid", "Endost-BS", "Brain",
+      "S-glands", "Skin", "Adrenals", "ET", "GB-wall", "Ht-wall",
+      "Kidneys", "Lymph", "Muscle", "O-mucosa", "Pancreas", "Prostate",
+      "SI-wall", "Spleen", "Thymus", "Lens"
+    ];
+
+    const state = {
+      dataReady: false,
+      dose: null,
+      doseTcm: null,
+      tcm: null,
+      dragHandle: null,
+      hoverHandle: null,
+      phantomIndex: 0,
+      phantomHeight: 47.471,
+      sliceThickness: 0.1326,
+      imageCache: new Map(),
+      latestRows: [],
+      latestEffective: "0"
+    };
+
+    const $ = (id) => document.getElementById(id);
+    const statusEl = $("status");
+    const loadingMask = $("loadingMask");
+    const loadingText = $("loadingText");
+    const canvas = $("phantomCanvas");
+    const ctx = canvas.getContext("2d");
+
+    function setStatus(message, isError = false) {
+      statusEl.textContent = message;
+      statusEl.classList.toggle("error", isError);
+    }
+
+    function setLoading(message, visible = true) {
+      loadingText.textContent = message;
+      loadingMask.classList.toggle("hidden", !visible);
+    }
+
+    function radioIndex(name) {
+      const checked = document.querySelector(`input[name="${name}"]:checked`);
+      return checked ? Number(checked.value) : 0;
+    }
+
+    function setRadioIndex(name, value) {
+      const target = document.querySelector(`input[name="${name}"][value="${value}"]`);
+      if (target) target.checked = true;
+    }
+
+    function numberFromInput(id, fallback) {
+      const value = Number.parseFloat($(id).value);
+      return Number.isFinite(value) ? value : fallback;
+    }
+
+    function clamp(value, min, max) {
+      return Math.min(Math.max(value, min), max);
+    }
+
+    function formatNumber(value, digits = 6) {
+      if (!Number.isFinite(value)) return "0";
+      const rounded = Math.round(value * (10 ** digits)) / (10 ** digits);
+      if (Object.is(rounded, -0)) return "0";
+      return String(rounded);
+    }
+
+    function xojoRoundToNSignificantDigits(number, n) {
+      const powerOfTen = n - Math.round(Math.log(Math.abs(number)) / Math.log(10)) - (number > 0 ? 1 : 0);
+      const factor = 10 ** powerOfTen;
+      return formatNumber(Math.round(number * factor) / factor, Math.max(powerOfTen, 0) + 2);
+    }
+
+    function numberPrecision(organdose) {
+      if (!Number.isFinite(organdose)) return "0";
+      if (organdose === 0) return "0";
+      if (organdose < 1e-5) return "<0.00001";
+      if (organdose < 1e-4) return xojoRoundToNSignificantDigits(organdose, 1);
+      if (organdose < 1e-1) return xojoRoundToNSignificantDigits(organdose, 2);
+      return xojoRoundToNSignificantDigits(organdose, 3);
+    }
+
+    function doseOffset(organIndex, sliceIndex, spectrumIndex, phantomIndex) {
+      const lineIndex = ((phantomIndex * DOSE_SPECTRA + spectrumIndex) * ORGANS) + organIndex;
+      return lineIndex * SLICES + sliceIndex;
+    }
+
+    function tcmOffset(columnIndex, sliceIndex, spectrumIndex, phantomIndex) {
+      const lineIndex = ((phantomIndex * TCM_SPECTRA + spectrumIndex) * TCM_COLUMNS) + columnIndex;
+      return lineIndex * SLICES + sliceIndex;
+    }
+
+    function renderKvpOptions() {
+      const ageIndex = radioIndex("age");
+      const current = radioIndex("kvp");
+      const values = ageIndex < 5 ? ["80", "100", "120"] : ["80", "100", "120", "140"];
+      const selected = Math.min(current, values.length - 1);
+      $("kvpOptions").replaceChildren(...values.map((label, index) => {
+        const wrapper = document.createElement("label");
+        const input = document.createElement("input");
+        input.type = "radio";
+        input.name = "kvp";
+        input.value = String(index);
+        input.checked = index === selected;
+        input.addEventListener("change", updateAll);
+        wrapper.append(input, label);
+        return wrapper;
+      }));
+    }
+
+    function setAgePhantomIndex(resetScanRange) {
+      const ageIndex = radioIndex("age");
+      const genderIndex = radioIndex("gender");
+      const phantomIndex = ageIndex * 2 + genderIndex;
+      const phantom = phantoms[phantomIndex];
+
+      state.phantomIndex = phantomIndex;
+      state.phantomHeight = phantom.height;
+      state.sliceThickness = phantom.thickness;
+
+      $("sliceThickness").textContent = phantom.label;
+      $("effectiveLabel").textContent = genderIndex === 0 ? "E103F (mSv)" : "E103M (mSv)";
+
+      if (resetScanRange) {
+        $("inputStart").value = "0";
+        $("inputEnd").value = formatNumber(phantom.height, 3);
+      }
+
+      renderKvpOptions();
+      updateDlp();
+    }
+
+    function sanitizeScanRange(changedField) {
+      let start = numberFromInput("inputStart", 0);
+      let end = numberFromInput("inputEnd", state.phantomHeight);
+      const minStep = state.sliceThickness;
+
+      start = clamp(start, 0, state.phantomHeight);
+      end = clamp(end, 0, state.phantomHeight);
+
+      if (start >= end) {
+        if (changedField === "start") {
+          start = Math.max(0, end - minStep);
+        } else {
+          end = Math.min(state.phantomHeight, start + minStep);
+        }
+      }
+
+      $("inputStart").value = formatNumber(start, 3);
+      $("inputEnd").value = formatNumber(end, 3);
+    }
+
+    function updateDlp() {
+      const start = numberFromInput("inputStart", 0);
+      const end = numberFromInput("inputEnd", state.phantomHeight);
+      const ctdi = numberFromInput("inputCtdi", 0);
+      const scanLength = Math.max(0, end - start);
+      $("scanLength").value = formatNumber(scanLength, 6);
+      $("outputDlp").value = formatNumber(ctdi * scanLength, 6);
+    }
+
+    function imagePath() {
+      const viewIndex = radioIndex("view");
+      const prefix = (viewIndex + 1) * 100;
+      return `phantom${prefix + state.phantomIndex + 1}.jpg`;
+    }
+
+    function getCachedImage(src) {
+      if (state.imageCache.has(src)) return state.imageCache.get(src);
+      const img = new Image();
+      img.onload = drawPhantom;
+      img.onerror = drawPhantom;
+      img.src = src;
+      state.imageCache.set(src, img);
+      return img;
+    }
+
+    function scanBoundaryY() {
+      const start = numberFromInput("inputStart", 0);
+      const end = numberFromInput("inputEnd", state.phantomHeight);
+      return {
+        startY: start / state.phantomHeight * 500,
+        endY: end / state.phantomHeight * 500
+      };
+    }
+
+    function drawPhantom() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.fillStyle = "#ffffff";
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      const img = getCachedImage(imagePath());
+      if (img.complete && img.naturalWidth > 0) {
+        ctx.drawImage(img, 0, 0, 500, 500);
+      } else {
+        ctx.fillStyle = "#5c6675";
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.fillText("Loading phantom image...", 250, 250);
+      }
+
+      const start = numberFromInput("inputStart", 0);
+      const end = numberFromInput("inputEnd", state.phantomHeight);
+      const scanLength = Math.max(0, end - start);
+      const yStart = start / state.phantomHeight * 500;
+      const yEnd = end / state.phantomHeight * 500;
+      const yHeight = scanLength / state.phantomHeight * 500;
+      const activeHandle = state.dragHandle || state.hoverHandle;
+
+      ctx.fillStyle = "rgba(30, 109, 242, 0.16)";
+      ctx.fillRect(2, yStart, 497, yHeight);
+
+      ctx.strokeStyle = "rgba(30, 109, 242, 0.9)";
+      ctx.lineWidth = activeHandle ? 4 : 2;
+      ctx.strokeRect(2, yStart, 497, yHeight);
+    }
+
+    function selectedSpectrumIndex() {
+      const kvpIndex = radioIndex("kvp");
+      const filterIndex = radioIndex("filter");
+      return kvpIndex * 2 + (filterIndex === 0 ? 0 : 1);
+    }
+
+    function updateOrganDose() {
+      updateDlp();
+      drawPhantom();
+
+      $("ctdiLabel").textContent = radioIndex("filter") === 0 ? "CTDIvol 16 cm" : "CTDIvol 32 cm";
+      $("tcmWarning").textContent = radioIndex("tcm") === 0 ? "" : "Educational use only";
+
+      if (!state.dataReady) {
+        renderDoseRows(femaleOrgans.map((organ) => ({ organ, dose: "..." })), "0");
+        return;
+      }
+
+      const start = numberFromInput("inputStart", 0);
+      const end = numberFromInput("inputEnd", state.phantomHeight);
+      const ctdi = numberFromInput("inputCtdi", 0);
+      const kvpIndex = radioIndex("kvp");
+      const spectrumIndex = selectedSpectrumIndex();
+      const tcmMode = radioIndex("tcm");
+
+      const scanStart = clamp(Math.floor(start / state.sliceThickness) + 1, 1, SLICES);
+      const scanEnd = clamp(Math.ceil(end / state.sliceThickness), scanStart, SLICES);
+      const scanSliceCount = scanEnd - scanStart + 1;
+      const organDose = new Float64Array(ORGANS);
+
+      if (tcmMode === 0) {
+        for (let organ = 0; organ < ORGANS; organ += 1) {
+          let sum = 0;
+          for (let k = scanStart; k <= scanEnd; k += 1) {
+            sum += state.dose[doseOffset(organ, k - 1, spectrumIndex, state.phantomIndex)];
+          }
+          organDose[organ] = sum * ctdi;
+        }
+      } else if (tcmMode === 1) {
+        let denom = 0;
+        for (let k = scanStart; k <= scanEnd; k += 1) {
+          denom += state.tcm[tcmOffset(2, k - 1, kvpIndex, state.phantomIndex)];
+        }
+
+        for (let organ = 0; organ < ORGANS; organ += 1) {
+          let sum = 0;
+          for (let k = scanStart; k <= scanEnd; k += 1) {
+            const eta = state.tcm[tcmOffset(2, k - 1, kvpIndex, state.phantomIndex)];
+            sum += state.dose[doseOffset(organ, k - 1, spectrumIndex, state.phantomIndex)] * eta;
+          }
+          organDose[organ] = denom === 0 ? 0 : sum * ctdi / denom * scanSliceCount;
+        }
+      } else {
+        let denom = 0;
+        for (let k = scanStart; k <= scanEnd; k += 1) {
+          denom += state.tcm[tcmOffset(0, k - 1, kvpIndex, state.phantomIndex)];
+        }
+
+        for (let organ = 0; organ < ORGANS; organ += 1) {
+          let sum = 0;
+          for (let k = scanStart; k <= scanEnd; k += 1) {
+            const dose0 = state.dose[doseOffset(organ, k - 1, spectrumIndex, state.phantomIndex)];
+            const dose1 = state.doseTcm[doseOffset(organ, k - 1, spectrumIndex, state.phantomIndex)];
+            const tau = state.tcm[tcmOffset(0, k - 1, kvpIndex, state.phantomIndex)];
+            const zeta = state.tcm[tcmOffset(1, k - 1, kvpIndex, state.phantomIndex)];
+            sum += tau * (dose0 + zeta * dose1) / (1 + zeta);
+          }
+          organDose[organ] = denom === 0 ? 0 : sum * ctdi / denom * scanSliceCount;
+        }
+      }
+
+      const conversion = ctdiAirToW[spectrumIndex];
+      const organs = radioIndex("gender") === 0 ? femaleOrgans : maleOrgans;
+      const rows = [];
+
+      for (let i = 0; i < DISPLAY_ORGANS; i += 1) {
+        rows.push({
+          organ: organs[i],
+          dose: numberPrecision(organDose[i] / conversion)
+        });
+      }
+
+      const effectiveDose = numberPrecision(organDose[28] / conversion);
+      renderDoseRows(rows, effectiveDose);
+    }
+
+    function renderDoseRows(rows, effectiveDose) {
+      state.latestRows = rows;
+      state.latestEffective = effectiveDose;
+
+      const body = $("organDoseRows");
+      body.replaceChildren(...rows.map((row) => {
+        const tr = document.createElement("tr");
+        const organCell = document.createElement("td");
+        const doseCell = document.createElement("td");
+        organCell.textContent = row.organ;
+        doseCell.textContent = row.dose;
+        tr.append(organCell, doseCell);
+        return tr;
+      }));
+      $("effectiveDose").textContent = effectiveDose;
+    }
+
+    function setCopyMessage(message, isError = false) {
+      const messageEl = $("copyMessage");
+      messageEl.textContent = message;
+      messageEl.classList.toggle("hidden", !message);
+      messageEl.classList.toggle("error", isError);
+    }
+
+    function updateAll(clearCopyMessage = true) {
+      if (clearCopyMessage) setCopyMessage("");
+      updateOrganDose();
+    }
+
+    function canvasYFromPointer(event) {
+      const rect = canvas.getBoundingClientRect();
+      const y = (event.clientY - rect.top) / rect.height * 500;
+      return clamp(y, 0, 500);
+    }
+
+    function dragHandleForY(y, requireNearBoundary = false) {
+      const { startY, endY } = scanBoundaryY();
+      const startDistance = Math.abs(y - startY);
+      const endDistance = Math.abs(y - endY);
+      const nearestDistance = Math.min(startDistance, endDistance);
+      if (requireNearBoundary && nearestDistance > DRAG_HANDLE_DISTANCE) return null;
+      return startDistance <= endDistance ? "start" : "end";
+    }
+
+    function setScanBoundaryFromY(handle, y) {
+      const value = Math.round(y / 500 * state.phantomHeight * 1000) / 1000;
+      if (handle === "start") {
+        $("inputStart").value = formatNumber(value, 3);
+        sanitizeScanRange("start");
+      } else {
+        $("inputEnd").value = formatNumber(value, 3);
+        sanitizeScanRange("end");
+      }
+      updateAll();
+    }
+
+    function commitManualScanInput(changedField) {
+      sanitizeScanRange(changedField);
+      updateAll();
+    }
+
+    function sanitizeCtdi(commit = false) {
+      const input = $("inputCtdi");
+      const value = Number.parseFloat(input.value);
+
+      if (!Number.isFinite(value)) {
+        if (commit) input.value = "0";
+        return;
+      }
+
+      if (value < 0) {
+        input.value = "0";
+        return;
+      }
+
+      if (commit) {
+        input.value = formatNumber(clamp(value, 0, 99.999), 3);
+      }
+    }
+
+    function stepNumberInput(id, delta, fallback, min, max) {
+      const current = numberFromInput(id, fallback);
+      const stepped = Math.round((current + delta) * 10) / 10;
+      $(id).value = formatNumber(clamp(stepped, min, max), 3);
+    }
+
+    function bindKeyboardStep(id, onStep) {
+      $(id).addEventListener("keydown", (event) => {
+        if (event.key !== "ArrowUp" && event.key !== "ArrowDown") return;
+        event.preventDefault();
+        onStep(event.key === "ArrowUp" ? KEYBOARD_STEP : -KEYBOARD_STEP);
+      });
+    }
+
+    async function copyDoseToClipboard() {
+      const effectiveLabel = $("effectiveLabel").textContent;
+      const rows = [...state.latestRows, { organ: effectiveLabel, dose: state.latestEffective }];
+      const text = ["Organ name\tDose (mGy)", ...rows.map((row) => `${row.organ}\t${row.dose}`)].join("\n");
+
+      try {
+        await navigator.clipboard.writeText(text);
+        setCopyMessage("Dose table copied to clipboard.");
+      } catch (error) {
+        setCopyMessage("Clipboard copy failed. Use HTTPS or localhost and try again.", true);
+        console.error(error);
+      }
+    }
+
+    async function nextPaint() {
+      await new Promise((resolve) => requestAnimationFrame(resolve));
+    }
+
+    function parseCsvNumbers(text, expectedLines, filename) {
+      const expectedValues = expectedLines * SLICES;
+      const values = new Float64Array(expectedValues);
+      let offset = 0;
+      let lineCount = 0;
+      let lineValueCount = 0;
+      let tokenStart = 0;
+
+      for (let index = 0; index <= text.length; index += 1) {
+        const atEnd = index === text.length;
+        const char = atEnd ? 10 : text.charCodeAt(index);
+        if (!atEnd && char !== 44 && char !== 10 && char !== 13) continue;
+
+        if (index > tokenStart) {
+          if (lineValueCount < SLICES) {
+            if (offset >= expectedValues) {
+              throw new Error(`${filename} has more than ${expectedLines} lines.`);
+            }
+
+            const value = Number(text.slice(tokenStart, index));
+            if (!Number.isFinite(value)) {
+              throw new Error(`${filename} line ${lineCount + 1} contains an invalid value.`);
+            }
+
+            values[offset] = value;
+            offset += 1;
+          }
+          lineValueCount += 1;
+        } else if (char === 44) {
+          throw new Error(`${filename} line ${lineCount + 1} has an empty value.`);
+        }
+
+        if (char === 44) {
+          tokenStart = index + 1;
+          continue;
+        }
+
+        if (char === 13 && text.charCodeAt(index + 1) === 10) {
+          index += 1;
+        }
+
+        if (lineValueCount > 0) {
+          if (lineValueCount < SLICES) {
+            throw new Error(`${filename} line ${lineCount + 1} has ${lineValueCount} values; expected ${SLICES}.`);
+          }
+          lineCount += 1;
+          lineValueCount = 0;
+          if (lineCount > expectedLines) {
+            throw new Error(`${filename} has more than ${expectedLines} lines.`);
+          }
+        }
+
+        tokenStart = index + 1;
+      }
+
+      if (lineCount !== expectedLines) {
+        throw new Error(`${filename} has ${lineCount} lines; expected ${expectedLines}.`);
+      }
+      if (offset !== expectedValues) {
+        throw new Error(`${filename} has ${offset} values; expected ${expectedValues}.`);
+      }
+
+      return values;
+    }
+
+    function float64ArrayFromBuffer(buffer, expectedLines, filename) {
+      const expectedValues = expectedLines * SLICES;
+      const expectedBytes = expectedValues * Float64Array.BYTES_PER_ELEMENT;
+      if (buffer.byteLength !== expectedBytes) {
+        throw new Error(`${filename} has ${buffer.byteLength} bytes; expected ${expectedBytes}.`);
+      }
+
+      if (LITTLE_ENDIAN) {
+        return new Float64Array(buffer);
+      }
+
+      const view = new DataView(buffer);
+      const values = new Float64Array(expectedValues);
+      for (let index = 0; index < expectedValues; index += 1) {
+        values[index] = view.getFloat64(index * Float64Array.BYTES_PER_ELEMENT, true);
+      }
+      return values;
+    }
+
+    async function fetchBinaryTable(filename, expectedLines) {
+      const response = await fetch(filename);
+      if (!response.ok) {
+        const error = new Error(`Could not load ${filename}: HTTP ${response.status}`);
+        error.canFallbackToCsv = response.status === 404;
+        throw error;
+      }
+
+      const buffer = await response.arrayBuffer();
+      return float64ArrayFromBuffer(buffer, expectedLines, filename);
+    }
+
+    async function fetchCsv(filename, expectedLines, label) {
+      const response = await fetch(filename);
+      if (!response.ok) {
+        throw new Error(`Could not load ${filename}: HTTP ${response.status}`);
+      }
+
+      const text = await response.text();
+      setLoading(`Parsing ${label}...`);
+      await nextPaint();
+      return parseCsvNumbers(text, expectedLines, filename);
+    }
+
+    async function loadTable(binaryFilename, csvFilename, expectedLines) {
+      try {
+        return await fetchBinaryTable(binaryFilename, expectedLines);
+      } catch (error) {
+        if (!error.canFallbackToCsv) throw error;
+      }
+
+      return fetchCsv(csvFilename, expectedLines, csvFilename);
+    }
+
+    async function loadData() {
+      if (window.location.protocol === "file:") {
+        throw new Error("Open this calculator through a local web server so the data files can be loaded.");
+      }
+
+      setLoading("Loading calculation tables...");
+      await nextPaint();
+
+      [
+        state.dose,
+        state.doseTcm,
+        state.tcm
+      ] = await Promise.all([
+        loadTable("data_dcc_notcm.f64", "data_dcc_notcm.csv", DOSE_LINES),
+        loadTable("data_dcc_tcm.f64", "data_dcc_tcm.csv", DOSE_LINES),
+        loadTable("data_tcm.f64", "data_tcm.csv", TCM_LINES)
+      ]);
+      state.dataReady = true;
+    }
+
+    function bindEvents() {
+      document.querySelectorAll('input[name="age"]').forEach((input) => {
+        input.addEventListener("change", () => {
+          setAgePhantomIndex(true);
+          updateAll();
+        });
+      });
+
+      document.querySelectorAll('input[name="gender"]').forEach((input) => {
+        input.addEventListener("change", () => {
+          setAgePhantomIndex(true);
+          updateAll();
+        });
+      });
+
+      document.querySelectorAll('input[name="view"], input[name="filter"], input[name="tcm"]').forEach((input) => {
+        input.addEventListener("change", updateAll);
+      });
+
+      $("inputStart").addEventListener("input", () => {
+        updateAll();
+      });
+      $("inputStart").addEventListener("change", () => commitManualScanInput("start"));
+      $("inputStart").addEventListener("blur", () => commitManualScanInput("start"));
+      bindKeyboardStep("inputStart", (delta) => {
+        stepNumberInput("inputStart", delta, 0, 0, state.phantomHeight);
+        commitManualScanInput("start");
+      });
+
+      $("inputEnd").addEventListener("input", () => {
+        updateAll();
+      });
+      $("inputEnd").addEventListener("change", () => commitManualScanInput("end"));
+      $("inputEnd").addEventListener("blur", () => commitManualScanInput("end"));
+      bindKeyboardStep("inputEnd", (delta) => {
+        stepNumberInput("inputEnd", delta, state.phantomHeight, 0, state.phantomHeight);
+        commitManualScanInput("end");
+      });
+
+      $("inputCtdi").addEventListener("input", () => {
+        sanitizeCtdi(false);
+        updateAll();
+      });
+      $("inputCtdi").addEventListener("change", () => {
+        sanitizeCtdi(true);
+        updateAll();
+      });
+      $("inputCtdi").addEventListener("blur", () => {
+        sanitizeCtdi(true);
+        updateAll();
+      });
+      bindKeyboardStep("inputCtdi", (delta) => {
+        stepNumberInput("inputCtdi", delta, 10, 0, 99.999);
+        updateAll();
+      });
+
+      canvas.addEventListener("pointerdown", (event) => {
+        const y = canvasYFromPointer(event);
+        state.dragHandle = dragHandleForY(y, true);
+        if (!state.dragHandle) return;
+
+        event.preventDefault();
+        state.hoverHandle = state.dragHandle;
+        canvas.style.cursor = "ns-resize";
+        canvas.setPointerCapture(event.pointerId);
+        setScanBoundaryFromY(state.dragHandle, y);
+      });
+
+      canvas.addEventListener("pointermove", (event) => {
+        const y = canvasYFromPointer(event);
+        if (state.dragHandle) {
+          event.preventDefault();
+          setScanBoundaryFromY(state.dragHandle, y);
+          return;
+        }
+
+        const nextHandle = dragHandleForY(y, true);
+        canvas.style.cursor = nextHandle ? "ns-resize" : "default";
+        if (nextHandle !== state.hoverHandle) {
+          state.hoverHandle = nextHandle;
+          drawPhantom();
+        }
+      });
+
+      canvas.addEventListener("pointerup", (event) => {
+        if (state.dragHandle) {
+          if (canvas.hasPointerCapture(event.pointerId)) canvas.releasePointerCapture(event.pointerId);
+          state.dragHandle = null;
+          drawPhantom();
+        }
+      });
+
+      canvas.addEventListener("pointercancel", (event) => {
+        if (state.dragHandle) {
+          if (canvas.hasPointerCapture(event.pointerId)) canvas.releasePointerCapture(event.pointerId);
+          state.dragHandle = null;
+          drawPhantom();
+        }
+      });
+
+      canvas.addEventListener("pointerleave", () => {
+        canvas.style.cursor = "default";
+        if (!state.dragHandle && state.hoverHandle) {
+          state.hoverHandle = null;
+          drawPhantom();
+        }
+      });
+
+      $("copyDose").addEventListener("click", copyDoseToClipboard);
+    }
+
+    async function start() {
+      bindEvents();
+      setAgePhantomIndex(true);
+      renderKvpOptions();
+      updateAll();
+
+      try {
+        await loadData();
+        setLoading("Data loaded.", false);
+        setStatus("");
+        updateAll();
+      } catch (error) {
+        setLoading(error.message, true);
+        setStatus(error.message, true);
+        console.error(error);
+      }
+    }
+
+    start();
+  </script>
+</body>
+</html>

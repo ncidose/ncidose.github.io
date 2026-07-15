@@ -142,6 +142,28 @@ const ToolContent = ({
       ) : null}
     </div>
 
+    {tool.id === "ncict" && (
+      <section
+        aria-labelledby="ncict-calculator-heading"
+        className="overflow-hidden border border-border bg-white shadow-xl"
+      >
+        <div className="border-b border-border bg-slate-50 px-4 py-3">
+          <h4
+            id="ncict-calculator-heading"
+            className="font-mono text-xs uppercase tracking-widest text-muted-foreground"
+          >
+            NCICT Dose Calculator — Preview
+          </h4>
+        </div>
+        <iframe
+          src="/icrpct/index.html"
+          title="NCICT Dose Calculator"
+          className="h-[1180px] w-full bg-slate-50"
+          loading="lazy"
+        />
+      </section>
+    )}
+
     <div className="border border-border bg-slate-50 p-6">
       <div className="grid gap-5 lg:grid-cols-[1fr_auto] lg:items-center">
         <div>
