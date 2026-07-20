@@ -1,7 +1,6 @@
 import { useEffect } from "react";
 import { useLocation } from "react-router-dom";
 import { Header } from "@/components/Header";
-import { Hero } from "@/components/Hero";
 import { WhatAreTools } from "@/components/WhatAreTools";
 import { GlobalMap } from "@/components/GlobalMap";
 import { WhereToStart } from "@/components/WhereToStart";
@@ -19,7 +18,6 @@ const Index = () => {
     <div className="min-h-screen bg-background text-foreground">
       <Header />
       <main>
-        <Hero />
         <WhatAreTools />
         <GlobalMap />
         <WhereToStart />
