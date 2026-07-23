@@ -32,9 +32,9 @@ const apiHighlights = [
   },
   {
     icon: TestTube2,
-    title: "Evaluation requires review",
+    title: "Licensing and approval pathway",
     description:
-      "Vendor evaluation, product integration, and commercial use require review through the NCI Technology Transfer Center.",
+      "The NCI Technology Transfer Center coordinates vendor evaluation and defines the appropriate licensing path before product integration or commercial use.",
   },
 ];
 
@@ -197,9 +197,9 @@ const Engine = () => {
                 <a href="mailto:kevin.chang@nih.gov" className="btn-precision">
                   Request REST API Trial
                 </a>
-                <a href="#components" className="btn-precision-outline">
+                <Link to="/vendors#components" className="btn-precision-outline">
                   View Components
-                </a>
+                </Link>
               </div>
             </motion.div>
           </div>
@@ -218,7 +218,7 @@ const Engine = () => {
                   REST API Integration
                 </span>
                 <h2 className="mt-4 text-section-md lg:text-section">
-                  Technical review for vendor-side integration
+                  Integration pathways for vendor-side implementation
                 </h2>
                 <p className="mt-5 text-muted-foreground">
                   For vendors, the central question is not only whether dose
