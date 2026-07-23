@@ -7,6 +7,7 @@ LOG_DIR="$PROJECT_DIR/logs"
 LOG_FILE="$LOG_DIR/literature-update.log"
 LOCK_DIR="$LOG_DIR/literature-update.lock"
 SSH_KEY="/Users/choonsiklee/.ssh/github_ncidose_ed25519"
+REPOSITORY="git@github.com:ncidose/ncidose.github.io.git"
 
 export PATH="/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin"
 export GIT_SSH_COMMAND="ssh -F /dev/null -i $SSH_KEY -o IdentitiesOnly=yes"
@@ -22,19 +23,15 @@ mkdir -p "$LOG_DIR"
   fi
   trap 'rmdir "$LOCK_DIR"' EXIT
 
-  cd "$PROJECT_DIR"
+  UPDATE_DIR="$(mktemp -d "${TMPDIR:-/tmp}/ncidose-literature-update.XXXXXX")"
+  trap 'rm -rf "$UPDATE_DIR"; rmdir "$LOCK_DIR"' EXIT
 
-  if [[ -n "$(git status --porcelain)" ]]; then
-    printf '[%s] Working tree is not clean; refusing to auto-commit\n' "$(date '+%Y-%m-%d %H:%M:%S')"
-    git status --short
-    exit 1
-  fi
+  git clone --depth 1 --branch main "$REPOSITORY" "$UPDATE_DIR"
+  cd "$UPDATE_DIR"
 
-  git fetch origin main
-  git merge --ff-only origin/main
-
+  "$NPM" ci
   "$NPM" run literature:update
-  "$NPM" run publish:root
+  cp public/literature.json literature.json
 
   if git diff --quiet -- public/literature.json literature.json; then
     printf '[%s] No literature data changes to commit\n' "$(date '+%Y-%m-%d %H:%M:%S')"
