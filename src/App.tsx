@@ -4,6 +4,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { HashRouter, Routes, Route } from "react-router-dom";
 import { ScrollToTop } from "@/components/ScrollToTop";
+import { Analytics } from "@/components/Analytics";
 import Index from "./pages/Index";
 import Engine from "./pages/Engine";
 import Protocols from "./pages/Protocols";
@@ -21,6 +22,7 @@ const App = () => (
       <Toaster />
       <Sonner />
       <HashRouter>
+        <Analytics />
         <div onContextMenu={(event) => event.preventDefault()} onDragStart={(event) => event.preventDefault()}>
           <ScrollToTop />
           <Routes>

@@ -15,6 +15,13 @@ npm run dev
 npm run build
 ```
 
+## Google Analytics 4
+
+The GitHub Pages workflow builds the site with measurement ID
+`G-95GQF2F891`. Local builds can use `VITE_GA_MEASUREMENT_ID` in `.env.local`.
+
+Analytics is disabled automatically when the variable is absent.
+
 ## GitHub Pages
 
 This project is ready to run as the GitHub Pages user/organization site repo:

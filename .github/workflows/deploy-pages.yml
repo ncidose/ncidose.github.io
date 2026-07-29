@@ -36,6 +36,8 @@ jobs:
 
       - name: Build
         run: npm run build:pages
+        env:
+          VITE_GA_MEASUREMENT_ID: G-95GQF2F891
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
