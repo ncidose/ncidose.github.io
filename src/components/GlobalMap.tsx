@@ -20,14 +20,14 @@ const excludedCountryIsoA3 = new Set([
 export const GlobalMap = () => {
   const locations = useMemo(() => [
     { name: "United States", isoA3: "USA", users: 188 },
-    { name: "United Kingdom", isoA3: "GBR", users: 37 },
+    { name: "United Kingdom", isoA3: "GBR", users: 36 },
     { name: "Italy", isoA3: "ITA", users: 29 },
     { name: "France", isoA3: "FRA", users: 24 },
     { name: "Japan", isoA3: "JPN", users: 18 },
     { name: "Australia", isoA3: "AUS", users: 16 },
     { name: "Canada", isoA3: "CAN", users: 14 },
     { name: "Brazil", isoA3: "BRA", users: 13 },
-    { name: "Ireland", isoA3: "IRL", users: 14 },
+    { name: "Ireland", isoA3: "IRL", users: 13 },
     { name: "Belgium", isoA3: "BEL", users: 12 },
     { name: "Germany", isoA3: "DEU", users: 12 },
     { name: "Portugal", isoA3: "PRT", users: 11 },
@@ -55,7 +55,7 @@ export const GlobalMap = () => {
     { name: "Israel", isoA3: "ISR", users: 3 },
     { name: "Malta", isoA3: "MLT", users: 3 },
     { name: "Norway", isoA3: "NOR", users: 3 },
-    { name: "Austria", isoA3: "AUT", users: 3 },
+    { name: "Austria", isoA3: "AUT", users: 2 },
     { name: "China", isoA3: "CHN", users: 2 },
     { name: "Colombia", isoA3: "COL", users: 2 },
     { name: "Cyprus", isoA3: "CYP", users: 2 },
@@ -88,7 +88,7 @@ export const GlobalMap = () => {
     [locations],
   );
 
-  const mapUpdatedAt = "July 23, 2026";
+  const mapUpdatedAt = "July 7, 2026";
 
   const geoUrl = "https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json";
 
