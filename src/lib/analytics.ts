@@ -11,7 +11,11 @@ export const initializeAnalytics = () => {
   if (!measurementId || typeof window === "undefined") return;
 
   window.dataLayer = window.dataLayer || [];
-  window.gtag = (...args: unknown[]) => window.dataLayer.push(args);
+  window.gtag = function gtag() {
+    // Google Tag expects each queued command to retain the function's Arguments object.
+    // eslint-disable-next-line prefer-rest-params
+    window.dataLayer.push(arguments);
+  };
   window.gtag("js", new Date());
   window.gtag("config", measurementId, { send_page_view: false });
 
