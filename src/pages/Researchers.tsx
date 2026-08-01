@@ -29,35 +29,6 @@ const FeatureCard = ({ icon, title, description, delay = 0 }: { icon: React.Reac
   );
 };
 
-const researchAccessItems = [
-  <>Available at no cost for non-commercial research use (direct clinical use and redistribution are not permitted)</>,
-  <>
-    Access requires an approved{" "}
-    <a
-      href={portalLinks.staForm}
-      target="_blank"
-      rel="noopener noreferrer"
-      className="text-primary hover:underline inline-flex items-center gap-1 font-medium"
-    >
-      Software Transfer Agreement (STA)
-      <ExternalLink className="w-3 h-3" />
-    </a>
-  </>,
-  <>
-    Tools are distributed through{" "}
-    <a
-      href="https://drive.google.com/drive/folders/1B2cI9eewJzRn5DJMaOGJ1RloNv0blxSF"
-      target="_blank"
-      rel="noopener noreferrer"
-      className="text-primary hover:underline inline-flex items-center gap-1 font-medium"
-    >
-      Google Drive invitation only
-      <ExternalLink className="w-3 h-3" />
-    </a>{" "}
-    after approval
-  </>,
-];
-
 const Researchers = () => {
   return (
     <div className="min-h-screen bg-background text-foreground">
@@ -207,73 +178,25 @@ const Researchers = () => {
           </div>
         </section>
 
-        {/* Access and Use */}
-        <section id="request-access" className="scroll-mt-24 py-24">
+        {/* Research access */}
+        <section className="py-24">
           <div className="container mx-auto px-6">
-            <div className="max-w-4xl mx-auto">
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
-                className="text-center mb-16"
-              >
-                <span className="text-xs font-mono text-primary uppercase tracking-widest">
-                  Access and Use
-                </span>
-                <h2 className="mt-4 text-section-md lg:text-section">
-                  How to Request Access
-                </h2>
-              </motion.div>
-
-              <motion.div
-                initial={{ opacity: 0, y: 30 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
-                className="glass-card p-8"
-              >
-                <div className="space-y-6 mb-8">
-                  {researchAccessItems.map((item, i) => (
-                    <motion.div
-                      key={i}
-                      initial={{ opacity: 0, x: -20 }}
-                      whileInView={{ opacity: 1, x: 0 }}
-                      viewport={{ once: true }}
-                      transition={{ duration: 0.5, delay: i * 0.1, ease: [0.16, 1, 0.3, 1] }}
-                      className="flex items-start gap-3"
-                    >
-                      <div className="w-2 h-2 bg-primary rounded-full mt-2 flex-shrink-0" />
-                      <p className="text-sm text-muted-foreground">{item}</p>
-                    </motion.div>
-                  ))}
-                </div>
-
-                <div className="mt-12 pt-8 border-t border-border">
-                  <h3 className="text-foreground font-medium mb-6">To request research access:</h3>
-                  <a
-                    href={portalLinks.staForm}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="mb-4 inline-flex items-center gap-2 font-mono text-sm text-primary hover:underline"
-                  >
-                    Complete the STA form
-                    <ExternalLink className="w-3 h-3" />
-                  </a>
-                  <div className="glass-card p-6 bg-primary/5 border-primary/20">
-                    <p className="text-foreground font-medium mb-1">Dr. Choonsik Lee</p>
-                    <p className="text-sm text-muted-foreground">Senior Investigator, Dosimetry Unit Head</p>
-                    <p className="text-sm text-muted-foreground mb-3">Radiation Epidemiology Branch, DCEG, NCI</p>
-                    <a 
-                      href="mailto:choonsik.lee@nih.gov" 
-                      className="text-primary hover:underline font-mono text-sm"
-                    >
-                      choonsik.lee@nih.gov
-                    </a>
-                  </div>
-                </div>
-              </motion.div>
-            </div>
+            <motion.div
+              initial={{ opacity: 0, y: 24 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
+              className="mx-auto max-w-4xl border border-border bg-white p-8 text-center sm:p-12"
+            >
+              <span className="font-mono text-xs uppercase tracking-widest text-primary">Research access</span>
+              <h2 className="mt-4 text-section-md">One place for access and downloads</h2>
+              <p className="mx-auto mt-5 max-w-2xl leading-relaxed text-muted-foreground">
+                NCI Dose Tools are available at no cost for approved non-commercial research use. Existing users sign in through the User Portal, and new users start their request from the same page.
+              </p>
+              <a href={portalLinks.userPortal} className="btn-precision mt-8 inline-flex items-center gap-2">
+                Open User Portal <ExternalLink className="h-4 w-4" />
+              </a>
+            </motion.div>
           </div>
         </section>
 

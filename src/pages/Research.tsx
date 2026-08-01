@@ -29,7 +29,7 @@ const portalCards = [
     eyebrow: "Official NCI Website",
     title: "DCEG Radiation Dosimetry Tools",
     description:
-      "The authoritative NCI website for official context, access instructions, and the Software Transfer Agreement pathway for non-commercial research use.",
+      "The authoritative NCI website for institutional context and information about NCI radiation dosimetry tools.",
     href: portalLinks.officialNci,
     linkText: "Open official NCI website",
   },
@@ -63,10 +63,10 @@ const userPaths = [
   },
   {
     title: "Research user",
-    text: "Use the official NCI website and STA form for official access, then use GitHub documentation and the secure user portal after approval.",
-    href: "/researchers",
-    linkText: "Research access path",
-    external: false,
+    text: "Use the User Portal for both new access requests and approved-user downloads.",
+    href: portalLinks.userPortal,
+    linkText: "Open User Portal",
+    external: true,
   },
   {
     title: "Commercial vendor",

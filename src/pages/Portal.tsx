@@ -218,8 +218,6 @@ const PortalSignIn = ({
   onSignIn: (role: "user" | "admin") => void;
   securePortalUrl?: string;
 }) => {
-  const [email, setEmail] = useState("");
-  const [emailStep, setEmailStep] = useState<"idle" | "sent">("idle");
   const beginSecureSignIn = () => {
     if (securePortalUrl) {
       window.location.assign(securePortalUrl);
@@ -274,63 +272,26 @@ const PortalSignIn = ({
           )}
 
           <Button
-            className="h-12 w-full rounded-none bg-white text-slate-900 shadow-none border border-slate-300 hover:bg-slate-50"
+            className="h-12 w-full rounded-none"
             disabled={!demoMode && !securePortalUrl}
             onClick={beginSecureSignIn}
           >
-            <span className="flex h-5 w-5 items-center justify-center rounded-full border border-slate-300 font-semibold text-[#4285F4]">G</span>
-            {securePortalUrl ? "Continue with approved Gmail" : "Continue with Google"}
+            <Mail className="h-4 w-4" /> Sign in with approved email
           </Button>
-          <p className="mt-2 text-center text-xs text-muted-foreground">Recommended for existing ncidose Google Group members</p>
+          <p className="mt-3 text-center text-xs leading-relaxed text-muted-foreground">
+            Use the Gmail address previously registered with the ncidose Google Group, or another email already approved for your account. Cloudflare will send a one-time code.
+          </p>
 
-          <div className="my-6 flex items-center gap-4 text-xs uppercase tracking-widest text-muted-foreground">
-            <span className="h-px flex-1 bg-border" /> or <span className="h-px flex-1 bg-border" />
-          </div>
-
-          <label htmlFor="portal-email" className="font-mono text-xs uppercase tracking-wider text-slate-600">Sign in with an email code</label>
-          <div className="mt-2 flex gap-2">
-            <Input
-              id="portal-email"
-              type="email"
-              value={email}
-              onChange={(event) => setEmail(event.target.value)}
-              placeholder="name@institution.edu"
-              className="h-11 rounded-none"
-              disabled={emailStep === "sent"}
-            />
-            <Button
-              variant="outline"
-              className="h-11 rounded-none"
-              disabled={(!demoMode && !securePortalUrl) || !email.includes("@")}
-              onClick={() => {
-                if (securePortalUrl) {
-                  window.location.assign(securePortalUrl);
-                  return;
-                }
-                setEmailStep("sent");
-              }}
-            >
-              {securePortalUrl ? "Continue" : "Send code"}
-            </Button>
-          </div>
-          {securePortalUrl && (
-            <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
-              Email verification is completed on the secure Cloudflare Access screen. A one-time code will be sent there.
-            </p>
-          )}
-          {emailStep === "sent" && (
-            <div className="mt-3 border border-primary/20 bg-primary/5 p-3 text-sm text-slate-700">
-              Preview: a one-time sign-in code would be sent to <strong>{email}</strong>.
-            </div>
-          )}
-
-          <div className="mt-7 border-t border-border pt-6 text-xs leading-relaxed text-muted-foreground">
-            First-time users still need an approved Software Transfer Agreement. Existing approvals will be carried over without re-registration.
-          </div>
-
-          <div className="mt-4 flex items-start gap-2 bg-slate-50 p-3 text-xs leading-relaxed text-slate-600">
+          <div className="mt-6 flex items-start gap-2 bg-slate-50 p-3 text-xs leading-relaxed text-slate-600">
             <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
-            After signing in, this browser can remain signed in for up to 30 days. A new code is normally needed only on a new browser, after signing out, or when the session expires.
+            If you do not sign out, you may not need a new code on every visit. A new code is required after the secure session expires.
+          </div>
+
+          <div className="mt-7 border-t border-border pt-6">
+            <div className="font-mono text-xs uppercase tracking-wider text-primary">New user</div>
+            <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
+              Start here to check eligibility, prepare the STA request, and follow the approval steps.
+            </p>
           </div>
 
           <Link
@@ -407,7 +368,7 @@ const AccessRequest = () => {
           <div className="font-mono text-xs uppercase tracking-widest text-primary">New user access</div>
           <h1 className="mt-4 text-4xl font-light tracking-tight sm:text-5xl">A clearer path from STA to downloads.</h1>
           <p className="mt-5 max-w-xl leading-relaxed text-muted-foreground">
-            The NCI Technology Transfer Center remains responsible for reviewing and executing the Software Transfer Agreement. The portal keeps your request status and account activation in one place.
+            The NCI Technology Transfer Center remains responsible for reviewing and executing the Software Transfer Agreement. This form prepares the request; signed agreements are submitted by email for review.
           </p>
           <div className="mt-9 space-y-3">
             {[

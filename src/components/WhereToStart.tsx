@@ -25,16 +25,16 @@ const startingPoints = [
   {
     icon: FlaskConical,
     title: "For Researchers",
-    description: "Find the non-commercial research access path, STA guidance, and approved-user documentation links.",
-    link: "/researchers#request-access",
-    linkText: "Research Access",
+    description: "Review research applications, methods, and documentation for non-commercial scientific use.",
+    link: "/researchers",
+    linkText: "Researcher Overview",
     external: false,
     color: "bg-primary/80",
   },
   {
     icon: LogIn,
     title: "Approved User Portal",
-    description: "Sign in to read announcements and download current NCI Dose Tools distributions.",
+    description: "Existing users sign in here. New users can also start an access request from the same page.",
     link: portalLinks.userPortal,
     linkText: "Open Portal",
     external: true,
@@ -53,7 +53,7 @@ const startingPoints = [
 
 export const WhereToStart = () => {
   return (
-    <section id="how-to-access" className="py-24">
+    <section id="where-to-start" className="py-24">
       <div className="container mx-auto px-6">
         <motion.div
           initial={{ opacity: 0, y: 20 }}

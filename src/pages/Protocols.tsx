@@ -190,10 +190,10 @@ const ToolContent = ({
         className="group border border-slate-200 p-4 transition-colors hover:border-primary"
       >
         <div className="font-mono text-xs uppercase tracking-widest text-primary">
-          Research access
+          For researchers
         </div>
         <p className="mt-2 text-sm text-muted-foreground group-hover:text-slate-700">
-          Request non-commercial use.
+          Review research applications and methods.
         </p>
       </Link>
       <a

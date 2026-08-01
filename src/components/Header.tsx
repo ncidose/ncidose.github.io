@@ -83,18 +83,6 @@ export const Header = () => {
 
           {/* Desktop CTA */}
           <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} transition={{ duration: 0.4, delay: 0.4, ease: [0.16, 1, 0.3, 1] }} className="hidden items-center gap-2 lg:flex">
-            <Link
-              to="/#how-to-access"
-              onClick={(e) => {
-                if (pathname === "/") {
-                  e.preventDefault();
-                  document.getElementById("how-to-access")?.scrollIntoView({ behavior: "smooth" });
-                }
-              }}
-              className="px-3 py-2 text-sm text-muted-foreground transition-colors hover:text-primary"
-            >
-              Get Access
-            </Link>
             <a href={portalLinks.userPortal} className="btn-precision inline-block text-sm">User Portal</a>
           </motion.div>
 
@@ -130,20 +118,7 @@ export const Header = () => {
                   </Link>
                 ))}
                 <div className="pt-6 border-t border-border">
-                  <a href={portalLinks.userPortal} onClick={() => setIsOpen(false)} className="btn-precision mb-3 inline-block w-full text-center text-sm">User Portal</a>
-                  <Link
-                    to="/#how-to-access"
-                    onClick={(e) => {
-                      setIsOpen(false);
-                      if (pathname === "/") {
-                        e.preventDefault();
-                        document.getElementById("how-to-access")?.scrollIntoView({ behavior: "smooth" });
-                      }
-                    }}
-                    className="btn-precision text-sm inline-block w-full text-center"
-                  >
-                    Request Access
-                  </Link>
+                  <a href={portalLinks.userPortal} onClick={() => setIsOpen(false)} className="btn-precision inline-block w-full text-center text-sm">User Portal</a>
                 </div>
               </nav>
             </SheetContent>

@@ -16,7 +16,7 @@ describe("portal migration experience", () => {
     );
 
     expect(screen.getByText(/Gmail address previously used/i)).toBeInTheDocument();
-    expect(screen.getByText(/without re-registration/i)).toBeInTheDocument();
+    expect(screen.getByText(/cloudflare will send a one-time code/i)).toBeInTheDocument();
   });
 
   it("opens an approved account without a new registration step", () => {
@@ -26,7 +26,7 @@ describe("portal migration experience", () => {
       </MemoryRouter>,
     );
 
-    fireEvent.click(screen.getByRole("button", { name: /continue with google/i }));
+    fireEvent.click(screen.getByRole("button", { name: /sign in with approved email/i }));
 
     expect(screen.getByText("Welcome, Approved Researcher")).toBeInTheDocument();
     expect(screen.getByText("Approved", { selector: ".text-3xl" })).toBeInTheDocument();
@@ -40,8 +40,9 @@ describe("portal migration experience", () => {
     );
 
     expect(screen.getByRole("heading", { name: /your approved tools, in one place/i })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /continue with approved gmail/i })).toBeEnabled();
-    expect(screen.getByText(/verification is completed on the secure Cloudflare Access screen/i)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /sign in with approved email/i })).toBeEnabled();
+    expect(screen.getByText(/cloudflare will send a one-time code/i)).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /request access as a new user/i })).toBeInTheDocument();
   });
 
   it("shows the NCI STA workflow for a new user", () => {
