@@ -89,6 +89,7 @@ const announcementFromRow = (row) => ({
   originalPublishedAt: row.original_published_at,
   publishedAt: row.published_at,
   sourceUrl: row.source_url,
+  read: Boolean(row.read_at),
 });
 
 function corsHeaders(request, env) {
@@ -123,13 +124,35 @@ export default {
       if (request.method === "GET" && url.pathname === "/api/announcements") {
         const includeDrafts = url.searchParams.get("includeDrafts") === "1" && user.role === "admin";
         const result = await env.DB.prepare(`
-          SELECT id, title, summary, body, category, audience, status, original_published_at, published_at, source_url
+          SELECT announcements.id, announcements.title, announcements.summary, announcements.body,
+            announcements.category, announcements.audience, announcements.status,
+            announcements.original_published_at, announcements.published_at, announcements.source_url,
+            announcement_reads.read_at
           FROM announcements
-          ${includeDrafts ? "" : "WHERE status='published'"}
-          ORDER BY COALESCE(original_published_at, published_at, created_at) DESC
+          LEFT JOIN announcement_reads
+            ON announcement_reads.announcement_id = announcements.id
+            AND announcement_reads.user_id = ?
+          ${includeDrafts ? "" : "WHERE announcements.status='published'"}
+          ORDER BY COALESCE(announcements.original_published_at, announcements.published_at, announcements.created_at) DESC
           LIMIT 200
-        `).all();
+        `).bind(user.id).all();
         return json({ announcements: result.results.map(announcementFromRow) }, 200, cors);
+      }
+
+      const announcementReadMatch = url.pathname.match(/^\/api\/announcements\/([a-z0-9_-]+)\/read$/i);
+      if (request.method === "POST" && announcementReadMatch) {
+        const origin = request.headers.get("origin");
+        if (origin && origin !== url.origin) return json({ error: "invalid_origin" }, 403, cors);
+        const announcement = await env.DB.prepare(
+          "SELECT id FROM announcements WHERE id=? AND status='published'",
+        ).bind(announcementReadMatch[1]).first();
+        if (!announcement) return json({ error: "announcement_not_found" }, 404, cors);
+        await env.DB.prepare(`
+          INSERT INTO announcement_reads (user_id, announcement_id)
+          VALUES (?, ?)
+          ON CONFLICT(user_id, announcement_id) DO NOTHING
+        `).bind(user.id, announcement.id).run();
+        return new Response(null, { status: 204, headers: cors });
       }
 
       if (request.method === "POST" && url.pathname === "/api/admin/announcements") {

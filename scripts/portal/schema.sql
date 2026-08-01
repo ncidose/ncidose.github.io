@@ -87,8 +87,16 @@ CREATE TABLE IF NOT EXISTS announcements (
   updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
+CREATE TABLE IF NOT EXISTS announcement_reads (
+  user_id TEXT NOT NULL REFERENCES users(id),
+  announcement_id TEXT NOT NULL REFERENCES announcements(id),
+  read_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (user_id, announcement_id)
+);
+
 CREATE INDEX IF NOT EXISTS idx_user_identities_email ON user_identities(normalized_email);
 CREATE INDEX IF NOT EXISTS idx_group_memberships_import ON group_memberships(last_import_id);
 CREATE INDEX IF NOT EXISTS idx_access_requests_status ON access_requests(workflow_status, created_at);
 CREATE INDEX IF NOT EXISTS idx_access_events_user_time ON access_events(user_id, occurred_at);
 CREATE INDEX IF NOT EXISTS idx_announcements_status_date ON announcements(status, published_at, original_published_at);
+CREATE INDEX IF NOT EXISTS idx_announcement_reads_user ON announcement_reads(user_id, read_at);

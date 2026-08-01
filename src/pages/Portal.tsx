@@ -194,7 +194,7 @@ export const Portal = ({ publicLanding = false }: { publicLanding?: boolean }) =
               </div>
             </div>
 
-            {section === "overview" && <Overview user={user} />}
+            {section === "overview" && <Overview user={user} demoMode={demoMode} />}
             {section === "downloads" && <Downloads demoMode={demoMode} />}
             {section === "announcements" && <Announcements demoMode={demoMode} />}
             {section === "account" && <Account user={user} setUser={setUser} />}
@@ -629,17 +629,55 @@ const PortalMobileNav = ({ section, isAdmin }: { section: PortalSection; isAdmin
 );
 
 const PortalNavLink = ({ item, active }: { item: { id: PortalSection; label: string; icon: typeof LayoutDashboard }; active: boolean }) => (
-  <Link to={item.id === "overview" ? "/portal" : `/portal/${item.id}`} className={cn("flex items-center gap-3 px-4 py-3 text-sm transition-colors", active ? "bg-primary text-white" : "text-slate-600 hover:bg-slate-50 hover:text-primary")}>
+  <Link
+    to={item.id === "overview" ? "/portal" : `/portal/${item.id}`}
+    aria-current={active ? "page" : undefined}
+    className={cn(
+      "flex items-center gap-3 border-l-2 px-4 py-3 text-sm transition-colors",
+      active ? "border-primary bg-primary/10 font-medium text-primary" : "border-transparent text-slate-600 hover:bg-slate-50 hover:text-primary",
+    )}
+  >
     <item.icon className="h-4 w-4" /> {item.label}
   </Link>
 );
 
-const Overview = ({ user }: { user: PortalUser }) => (
-  <div className="space-y-8">
-    <div className="grid gap-4 md:grid-cols-3">
+const Overview = ({ user, demoMode }: { user: PortalUser; demoMode: boolean }) => {
+  const [announcements, setAnnouncements] = useState<LiveAnnouncement[]>([]);
+  const [loadingAnnouncements, setLoadingAnnouncements] = useState(!demoMode);
+
+  useEffect(() => {
+    if (demoMode) return;
+    fetch("/api/announcements", { credentials: "include" })
+      .then(async (response) => {
+        if (!response.ok) throw new Error("Announcements could not be loaded.");
+        const body = await response.json();
+        setAnnouncements(body.announcements);
+      })
+      .catch(() => setAnnouncements([]))
+      .finally(() => setLoadingAnnouncements(false));
+  }, [demoMode]);
+
+  const demoAnnouncements: LiveAnnouncement[] = portalAnnouncements.map((announcement) => ({
+    id: announcement.id,
+    title: announcement.title,
+    summary: announcement.summary,
+    body: announcement.summary,
+    category: announcement.category,
+    audience: announcement.audience === "Public" ? "public" : "approved_users",
+    status: "published",
+    originalPublishedAt: announcement.date,
+    publishedAt: null,
+    sourceUrl: null,
+    read: !announcement.unread,
+  }));
+  const items = demoMode ? demoAnnouncements : announcements;
+  const unreadCount = items.filter((announcement) => !announcement.read).length;
+  const latest = items[0];
+
+  return <div className="space-y-8">
+    <div className="grid gap-4 md:grid-cols-2">
       <StatusCard icon={FileCheck2} label="STA status" value={user.staStatus} note={`Approved ${user.staApprovedOn}`} />
-      <StatusCard icon={FileArchive} label="Available products" value="5" note="Current research distributions" />
-      <StatusCard icon={Bell} label="Unread updates" value="2" note="Release announcements" />
+      <StatusCard icon={Bell} label="Unread updates" value={loadingAnnouncements ? "—" : String(unreadCount)} note={unreadCount === 1 ? "Announcement awaiting review" : "Announcements awaiting review"} />
     </div>
 
     <div className="grid gap-8 xl:grid-cols-[1.25fr_0.75fr]">
@@ -659,15 +697,20 @@ const Overview = ({ user }: { user: PortalUser }) => (
       </section>
 
       <section className="border border-border bg-white p-6">
-        <div className="font-mono text-xs uppercase tracking-widest text-primary">Latest announcement</div>
-        <h2 className="mt-4 text-xl font-light leading-snug">{portalAnnouncements[1].title}</h2>
-        <p className="mt-4 text-sm leading-relaxed text-muted-foreground">{portalAnnouncements[1].summary}</p>
-        <div className="mt-6 text-xs font-mono text-slate-400">{portalAnnouncements[1].date}</div>
-        <Link to="/portal/announcements" className="mt-8 inline-flex items-center gap-2 text-sm text-primary">Read announcements <ChevronRight className="h-4 w-4" /></Link>
+        <div className="flex items-center justify-between gap-3">
+          <div className="font-mono text-xs uppercase tracking-widest text-primary">Latest announcement</div>
+          {latest && !latest.read && <span className="bg-amber-100 px-2 py-1 font-mono text-[10px] uppercase tracking-wider text-amber-800">Unread</span>}
+        </div>
+        {loadingAnnouncements ? <div className="mt-6 flex items-center gap-2 text-sm text-muted-foreground"><Loader2 className="h-4 w-4 animate-spin text-primary" /> Loading latest update…</div> : latest ? <>
+        <div className="mt-5 flex flex-wrap items-center gap-2 font-mono text-[11px] uppercase tracking-wider text-muted-foreground"><span>{announcementDate(latest.originalPublishedAt || latest.publishedAt)}</span><span>·</span><span className="text-primary">{latest.category}</span></div>
+        <h2 className="mt-4 text-xl font-light leading-snug">{latest.title}</h2>
+        <p className="mt-4 text-sm leading-relaxed text-muted-foreground">{latest.summary}</p>
+        </> : <p className="mt-4 text-sm text-muted-foreground">No announcements have been published yet.</p>}
+        <Link to="/portal/announcements" className="mt-8 inline-flex items-center gap-2 text-sm text-primary">{latest && !latest.read ? "Read latest announcement" : "View announcement archive"} <ChevronRight className="h-4 w-4" /></Link>
       </section>
     </div>
-  </div>
-);
+  </div>;
+};
 
 const StatusCard = ({ icon: Icon, label, value, note }: { icon: typeof ShieldCheck; label: string; value: string; note: string }) => (
   <div className="border border-border bg-white p-5">
@@ -821,6 +864,7 @@ type LiveAnnouncement = {
   originalPublishedAt: string | null;
   publishedAt: string | null;
   sourceUrl: string | null;
+  read: boolean;
 };
 
 const announcementDate = (value: string | null) => {
@@ -858,6 +902,7 @@ const Announcements = ({ demoMode }: { demoMode: boolean }) => {
     originalPublishedAt: announcement.date,
     publishedAt: null,
     sourceUrl: null,
+    read: !announcement.unread,
   }));
   const items = demoMode ? demoAnnouncements : announcements;
   const selected = items.find((announcement) => announcement.id === selectedId) || items[0];
@@ -865,6 +910,20 @@ const Announcements = ({ demoMode }: { demoMode: boolean }) => {
   useEffect(() => {
     if (!selectedId && items[0]) setSelectedId(items[0].id);
   }, [items, selectedId]);
+
+  useEffect(() => {
+    if (demoMode || !selected || selected.read) return;
+    const id = selected.id;
+    setAnnouncements((current) => current.map((announcement) => announcement.id === id ? { ...announcement, read: true } : announcement));
+    fetch(`/api/announcements/${encodeURIComponent(id)}/read`, {
+      method: "POST",
+      credentials: "include",
+    }).then((response) => {
+      if (!response.ok) throw new Error("Announcement could not be marked as read.");
+    }).catch(() => {
+      setAnnouncements((current) => current.map((announcement) => announcement.id === id ? { ...announcement, read: false } : announcement));
+    });
+  }, [demoMode, selected]);
 
   const selectAnnouncement = (id: string) => {
     setSelectedId(id);
@@ -888,7 +947,7 @@ const Announcements = ({ demoMode }: { demoMode: boolean }) => {
                 <div className="divide-y divide-border">
                   {items.map((announcement, index) => (
                     <button key={announcement.id} type="button" onClick={() => selectAnnouncement(announcement.id)} className={cn("block w-full px-5 py-5 text-left transition-colors", selected?.id === announcement.id ? "bg-primary/5 shadow-[inset_3px_0_0_hsl(var(--primary))]" : "hover:bg-slate-50")}>
-                      <div className="flex flex-wrap items-center gap-2 font-mono text-[11px] uppercase tracking-wider text-muted-foreground"><span>{dateLabel(announcement)}</span><span>·</span><span className="text-primary">{announcement.category}</span>{index === 0 && <span className="ml-auto bg-primary px-2 py-0.5 text-[10px] text-white">Latest</span>}</div>
+                      <div className="flex flex-wrap items-center gap-2 font-mono text-[11px] uppercase tracking-wider text-muted-foreground"><span>{dateLabel(announcement)}</span><span>·</span><span className="text-primary">{announcement.category}</span><span className="ml-auto flex items-center gap-2">{!announcement.read && <span className="bg-amber-100 px-2 py-0.5 text-[10px] text-amber-800">Unread</span>}{index === 0 && <span className="bg-primary px-2 py-0.5 text-[10px] text-white">Latest</span>}</span></div>
                       <h2 className={cn("mt-2 text-sm leading-snug", selected?.id === announcement.id ? "font-medium text-slate-900" : "text-slate-700")}>{announcement.title}</h2>
                       <p className="mt-2 line-clamp-2 text-xs leading-relaxed text-muted-foreground">{announcement.summary}</p>
                     </button>
