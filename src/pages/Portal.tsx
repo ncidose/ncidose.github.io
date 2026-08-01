@@ -35,6 +35,7 @@ import {
   portalAnnouncements,
   portalReleases,
 } from "@/data/portalDemo";
+import { portalLinks } from "@/data/nciDoseTools";
 import { cn } from "@/lib/utils";
 
 type PortalIdentity = {
@@ -74,7 +75,7 @@ const getStoredUser = (): PortalUser | null => {
   return null;
 };
 
-export const Portal = () => {
+export const Portal = ({ publicLanding = false }: { publicLanding?: boolean }) => {
   const location = useLocation();
   const navigate = useNavigate();
   const standalonePortal = import.meta.env.VITE_PORTAL_STANDALONE === "true";
@@ -87,7 +88,7 @@ export const Portal = () => {
   const isAccessRequest = location.pathname === "/portal/request-access";
 
   useEffect(() => {
-    if (demoMode || isAccessRequest) return;
+    if (demoMode || publicLanding || isAccessRequest) return;
     const controller = new AbortController();
     fetch("/api/me", { credentials: "include", signal: controller.signal })
       .then(async (response) => {
@@ -112,7 +113,7 @@ export const Portal = () => {
         if (error.name !== "AbortError") setAuthState("denied");
       });
     return () => controller.abort();
-  }, [demoMode, isAccessRequest]);
+  }, [demoMode, publicLanding, isAccessRequest]);
 
   const signIn = (role: "user" | "admin") => {
     const nextUser = role === "admin" ? demoAdminUser : demoApprovedUser;
@@ -120,6 +121,18 @@ export const Portal = () => {
     setUser(nextUser);
     navigate("/portal");
   };
+
+  if (publicLanding) {
+    if (isAccessRequest) return <AccessRequest />;
+    return (
+      <PortalSignIn
+        demoMode={false}
+        accessDenied={false}
+        onSignIn={signIn}
+        securePortalUrl={portalLinks.securePortal}
+      />
+    );
+  }
 
   const signOut = () => {
     if (!demoMode) {
@@ -191,13 +204,22 @@ const PortalSignIn = ({
   demoMode,
   accessDenied,
   onSignIn,
+  securePortalUrl,
 }: {
   demoMode: boolean;
   accessDenied: boolean;
   onSignIn: (role: "user" | "admin") => void;
+  securePortalUrl?: string;
 }) => {
   const [email, setEmail] = useState("");
   const [emailStep, setEmailStep] = useState<"idle" | "sent">("idle");
+  const beginSecureSignIn = () => {
+    if (securePortalUrl) {
+      window.location.assign(securePortalUrl);
+      return;
+    }
+    onSignIn("user");
+  };
 
   return (
     <div className="min-h-screen bg-slate-50">
@@ -246,11 +268,11 @@ const PortalSignIn = ({
 
           <Button
             className="h-12 w-full rounded-none bg-white text-slate-900 shadow-none border border-slate-300 hover:bg-slate-50"
-            disabled={!demoMode}
-            onClick={() => onSignIn("user")}
+            disabled={!demoMode && !securePortalUrl}
+            onClick={beginSecureSignIn}
           >
             <span className="flex h-5 w-5 items-center justify-center rounded-full border border-slate-300 font-semibold text-[#4285F4]">G</span>
-            Continue with Google
+            {securePortalUrl ? "Continue with approved Gmail" : "Continue with Google"}
           </Button>
           <p className="mt-2 text-center text-xs text-muted-foreground">Recommended for existing ncidose Google Group members</p>
 
@@ -272,12 +294,23 @@ const PortalSignIn = ({
             <Button
               variant="outline"
               className="h-11 rounded-none"
-              disabled={!demoMode || !email.includes("@")}
-              onClick={() => setEmailStep("sent")}
+              disabled={(!demoMode && !securePortalUrl) || !email.includes("@")}
+              onClick={() => {
+                if (securePortalUrl) {
+                  window.location.assign(securePortalUrl);
+                  return;
+                }
+                setEmailStep("sent");
+              }}
             >
-              Send code
+              {securePortalUrl ? "Continue" : "Send code"}
             </Button>
           </div>
+          {securePortalUrl && (
+            <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
+              Email verification is completed on the secure Cloudflare Access screen. A one-time code will be sent there.
+            </p>
+          )}
           {emailStep === "sent" && (
             <div className="mt-3 border border-primary/20 bg-primary/5 p-3 text-sm text-slate-700">
               Preview: a one-time sign-in code would be sent to <strong>{email}</strong>.

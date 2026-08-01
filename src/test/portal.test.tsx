@@ -32,6 +32,18 @@ describe("portal migration experience", () => {
     expect(screen.getByText("Approved", { selector: ".text-3xl" })).toBeInTheDocument();
   });
 
+  it("shows the branded public portal landing before secure authentication", () => {
+    render(
+      <MemoryRouter initialEntries={["/portal"]}>
+        <Portal publicLanding />
+      </MemoryRouter>,
+    );
+
+    expect(screen.getByRole("heading", { name: /your approved tools, in one place/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /continue with approved gmail/i })).toBeEnabled();
+    expect(screen.getByText(/verification is completed on the secure Cloudflare Access screen/i)).toBeInTheDocument();
+  });
+
   it("shows the NCI STA workflow for a new user", () => {
     render(
       <MemoryRouter initialEntries={["/portal/request-access"]}>

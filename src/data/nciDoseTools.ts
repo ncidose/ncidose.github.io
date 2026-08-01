@@ -3,7 +3,8 @@ import ncinmImage from "../../gui/ncinm.png";
 import ncirfImage from "../../gui/ncirf.png";
 
 export const portalLinks = {
-  userPortal: "https://ncidosetools-portal-api.ncidosetools-614ade55.workers.dev",
+  userPortal: "https://ncidose.github.io/#/portal",
+  securePortal: "https://ncidosetools-portal-api.ncidosetools-614ade55.workers.dev",
   officialNci: "https://dceg.cancer.gov/tools/radiation-dosimetry-tools",
   staForm:
     "https://dceg.cancer.gov/tools/radiation-dosimetry-tools/ncidose-software-transfer-agreement.pdf",
