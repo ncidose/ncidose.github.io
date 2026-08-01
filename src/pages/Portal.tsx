@@ -604,12 +604,12 @@ const PortalSidebar = ({ section, isAdmin }: { section: PortalSection; isAdmin: 
   <aside className="sticky top-16 z-30 hidden h-[calc(100vh-4rem)] w-56 shrink-0 self-start border-r border-border bg-white px-4 py-6 md:block xl:w-64">
     <nav className="space-y-1">
       {portalNav.map((item) => (
-        <PortalNavLink key={item.id} item={item} active={section === item.id} />
+        <PortalNavLink key={item.id} item={item} active={section === item.id} layout="sidebar" />
       ))}
       {isAdmin && (
         <>
           <div className="my-5 border-t border-border" />
-          <PortalNavLink item={{ id: "admin", label: "Admin", icon: Settings }} active={section === "admin"} />
+          <PortalNavLink item={{ id: "admin", label: "Admin", icon: Settings }} active={section === "admin"} layout="sidebar" />
         </>
       )}
     </nav>
@@ -623,21 +623,22 @@ const PortalSidebar = ({ section, isAdmin }: { section: PortalSection; isAdmin: 
 const PortalMobileNav = ({ section, isAdmin }: { section: PortalSection; isAdmin: boolean }) => (
   <nav className="fixed inset-x-0 top-16 z-40 flex overflow-x-auto border-b border-border bg-white px-3 py-2 md:hidden">
     {[...portalNav, ...(isAdmin ? [{ id: "admin" as const, label: "Admin", icon: Settings }] : [])].map((item) => (
-      <PortalNavLink key={item.id} item={item} active={section === item.id} />
+      <PortalNavLink key={item.id} item={item} active={section === item.id} layout="tabs" />
     ))}
   </nav>
 );
 
-const PortalNavLink = ({ item, active }: { item: { id: PortalSection; label: string; icon: typeof LayoutDashboard }; active: boolean }) => (
+const PortalNavLink = ({ item, active, layout }: { item: { id: PortalSection; label: string; icon: typeof LayoutDashboard }; active: boolean; layout: "sidebar" | "tabs" }) => (
   <Link
     to={item.id === "overview" ? "/portal" : `/portal/${item.id}`}
     aria-current={active ? "page" : undefined}
     className={cn(
-      "flex w-full shrink-0 items-center gap-3 whitespace-nowrap border-l-2 px-4 py-3 text-sm transition-colors",
+      "flex items-center gap-3 whitespace-nowrap border-l-2 py-3 text-sm transition-colors",
+      layout === "sidebar" ? "w-full px-4" : "w-auto flex-none px-3",
       active ? "border-primary bg-primary/10 font-medium text-primary" : "border-transparent text-slate-600 hover:bg-slate-50 hover:text-primary",
     )}
   >
-    <item.icon className="h-4 w-4" /> {item.label}
+    <item.icon className="h-4 w-4 shrink-0" /> <span>{item.label}</span>
   </Link>
 );
 
