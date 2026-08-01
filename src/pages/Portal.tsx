@@ -171,9 +171,9 @@ export const Portal = ({ publicLanding = false }: { publicLanding?: boolean }) =
     <div className="min-h-screen bg-slate-50 text-foreground">
       <PortalTopbar user={user} onSignOut={signOut} />
       <PortalMobileNav section={section} isAdmin={user.role === "admin"} />
-      <div className="mx-auto flex max-w-[1500px]">
+      <div className="mx-auto flex max-w-[1500px] pt-16">
         <PortalSidebar section={section} isAdmin={user.role === "admin"} />
-        <main className="min-w-0 flex-1 px-5 pb-20 pt-36 sm:px-8 md:pt-24 lg:px-12">
+        <main className="min-w-0 flex-1 px-5 pb-20 pt-20 sm:px-8 md:pt-8 lg:px-12">
           <div className="mx-auto max-w-6xl">
             <div className="mb-8 flex flex-wrap items-center justify-between gap-4">
               <div>
