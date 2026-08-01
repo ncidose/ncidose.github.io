@@ -173,7 +173,7 @@ export const Portal = ({ publicLanding = false }: { publicLanding?: boolean }) =
       <PortalMobileNav section={section} isAdmin={user.role === "admin"} />
       <div className="mx-auto flex max-w-[1500px]">
         <PortalSidebar section={section} isAdmin={user.role === "admin"} />
-        <main className="min-w-0 flex-1 px-5 pb-20 pt-36 sm:px-8 lg:px-12 lg:pt-24">
+        <main className="min-w-0 flex-1 px-5 pb-20 pt-36 sm:px-8 md:pt-24 lg:px-12">
           <div className="mx-auto max-w-6xl">
             <div className="mb-8 flex flex-wrap items-center justify-between gap-4">
               <div>
@@ -601,7 +601,7 @@ const PortalTopbar = ({ user, onSignOut }: { user: PortalUser; onSignOut: () => 
 );
 
 const PortalSidebar = ({ section, isAdmin }: { section: PortalSection; isAdmin: boolean }) => (
-  <aside className="sticky top-16 z-30 hidden h-[calc(100vh-4rem)] w-64 shrink-0 self-start border-r border-border bg-white px-4 py-6 lg:block">
+  <aside className="sticky top-16 z-30 hidden h-[calc(100vh-4rem)] w-56 shrink-0 self-start border-r border-border bg-white px-4 py-6 md:block xl:w-64">
     <nav className="space-y-1">
       {portalNav.map((item) => (
         <PortalNavLink key={item.id} item={item} active={section === item.id} />
@@ -621,7 +621,7 @@ const PortalSidebar = ({ section, isAdmin }: { section: PortalSection; isAdmin: 
 );
 
 const PortalMobileNav = ({ section, isAdmin }: { section: PortalSection; isAdmin: boolean }) => (
-  <nav className="fixed inset-x-0 top-16 z-40 flex overflow-x-auto border-b border-border bg-white px-3 py-2 lg:hidden">
+  <nav className="fixed inset-x-0 top-16 z-40 flex overflow-x-auto border-b border-border bg-white px-3 py-2 md:hidden">
     {[...portalNav, ...(isAdmin ? [{ id: "admin" as const, label: "Admin", icon: Settings }] : [])].map((item) => (
       <PortalNavLink key={item.id} item={item} active={section === item.id} />
     ))}
@@ -633,7 +633,7 @@ const PortalNavLink = ({ item, active }: { item: { id: PortalSection; label: str
     to={item.id === "overview" ? "/portal" : `/portal/${item.id}`}
     aria-current={active ? "page" : undefined}
     className={cn(
-      "flex items-center gap-3 border-l-2 px-4 py-3 text-sm transition-colors",
+      "flex w-full shrink-0 items-center gap-3 whitespace-nowrap border-l-2 px-4 py-3 text-sm transition-colors",
       active ? "border-primary bg-primary/10 font-medium text-primary" : "border-transparent text-slate-600 hover:bg-slate-50 hover:text-primary",
     )}
   >
