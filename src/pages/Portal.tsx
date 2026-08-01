@@ -584,7 +584,7 @@ const PortalTopbar = ({ user, onSignOut }: { user: PortalUser; onSignOut: () => 
   <header className="fixed inset-x-0 top-0 z-50 border-b border-border bg-white/95 backdrop-blur">
     <div className="mx-auto flex h-16 max-w-[1500px] items-center justify-between px-5 sm:px-8">
       <div className="flex items-center gap-6">
-        <Link to="/" className="text-lg font-light tracking-tight">NCI Dose Tools</Link>
+        <a href={publicSiteUrl} className="text-lg font-light tracking-tight">NCI Dose Tools</a>
         <div className="hidden border-l border-border pl-6 font-mono text-xs uppercase tracking-widest text-primary sm:block">User Portal</div>
       </div>
       <div className="flex items-center gap-3">
