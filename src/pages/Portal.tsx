@@ -134,10 +134,16 @@ export const Portal = ({ publicLanding = false }: { publicLanding?: boolean }) =
     );
   }
 
-  const signOut = () => {
+  const signOut = async () => {
     if (!demoMode) {
-      const returnTo = encodeURIComponent(publicSiteUrl);
-      window.location.assign(`/cdn-cgi/access/logout?returnTo=${returnTo}`);
+      try {
+        await fetch("/cdn-cgi/access/logout", {
+          credentials: "include",
+          redirect: "manual",
+        });
+      } finally {
+        window.location.replace(publicSiteUrl);
+      }
       return;
     }
     window.sessionStorage.removeItem("ncidose-portal-demo-user");
