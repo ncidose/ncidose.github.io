@@ -35,7 +35,7 @@ import {
   portalAnnouncements,
   portalReleases,
 } from "@/data/portalDemo";
-import { portalLinks } from "@/data/nciDoseTools";
+import { portalLinks } from "@/data/portalLinks";
 import { cn } from "@/lib/utils";
 
 type PortalIdentity = {
@@ -57,6 +57,7 @@ type PortalUser = {
   identities: PortalIdentity[];
 };
 type PortalSection = "overview" | "downloads" | "announcements" | "account" | "admin";
+const standalonePortalBuild = import.meta.env.VITE_PORTAL_STANDALONE === "true";
 
 const portalNav = [
   { id: "overview", label: "Overview", icon: LayoutDashboard },
@@ -78,7 +79,7 @@ const getStoredUser = (): PortalUser | null => {
 export const Portal = ({ publicLanding = false }: { publicLanding?: boolean }) => {
   const location = useLocation();
   const navigate = useNavigate();
-  const standalonePortal = import.meta.env.VITE_PORTAL_STANDALONE === "true";
+  const standalonePortal = standalonePortalBuild;
   const demoMode = !standalonePortal && (import.meta.env.DEV || import.meta.env.VITE_PORTAL_DEMO_MODE === "true");
   const [user, setUser] = useState<PortalUser | null>(() => demoMode ? getStoredUser() : null);
   const [authState, setAuthState] = useState<"loading" | "ready" | "denied">(demoMode ? "ready" : "loading");
@@ -122,7 +123,7 @@ export const Portal = ({ publicLanding = false }: { publicLanding?: boolean }) =
     navigate("/portal");
   };
 
-  if (publicLanding) {
+  if (!standalonePortalBuild && publicLanding) {
     if (isAccessRequest) return <AccessRequest />;
     return (
       <PortalSignIn
@@ -151,7 +152,7 @@ export const Portal = ({ publicLanding = false }: { publicLanding?: boolean }) =
     navigate("/portal");
   };
 
-  if (isAccessRequest && !user) {
+  if (!standalonePortalBuild && isAccessRequest && !user) {
     return <AccessRequest />;
   }
 
