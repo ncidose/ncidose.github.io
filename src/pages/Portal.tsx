@@ -64,6 +64,8 @@ const portalNav = [
   { id: "account", label: "Account", icon: CircleUserRound },
 ] satisfies Array<{ id: PortalSection; label: string; icon: typeof LayoutDashboard }>;
 
+const publicSiteUrl = "https://ncidose.github.io/";
+
 const getStoredUser = (): PortalUser | null => {
   if (typeof window === "undefined") return null;
   const value = window.sessionStorage.getItem("ncidose-portal-demo-user");
@@ -121,7 +123,8 @@ export const Portal = () => {
 
   const signOut = () => {
     if (!demoMode) {
-      window.location.assign("/cdn-cgi/access/logout");
+      const returnTo = encodeURIComponent(publicSiteUrl);
+      window.location.assign(`/cdn-cgi/access/logout?returnTo=${returnTo}`);
       return;
     }
     window.sessionStorage.removeItem("ncidose-portal-demo-user");
