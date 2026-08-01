@@ -10,6 +10,7 @@ import {
 } from "@/components/ui/sheet";
 
 import {Menu} from "lucide-react";
+import { portalLinks } from "@/data/nciDoseTools";
 
 const isActivePath = (pathname: string, href: string) =>
   pathname === href || (href !== "/" && pathname.startsWith(href));
@@ -54,7 +55,7 @@ export const Header = () => {
           </Link>
 
           {/* Desktop Navigation */}
-          <nav className="hidden md:flex items-center gap-8">
+          <nav className="hidden lg:flex items-center gap-7">
             {navItems.map((item, index) => (
               <motion.div
                 key={item.label}
@@ -81,31 +82,27 @@ export const Header = () => {
           </nav>
 
           {/* Desktop CTA */}
-          <Link
-            to="/#how-to-access"
-            onClick={(e) => {
-              if (pathname === "/") {
-                e.preventDefault();
-                document.getElementById("how-to-access")?.scrollIntoView({ behavior: "smooth" });
-              }
-            }}
-            className="hidden md:block"
-          >
-            <motion.span
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ duration: 0.4, delay: 0.4, ease: [0.16, 1, 0.3, 1] }}
-              className="btn-precision text-sm inline-block"
+          <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} transition={{ duration: 0.4, delay: 0.4, ease: [0.16, 1, 0.3, 1] }} className="hidden items-center gap-2 lg:flex">
+            <Link
+              to="/#how-to-access"
+              onClick={(e) => {
+                if (pathname === "/") {
+                  e.preventDefault();
+                  document.getElementById("how-to-access")?.scrollIntoView({ behavior: "smooth" });
+                }
+              }}
+              className="px-3 py-2 text-sm text-muted-foreground transition-colors hover:text-primary"
             >
               Get Access
-            </motion.span>
-          </Link>
+            </Link>
+            <a href={portalLinks.userPortal} className="btn-precision inline-block text-sm">User Portal</a>
+          </motion.div>
 
           {/* Mobile Menu */}
           <Sheet open={isOpen} onOpenChange={setIsOpen}>
             <SheetTrigger asChild>
               <button
-                className="md:hidden flex flex-col gap-1.5 w-6 h-6 items-center justify-center"
+                className="lg:hidden flex flex-col gap-1.5 w-6 h-6 items-center justify-center"
                 aria-label="Toggle menu"
               >
                <Menu className="w-6 h-6" />
@@ -133,6 +130,7 @@ export const Header = () => {
                   </Link>
                 ))}
                 <div className="pt-6 border-t border-border">
+                  <a href={portalLinks.userPortal} onClick={() => setIsOpen(false)} className="btn-precision mb-3 inline-block w-full text-center text-sm">User Portal</a>
                   <Link
                     to="/#how-to-access"
                     onClick={(e) => {
@@ -144,7 +142,7 @@ export const Header = () => {
                     }}
                     className="btn-precision text-sm inline-block w-full text-center"
                   >
-                    Get Access
+                    Request Access
                   </Link>
                 </div>
               </nav>

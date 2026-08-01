@@ -12,6 +12,8 @@ dist
 dist-ssr
 *.local
 .ssh/
+.private/
+.dev.vars*
 
 # Editor directories and files
 .vscode/*

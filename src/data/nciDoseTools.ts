@@ -3,6 +3,7 @@ import ncinmImage from "../../gui/ncinm.png";
 import ncirfImage from "../../gui/ncirf.png";
 
 export const portalLinks = {
+  userPortal: "https://ncidosetools-portal-api.ncidosetools-614ade55.workers.dev",
   officialNci: "https://dceg.cancer.gov/tools/radiation-dosimetry-tools",
   staForm:
     "https://dceg.cancer.gov/tools/radiation-dosimetry-tools/ncidose-software-transfer-agreement.pdf",
@@ -30,7 +31,7 @@ export const tools = [
       calculationBasis: "Monte Carlo-derived CT dose conversion coefficients.",
     },
     suiteSummary:
-      "NCICT supports standardized CT organ dose estimation for research studies that need consistent estimates across patients, scanner protocols, and body sizes.",
+      "NCICT supports standardized CT organ dose estimation using a CT scanner-independent dose calculation algorithm for research studies that need consistent estimates across patients, scanner protocols, and body sizes.",
     intro:
       "NCICT supports standardized CT organ dose estimation for pediatric, adult, and pregnant CT studies that need consistent estimates across patients, scanner protocols, and body sizes. It combines reference, size-dependent, and pregnant computational phantoms with organ and structure dose tables for reproducible cohort analysis.",
     details: [

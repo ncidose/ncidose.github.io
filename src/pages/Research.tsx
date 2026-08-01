@@ -45,11 +45,11 @@ const portalCards = [
   {
     icon: LockKeyhole,
     eyebrow: "Approved Users",
-    title: "Google Group + Drive Repository",
+    title: "NCI Dose Tools User Portal",
     description:
-      "A membership-based channel for users with approved access, including release announcements and controlled file distribution.",
-    href: portalLinks.googleGroup,
-    linkText: "Open Google Group",
+      "The secure portal for approved-user announcements and controlled software downloads.",
+    href: portalLinks.userPortal,
+    linkText: "Open User Portal",
   },
 ];
 
@@ -63,7 +63,7 @@ const userPaths = [
   },
   {
     title: "Research user",
-    text: "Use the official NCI website and STA form for official access, then use GitHub and the approved-user group after approval.",
+    text: "Use the official NCI website and STA form for official access, then use GitHub documentation and the secure user portal after approval.",
     href: "/researchers",
     linkText: "Research access path",
     external: false,

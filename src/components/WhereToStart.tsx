@@ -1,6 +1,7 @@
 import { motion } from "framer-motion";
 import { Link } from "react-router-dom";
-import { Compass, Building2, FlaskConical, ExternalLink, ArrowRight } from "lucide-react";
+import { Compass, Building2, FlaskConical, ExternalLink, ArrowRight, LogIn } from "lucide-react";
+import { portalLinks } from "@/data/nciDoseTools";
 
 const startingPoints = [
   {
@@ -31,9 +32,18 @@ const startingPoints = [
     color: "bg-primary/80",
   },
   {
+    icon: LogIn,
+    title: "Approved User Portal",
+    description: "Sign in to read announcements and download current NCI Dose Tools distributions.",
+    link: portalLinks.userPortal,
+    linkText: "Open Portal",
+    external: true,
+    color: "bg-primary/90",
+  },
+  {
     icon: ExternalLink,
     title: "Links & Resources",
-    description: "See how this public site, the official NCI website, GitHub, and the approved-user group fit together.",
+    description: "See how this public site, the official NCI website, GitHub, and the approved-user portal fit together.",
     link: "/resources",
     linkText: "Open Resources",
     external: false,
