@@ -622,6 +622,51 @@ export default {
         return json({ id: adminUserMatch[1], accessStatus }, 200, cors);
       }
 
+      if (request.method === "DELETE" && adminUserMatch) {
+        if (user.role !== "admin") return json({ error: "administrator_required" }, 403, cors);
+        const originError = requireSameOrigin(request, url, cors);
+        if (originError) return originError;
+        if (adminUserMatch[1] === user.id) return json({ error: "cannot_delete_current_admin" }, 409, cors);
+        const existing = await env.DB.prepare(`
+          SELECT id, role, access_status
+          FROM users
+          WHERE id=?
+        `).bind(adminUserMatch[1]).first();
+        if (!existing) return json({ error: "user_not_found" }, 404, cors);
+        if (existing.role === "admin") return json({ error: "cannot_delete_admin" }, 409, cors);
+        if (existing.access_status !== "suspended") return json({ error: "user_must_be_suspended" }, 409, cors);
+
+        const identityResult = await env.DB.prepare(`
+          SELECT normalized_email, is_primary
+          FROM user_identities
+          WHERE user_id=?
+        `).bind(existing.id).all();
+        const emails = identityResult.results.map((identity) => identity.normalized_email).filter(Boolean);
+        const primaryEmail = identityResult.results.find((identity) => identity.is_primary)?.normalized_email || null;
+        const deletionStatements = [
+          env.DB.prepare("UPDATE access_requests SET activated_user_id=NULL, updated_at=CURRENT_TIMESTAMP WHERE activated_user_id=?").bind(existing.id),
+          env.DB.prepare("UPDATE announcements SET created_by_user_id=NULL, updated_at=CURRENT_TIMESTAMP WHERE created_by_user_id=?").bind(existing.id),
+          env.DB.prepare("UPDATE announcement_email_deliveries SET requested_by_user_id=NULL, updated_at=CURRENT_TIMESTAMP WHERE requested_by_user_id=?").bind(existing.id),
+          env.DB.prepare("DELETE FROM announcement_reads WHERE user_id=?").bind(existing.id),
+          env.DB.prepare("UPDATE access_events SET user_id=NULL, metadata_json=NULL WHERE user_id=?").bind(existing.id),
+          env.DB.prepare("DELETE FROM user_identities WHERE user_id=?").bind(existing.id),
+        ];
+        if (emails.length > 0) {
+          deletionStatements.push(env.DB.prepare(`DELETE FROM group_memberships WHERE normalized_email IN (${emails.map(() => "?").join(",")})`).bind(...emails));
+        }
+        deletionStatements.push(
+          env.DB.prepare("DELETE FROM users WHERE id=?").bind(existing.id),
+          env.DB.prepare("INSERT INTO access_events (id, event_type, metadata_json) VALUES (?, 'user_deleted', ?)").bind(
+            crypto.randomUUID(), JSON.stringify({ deletedUserId: existing.id, deletedBy: user.id }),
+          ),
+        );
+        await env.DB.batch(deletionStatements);
+        if (primaryEmail && env.RESEND_API_KEY && env.RESEND_SEGMENT_ID) {
+          context.waitUntil(removeResendContactFromAudience(env, primaryEmail).catch(() => undefined));
+        }
+        return new Response(null, { status: 204, headers: cors });
+      }
+
       if (request.method === "GET" && url.pathname === "/api/admin/email-audience") {
         if (user.role !== "admin") return json({ error: "administrator_required" }, 403, cors);
         try {
