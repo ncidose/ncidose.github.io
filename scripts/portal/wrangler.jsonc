@@ -20,7 +20,9 @@
     "ENVIRONMENT": "production",
     "ACCESS_TEAM_DOMAIN": "wild-lab-6e97.cloudflareaccess.com",
     "ACCESS_AUD": "d2f0c8b27d7f5c5e69445455354cfe733db79f884fca6aa4d05db7c5ffd70834",
-    "ALLOWED_ORIGINS": "https://ncidose.github.io,https://portal.ncidosetools.com,http://127.0.0.1:8084"
+    "ALLOWED_ORIGINS": "https://ncidose.github.io,https://portal.ncidosetools.com,http://127.0.0.1:8084",
+    "RESEND_SEGMENT_ID": "edb4d916-2153-474d-8aa9-08be1e7f12ca",
+    "RESEND_FROM": "NCI Dose Tools <announcements@updates.ncidosetools.com>"
   },
   "d1_databases": [
     {

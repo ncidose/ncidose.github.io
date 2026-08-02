@@ -119,7 +119,175 @@ const announcementFromRow = (row) => ({
   publishedAt: row.published_at,
   sourceUrl: row.source_url,
   read: Boolean(row.read_at),
+  emailDelivery: row.email_delivery_status ? {
+    status: row.email_delivery_status,
+    recipientCount: row.email_recipient_count,
+    providerBroadcastId: row.provider_broadcast_id,
+  } : null,
 });
+
+const resendApiBase = "https://api.resend.com";
+
+const requireResend = (env) => {
+  if (!env.RESEND_API_KEY || !env.RESEND_SEGMENT_ID || !env.RESEND_FROM) {
+    throw new Error("Resend email delivery is not configured.");
+  }
+};
+
+const wait = (milliseconds) => new Promise((resolve) => setTimeout(resolve, milliseconds));
+
+async function resendRequest(env, path, options = {}) {
+  requireResend(env);
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    const response = await fetch(`${resendApiBase}${path}`, {
+      ...options,
+      headers: {
+        authorization: `Bearer ${env.RESEND_API_KEY}`,
+        "content-type": "application/json",
+        ...(options.headers || {}),
+      },
+    });
+    const body = await response.json().catch(() => ({}));
+    if (response.ok) return body;
+    if (response.status === 429 && attempt === 0) {
+      const retryAfter = Math.max(1, Number(response.headers.get("retry-after") || 1));
+      await wait(retryAfter * 1000);
+      continue;
+    }
+    const error = new Error(body.message || body.name || `Resend request failed (${response.status}).`);
+    error.status = response.status;
+    throw error;
+  }
+  throw new Error("Resend request could not be completed.");
+}
+
+async function approvedPrimaryEmails(env) {
+  const result = await env.DB.prepare(`
+    SELECT identities.normalized_email AS email
+    FROM users
+    JOIN user_identities identities
+      ON identities.user_id=users.id AND identities.is_primary=1
+    WHERE users.access_status='active'
+    ORDER BY identities.normalized_email COLLATE NOCASE
+  `).all();
+  return result.results.map((entry) => entry.email).filter(Boolean);
+}
+
+async function resendSegmentContacts(env) {
+  const contacts = [];
+  let after = "";
+  for (let page = 0; page < 20; page += 1) {
+    const query = new URLSearchParams({ limit: "100" });
+    if (after) query.set("after", after);
+    const body = await resendRequest(env, `/segments/${encodeURIComponent(env.RESEND_SEGMENT_ID)}/contacts?${query}`);
+    const entries = Array.isArray(body.data) ? body.data : [];
+    contacts.push(...entries);
+    if (!body.has_more || entries.length === 0) break;
+    after = entries.at(-1)?.id || "";
+    if (!after) break;
+  }
+  return contacts;
+}
+
+async function addResendContactToAudience(env, email) {
+  try {
+    await resendRequest(env, "/contacts", {
+      method: "POST",
+      body: JSON.stringify({ email, unsubscribed: false, segments: [{ id: env.RESEND_SEGMENT_ID }] }),
+    });
+  } catch (error) {
+    if (error.status !== 409) throw error;
+    await resendRequest(env, `/contacts/${encodeURIComponent(email)}/segments/${encodeURIComponent(env.RESEND_SEGMENT_ID)}`, { method: "POST" });
+  }
+}
+
+const removeResendContactFromAudience = (env, email) => resendRequest(
+  env,
+  `/contacts/${encodeURIComponent(email)}/segments/${encodeURIComponent(env.RESEND_SEGMENT_ID)}`,
+  { method: "DELETE" },
+);
+
+async function syncResendAudience(env, maximumChanges = 20) {
+  const approvedEmails = await approvedPrimaryEmails(env);
+  const contacts = await resendSegmentContacts(env);
+  const approved = new Set(approvedEmails);
+  const current = new Set(contacts.map((entry) => String(entry.email || "").toLowerCase()).filter(Boolean));
+  const changes = [
+    ...approvedEmails.filter((email) => !current.has(email)).map((email) => ({ action: "add", email })),
+    ...[...current].filter((email) => !approved.has(email)).map((email) => ({ action: "remove", email })),
+  ];
+  const results = { added: 0, removed: 0, errors: [], remaining: Math.max(0, changes.length - maximumChanges) };
+  for (const change of changes.slice(0, maximumChanges)) {
+    try {
+      if (change.action === "add") {
+        await addResendContactToAudience(env, change.email);
+        results.added += 1;
+      } else {
+        await removeResendContactFromAudience(env, change.email);
+        results.removed += 1;
+      }
+    } catch (error) {
+      results.errors.push({ email: change.email, action: change.action, message: String(error.message || error) });
+    }
+    await wait(225);
+  }
+  return {
+    configured: true,
+    approvedCount: approved.size,
+    segmentCount: current.size + results.added - results.removed,
+    unchanged: approvedEmails.filter((email) => current.has(email)).length,
+    ...results,
+  };
+}
+
+const escapeHtml = (value) => String(value || "")
+  .replaceAll("&", "&amp;")
+  .replaceAll("<", "&lt;")
+  .replaceAll(">", "&gt;")
+  .replaceAll('"', "&quot;")
+  .replaceAll("'", "&#039;");
+
+const announcementEmailHtml = (announcement) => {
+  const paragraphs = announcement.body.split(/\n{2,}/).map((paragraph) => `<p style="margin:0 0 18px;line-height:1.65">${escapeHtml(paragraph).replaceAll("\n", "<br>")}</p>`).join("");
+  return `<!doctype html><html><body style="margin:0;background:#f5f8fb;color:#172033;font-family:Arial,sans-serif"><div style="max-width:680px;margin:0 auto;padding:32px 20px"><div style="background:#fff;border:1px solid #dce5ef;padding:32px"><div style="font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:#168fd0">NCI Dose Tools · ${escapeHtml(announcement.category)}</div><h1 style="font-size:28px;font-weight:400;line-height:1.25;margin:14px 0 24px">${escapeHtml(announcement.title)}</h1><div style="font-size:16px">${paragraphs}</div><p style="margin:28px 0 0"><a href="https://portal.ncidosetools.com" style="display:inline-block;background:#159fda;color:#fff;text-decoration:none;padding:13px 20px">Open User Portal</a></p></div><div style="font-size:12px;line-height:1.6;color:#66758a;padding:18px 8px">You are receiving this update because your email is linked to an approved NCI Dose Tools portal account.<br><a href="{{{RESEND_UNSUBSCRIBE_URL}}}" style="color:#66758a">Unsubscribe from announcement emails</a></div></div></body></html>`;
+};
+
+async function sendAnnouncementBroadcast(env, announcement, requestedByUserId, recipientCount) {
+  const existing = await env.DB.prepare("SELECT status FROM announcement_email_deliveries WHERE announcement_id=?").bind(announcement.id).first();
+  if (existing) return { status: existing.status, duplicate: true };
+  const deliveryId = crypto.randomUUID();
+  await env.DB.prepare(`
+    INSERT INTO announcement_email_deliveries (id, announcement_id, status, recipient_count, requested_by_user_id)
+    VALUES (?, ?, 'queued', ?, ?)
+  `).bind(deliveryId, announcement.id, recipientCount, requestedByUserId).run();
+  try {
+    const broadcast = await resendRequest(env, "/broadcasts", {
+      method: "POST",
+      body: JSON.stringify({
+        segment_id: env.RESEND_SEGMENT_ID,
+        from: env.RESEND_FROM,
+        subject: announcement.title,
+        name: `NCI Dose Tools - ${announcement.title}`.slice(0, 120),
+        html: announcementEmailHtml(announcement),
+        text: `${announcement.title}\n\n${announcement.body}\n\nOpen User Portal: https://portal.ncidosetools.com\n\nUnsubscribe: {{{RESEND_UNSUBSCRIBE_URL}}}`,
+        send: true,
+      }),
+    });
+    await env.DB.prepare(`
+      UPDATE announcement_email_deliveries
+      SET status='sent', provider_broadcast_id=?, updated_at=CURRENT_TIMESTAMP
+      WHERE id=?
+    `).bind(broadcast.id || null, deliveryId).run();
+    return { status: "sent", recipientCount, providerBroadcastId: broadcast.id || null };
+  } catch (error) {
+    await env.DB.prepare(`
+      UPDATE announcement_email_deliveries
+      SET status='failed', error_message=?, updated_at=CURRENT_TIMESTAMP
+      WHERE id=?
+    `).bind(String(error.message || error).slice(0, 1000), deliveryId).run();
+    return { status: "failed", recipientCount, error: String(error.message || error) };
+  }
+}
 
 function corsHeaders(request, env) {
   const origin = request.headers.get("origin");
@@ -334,6 +502,9 @@ export default {
           `).bind(identityId, userId, approvedEmail),
           env.DB.prepare("INSERT INTO access_events (id, user_id, event_type, metadata_json) VALUES (?, ?, 'user_activated', ?)").bind(crypto.randomUUID(), userId, JSON.stringify({ approvedEmail, activatedBy: user.id })),
         ]);
+        if (env.RESEND_API_KEY && env.RESEND_SEGMENT_ID) {
+          context.waitUntil(addResendContactToAudience(env, approvedEmail).catch(() => undefined));
+        }
         return json({
           user: {
             id: userId,
@@ -361,11 +532,52 @@ export default {
         const accessStatus = input.accessStatus === "active" ? "active" : input.accessStatus === "suspended" ? "suspended" : "";
         if (!accessStatus) return json({ error: "valid_access_status_required" }, 400, cors);
         if (adminUserMatch[1] === user.id && accessStatus === "suspended") return json({ error: "cannot_suspend_current_admin" }, 409, cors);
-        const existing = await env.DB.prepare("SELECT id FROM users WHERE id=?").bind(adminUserMatch[1]).first();
+        const existing = await env.DB.prepare(`
+          SELECT users.id, identities.normalized_email AS primary_email
+          FROM users
+          LEFT JOIN user_identities identities ON identities.user_id=users.id AND identities.is_primary=1
+          WHERE users.id=?
+        `).bind(adminUserMatch[1]).first();
         if (!existing) return json({ error: "user_not_found" }, 404, cors);
         await env.DB.prepare("UPDATE users SET access_status=?, updated_at=CURRENT_TIMESTAMP WHERE id=?").bind(accessStatus, adminUserMatch[1]).run();
         context.waitUntil(env.DB.prepare("INSERT INTO access_events (id, user_id, event_type, metadata_json) VALUES (?, ?, 'access_status_changed', ?)").bind(crypto.randomUUID(), adminUserMatch[1], JSON.stringify({ accessStatus, changedBy: user.id })).run());
+        if (existing.primary_email && env.RESEND_API_KEY && env.RESEND_SEGMENT_ID) {
+          const syncContact = accessStatus === "active"
+            ? addResendContactToAudience(env, existing.primary_email)
+            : removeResendContactFromAudience(env, existing.primary_email);
+          context.waitUntil(syncContact.catch(() => undefined));
+        }
         return json({ id: adminUserMatch[1], accessStatus }, 200, cors);
+      }
+
+      if (request.method === "GET" && url.pathname === "/api/admin/email-audience") {
+        if (user.role !== "admin") return json({ error: "administrator_required" }, 403, cors);
+        try {
+          requireResend(env);
+          const [approvedEmails, contacts] = await Promise.all([approvedPrimaryEmails(env), resendSegmentContacts(env)]);
+          const approved = new Set(approvedEmails);
+          const current = new Set(contacts.map((entry) => String(entry.email || "").toLowerCase()).filter(Boolean));
+          return json({
+            configured: true,
+            approvedCount: approved.size,
+            segmentCount: current.size,
+            pendingAdds: approvedEmails.filter((email) => !current.has(email)).length,
+            pendingRemovals: [...current].filter((email) => !approved.has(email)).length,
+          }, 200, cors);
+        } catch (error) {
+          return json({ error: "resend_audience_unavailable", detail: String(error.message || error) }, 502, cors);
+        }
+      }
+
+      if (request.method === "POST" && url.pathname === "/api/admin/email-audience/sync") {
+        if (user.role !== "admin") return json({ error: "administrator_required" }, 403, cors);
+        const originError = requireSameOrigin(request, url, cors);
+        if (originError) return originError;
+        try {
+          return json(await syncResendAudience(env), 200, cors);
+        } catch (error) {
+          return json({ error: "resend_audience_sync_failed", detail: String(error.message || error) }, 502, cors);
+        }
       }
 
       if (request.method === "GET" && url.pathname === "/api/announcements") {
@@ -374,11 +586,15 @@ export default {
           SELECT announcements.id, announcements.title, announcements.summary, announcements.body,
             announcements.category, announcements.audience, announcements.status,
             announcements.original_published_at, announcements.published_at, announcements.source_url,
-            announcement_reads.read_at
+            announcement_reads.read_at, deliveries.status AS email_delivery_status,
+            deliveries.recipient_count AS email_recipient_count,
+            deliveries.provider_broadcast_id
           FROM announcements
           LEFT JOIN announcement_reads
             ON announcement_reads.announcement_id = announcements.id
             AND announcement_reads.user_id = ?
+          LEFT JOIN announcement_email_deliveries deliveries
+            ON deliveries.announcement_id = announcements.id
           ${includeDrafts ? "" : "WHERE announcements.status='published'"}
           ORDER BY COALESCE(announcements.original_published_at, announcements.published_at, announcements.created_at) DESC
           LIMIT 200
@@ -414,9 +630,21 @@ export default {
         const status = input.status === "published" ? "published" : "draft";
         const originalPublishedAt = cleanText(input.originalPublishedAt, 40) || null;
         const sourceUrl = cleanText(input.sourceUrl, 1000) || null;
+        const sendEmail = input.sendEmail === true;
         if (!title || !body) return json({ error: "title_and_body_required" }, 400, cors);
         if (sourceUrl && !sourceUrl.startsWith("https://groups.google.com/g/ncidose")) {
           return json({ error: "invalid_source_url" }, 400, cors);
+        }
+        if (sendEmail && status !== "published") return json({ error: "email_requires_published_announcement" }, 400, cors);
+        if (sendEmail && (originalPublishedAt || sourceUrl)) return json({ error: "historical_announcement_email_not_allowed" }, 400, cors);
+        let audienceSync = null;
+        if (sendEmail) {
+          try {
+            audienceSync = await syncResendAudience(env);
+          } catch (error) {
+            return json({ error: "resend_audience_sync_failed", detail: String(error.message || error) }, 502, cors);
+          }
+          if (audienceSync.errors.length || audienceSync.remaining) return json({ error: "resend_audience_sync_required", audienceSync }, 409, cors);
         }
         const id = crypto.randomUUID();
         await env.DB.prepare(`
@@ -426,11 +654,18 @@ export default {
           ) VALUES (?, ?, ?, ?, ?, 'approved_users', ?, ?, CASE WHEN ?='published' THEN CURRENT_TIMESTAMP END, ?, ?)
         `).bind(id, title, summary, body, category, status, originalPublishedAt, status, sourceUrl, user.id).run();
         const created = await env.DB.prepare(`
-          SELECT id, title, summary, body, category, audience, status, original_published_at, published_at, source_url
-          FROM announcements WHERE id=?
+          SELECT announcements.id, announcements.title, announcements.summary, announcements.body,
+            announcements.category, announcements.audience, announcements.status,
+            announcements.original_published_at, announcements.published_at, announcements.source_url,
+            deliveries.status AS email_delivery_status, deliveries.recipient_count AS email_recipient_count,
+            deliveries.provider_broadcast_id
+          FROM announcements
+          LEFT JOIN announcement_email_deliveries deliveries ON deliveries.announcement_id=announcements.id
+          WHERE announcements.id=?
         `).bind(id).first();
+        const emailDelivery = sendEmail ? await sendAnnouncementBroadcast(env, created, user.id, audienceSync.approvedCount) : null;
         context.waitUntil(env.DB.prepare("INSERT INTO access_events (id, user_id, event_type, metadata_json) VALUES (?, ?, 'announcement_created', ?)").bind(crypto.randomUUID(), user.id, JSON.stringify({ announcementId: id, status })).run());
-        return json({ announcement: announcementFromRow(created) }, 201, cors);
+        return json({ announcement: { ...announcementFromRow(created), emailDelivery }, emailDelivery }, 201, cors);
       }
 
       const announcementMatch = url.pathname.match(/^\/api\/admin\/announcements\/([0-9a-f-]+)$/i);
@@ -448,9 +683,21 @@ export default {
         const status = input.status === "published" ? "published" : "draft";
         const originalPublishedAt = cleanText(input.originalPublishedAt, 40) || null;
         const sourceUrl = cleanText(input.sourceUrl, 1000) || null;
+        const sendEmail = input.sendEmail === true;
         if (!title || !body) return json({ error: "title_and_body_required" }, 400, cors);
         if (sourceUrl && !sourceUrl.startsWith("https://groups.google.com/g/ncidose")) {
           return json({ error: "invalid_source_url" }, 400, cors);
+        }
+        if (sendEmail && status !== "published") return json({ error: "email_requires_published_announcement" }, 400, cors);
+        if (sendEmail && (originalPublishedAt || sourceUrl)) return json({ error: "historical_announcement_email_not_allowed" }, 400, cors);
+        let audienceSync = null;
+        if (sendEmail) {
+          try {
+            audienceSync = await syncResendAudience(env);
+          } catch (error) {
+            return json({ error: "resend_audience_sync_failed", detail: String(error.message || error) }, 502, cors);
+          }
+          if (audienceSync.errors.length || audienceSync.remaining) return json({ error: "resend_audience_sync_required", audienceSync }, 409, cors);
         }
         await env.DB.prepare(`
           UPDATE announcements SET
@@ -460,11 +707,22 @@ export default {
           WHERE id=?
         `).bind(title, summary, body, category, status, originalPublishedAt, status, sourceUrl, announcementMatch[1]).run();
         const updated = await env.DB.prepare(`
-          SELECT id, title, summary, body, category, audience, status, original_published_at, published_at, source_url
-          FROM announcements WHERE id=?
+          SELECT announcements.id, announcements.title, announcements.summary, announcements.body,
+            announcements.category, announcements.audience, announcements.status,
+            announcements.original_published_at, announcements.published_at, announcements.source_url,
+            deliveries.status AS email_delivery_status, deliveries.recipient_count AS email_recipient_count,
+            deliveries.provider_broadcast_id
+          FROM announcements
+          LEFT JOIN announcement_email_deliveries deliveries ON deliveries.announcement_id=announcements.id
+          WHERE announcements.id=?
         `).bind(announcementMatch[1]).first();
+        const emailDelivery = sendEmail ? await sendAnnouncementBroadcast(env, updated, user.id, audienceSync.approvedCount) : updated.email_delivery_status ? {
+          status: updated.email_delivery_status,
+          recipientCount: updated.email_recipient_count,
+          providerBroadcastId: updated.provider_broadcast_id,
+        } : null;
         context.waitUntil(env.DB.prepare("INSERT INTO access_events (id, user_id, event_type, metadata_json) VALUES (?, ?, 'announcement_updated', ?)").bind(crypto.randomUUID(), user.id, JSON.stringify({ announcementId: announcementMatch[1], status })).run());
-        return json({ announcement: announcementFromRow(updated) }, 200, cors);
+        return json({ announcement: { ...announcementFromRow(updated), emailDelivery }, emailDelivery }, 200, cors);
       }
 
       if (request.method === "GET" && url.pathname === "/api/files") {

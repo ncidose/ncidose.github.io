@@ -710,6 +710,7 @@ const Overview = ({ user, demoMode }: { user: PortalUser; demoMode: boolean }) =
     publishedAt: null,
     sourceUrl: null,
     read: !announcement.unread,
+    emailDelivery: null,
   }));
   const items = demoMode ? demoAnnouncements : announcements;
   const unreadCount = items.filter((announcement) => !announcement.read).length;
@@ -914,6 +915,11 @@ type LiveAnnouncement = {
   publishedAt: string | null;
   sourceUrl: string | null;
   read: boolean;
+  emailDelivery: {
+    status: "queued" | "sent" | "failed";
+    recipientCount: number | null;
+    providerBroadcastId: string | null;
+  } | null;
 };
 
 const announcementDate = (value: string | null) => {
@@ -957,6 +963,7 @@ const Announcements = ({ demoMode }: { demoMode: boolean }) => {
     publishedAt: null,
     sourceUrl: null,
     read: !announcement.unread,
+    emailDelivery: null,
   }));
   const items = demoMode ? demoAnnouncements : announcements;
   const selected = items.find((announcement) => announcement.id === selectedId) || items[0];
@@ -1208,6 +1215,14 @@ type AdminActivityData = {
   recent: Array<{ id: string; eventType: "login" | "download"; file: string | null; occurredAt: string; name: string | null; email: string | null }>;
 };
 
+type EmailAudienceStatus = {
+  configured: boolean;
+  approvedCount: number;
+  segmentCount: number;
+  pendingAdds: number;
+  pendingRemovals: number;
+};
+
 const emptyAdminActivity: AdminActivityData = {
   summary: { downloadsToday: 0, downloads7Days: 0, downloads30Days: 0, downloadUsers30Days: 0, logins30Days: 0 },
   tools: [],
@@ -1239,6 +1254,10 @@ const Admin = ({ demoMode }: { demoMode: boolean }) => {
   const [updatingUserId, setUpdatingUserId] = useState<string | null>(null);
   const [activityData, setActivityData] = useState<AdminActivityData>(emptyAdminActivity);
   const [loadingActivity, setLoadingActivity] = useState(!demoMode);
+  const [emailAudience, setEmailAudience] = useState<EmailAudienceStatus | null>(null);
+  const [loadingEmailAudience, setLoadingEmailAudience] = useState(!demoMode);
+  const [syncingEmailAudience, setSyncingEmailAudience] = useState(false);
+  const [sendAnnouncementEmail, setSendAnnouncementEmail] = useState(false);
 
   useEffect(() => {
     if (demoMode) {
@@ -1269,6 +1288,58 @@ const Admin = ({ demoMode }: { demoMode: boolean }) => {
       .finally(() => setLoadingUsers(false));
   }, [demoMode, toast]);
 
+  const loadEmailAudience = async () => {
+    if (demoMode) {
+      setEmailAudience({ configured: true, approvedCount: managedUsers.filter((entry) => entry.accessStatus === "active").length, segmentCount: 0, pendingAdds: 0, pendingRemovals: 0 });
+      setLoadingEmailAudience(false);
+      return;
+    }
+    setLoadingEmailAudience(true);
+    try {
+      const response = await fetch("/api/admin/email-audience", { credentials: "include" });
+      const body = await response.json();
+      if (!response.ok) throw new Error(body.detail || "The email audience could not be loaded.");
+      setEmailAudience(body);
+    } catch (error) {
+      toast({ title: "Unable to load email audience", description: error instanceof Error ? error.message : undefined, variant: "destructive" });
+    } finally {
+      setLoadingEmailAudience(false);
+    }
+  };
+
+  useEffect(() => {
+    void loadEmailAudience();
+    // The audience is refreshed explicitly after user changes and syncs.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [demoMode]);
+
+  const syncEmailAudience = async () => {
+    if (demoMode) {
+      toast({ title: "Local preview", description: "Approved primary emails would be synchronized with Resend." });
+      return;
+    }
+    setSyncingEmailAudience(true);
+    let added = 0;
+    let removed = 0;
+    try {
+      for (let pass = 0; pass < 50; pass += 1) {
+        const response = await fetch("/api/admin/email-audience/sync", { method: "POST", credentials: "include" });
+        const body = await response.json();
+        if (!response.ok) throw new Error(body.detail || "The email audience could not be synchronized.");
+        added += Number(body.added || 0);
+        removed += Number(body.removed || 0);
+        if (body.errors?.length) throw new Error(`${body.errors.length} contact update(s) failed. Please try again.`);
+        if (!body.remaining) break;
+      }
+      await loadEmailAudience();
+      toast({ title: "Email audience synchronized", description: `${added} added, ${removed} removed. Unsubscribe preferences were preserved.` });
+    } catch (error) {
+      toast({ title: "Unable to synchronize audience", description: error instanceof Error ? error.message : undefined, variant: "destructive" });
+    } finally {
+      setSyncingEmailAudience(false);
+    }
+  };
+
   const createUser = async () => {
     if (!newUserName.trim() || !newUserEmail.includes("@")) {
       toast({ title: "Name and approved email are required", variant: "destructive" });
@@ -1295,6 +1366,7 @@ const Admin = ({ demoMode }: { demoMode: boolean }) => {
       setNewUserCountry("");
       setNewUserApprovedAt(new Date().toISOString().slice(0, 10));
       toast({ title: "Approved user added", description: `${body.user.identities[0].email} can now use the User Portal.` });
+      void loadEmailAudience();
     } catch (error) {
       toast({ title: "Unable to add user", description: error instanceof Error ? error.message : undefined, variant: "destructive" });
     } finally {
@@ -1319,6 +1391,7 @@ const Admin = ({ demoMode }: { demoMode: boolean }) => {
       if (!response.ok) throw new Error("The access status could not be changed.");
       setManagedUsers((current) => current.map((entry) => entry.id === managedUser.id ? { ...entry, accessStatus } : entry));
       toast({ title: accessStatus === "active" ? "User reactivated" : "User suspended" });
+      window.setTimeout(() => void loadEmailAudience(), 500);
     } catch (error) {
       toast({ title: "Unable to update user", description: error instanceof Error ? error.message : undefined, variant: "destructive" });
     } finally {
@@ -1362,6 +1435,7 @@ const Admin = ({ demoMode }: { demoMode: boolean }) => {
     setSourceUrl("");
     setAnnouncementCategory("Release");
     setEditingAnnouncementId(null);
+    setSendAnnouncementEmail(false);
   };
 
   const editAnnouncement = (announcement: LiveAnnouncement) => {
@@ -1371,6 +1445,7 @@ const Admin = ({ demoMode }: { demoMode: boolean }) => {
     setAnnouncementCategory(announcement.category);
     setOriginalPublishedAt(announcement.originalPublishedAt?.slice(0, 10) || "");
     setSourceUrl(announcement.sourceUrl || "");
+    setSendAnnouncementEmail(false);
     window.setTimeout(() => document.getElementById("announcement-editor")?.scrollIntoView({ behavior: "smooth", block: "start" }), 0);
   };
 
@@ -1382,6 +1457,12 @@ const Admin = ({ demoMode }: { demoMode: boolean }) => {
     if (demoMode) {
       toast({ title: "Local preview", description: `This announcement would be saved as ${status}.` });
       return;
+    }
+    const shouldSendEmail = status === "published" && sendAnnouncementEmail;
+    if (shouldSendEmail) {
+      const recipientCount = emailAudience?.approvedCount ?? "all active";
+      const confirmed = window.confirm(`Publish this announcement and email ${recipientCount} approved users?\n\nThis email cannot be recalled, and later edits will not resend it.`);
+      if (!confirmed) return;
     }
     setSavingAnnouncement(status);
     try {
@@ -1396,23 +1477,35 @@ const Admin = ({ demoMode }: { demoMode: boolean }) => {
           originalPublishedAt: originalPublishedAt || null,
           sourceUrl: sourceUrl || null,
           status,
+          sendEmail: shouldSendEmail,
         }),
       });
-      if (!response.ok) throw new Error("The announcement could not be saved.");
       const responseBody = await response.json();
+      if (!response.ok) {
+        if (responseBody.error === "resend_audience_sync_required") throw new Error("The Resend audience still has pending changes. Use Sync approved users, then publish again.");
+        throw new Error(responseBody.detail || "The announcement could not be saved.");
+      }
       setAdminAnnouncements((current) => {
         const remaining = current.filter((announcement) => announcement.id !== responseBody.announcement.id);
         return [responseBody.announcement, ...remaining].sort((left, right) => String(right.originalPublishedAt || right.publishedAt || "").localeCompare(String(left.originalPublishedAt || left.publishedAt || "")));
       });
       const wasEditing = Boolean(editingAnnouncementId);
       clearAnnouncementForm();
-      toast({ title: status === "published" ? (wasEditing ? "Published announcement updated" : "Announcement published") : (wasEditing ? "Draft updated" : "Draft saved"), description: originalPublishedAt ? "The original Google Groups date was preserved." : "The announcement is stored in the portal." });
+      const delivery = responseBody.emailDelivery;
+      toast({
+        title: delivery?.status === "sent" ? "Announcement published and email submitted" : status === "published" ? (wasEditing ? "Published announcement updated" : "Announcement published") : (wasEditing ? "Draft updated" : "Draft saved"),
+        description: delivery?.status === "failed" ? `The post was published, but email delivery failed: ${delivery.error || "Unknown Resend error"}` : delivery?.status === "sent" ? `Resend accepted the broadcast for ${delivery.recipientCount} approved users.` : originalPublishedAt ? "The original Google Groups date was preserved." : "The announcement is stored in the portal.",
+        variant: delivery?.status === "failed" ? "destructive" : undefined,
+      });
     } catch (error) {
       toast({ title: "Unable to save announcement", description: error instanceof Error ? error.message : undefined, variant: "destructive" });
     } finally {
       setSavingAnnouncement(null);
     }
   };
+
+  const editingAnnouncement = adminAnnouncements.find((announcement) => announcement.id === editingAnnouncementId) || null;
+  const emailOptionDisabled = Boolean(originalPublishedAt || sourceUrl || editingAnnouncement?.emailDelivery);
 
   return (
     <div className="space-y-8">
@@ -1504,6 +1597,24 @@ const Admin = ({ demoMode }: { demoMode: boolean }) => {
         </>
       ))}
 
+      {adminSection === "announcements" && <section className="border border-border bg-white p-6 sm:p-8">
+        <div className="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <div className="font-mono text-xs uppercase tracking-widest text-primary">Email audience</div>
+            <h2 className="mt-2 text-xl font-light">Resend announcement list</h2>
+            <p className="mt-2 text-sm text-muted-foreground">One primary email per active approved user. Secondary emails are not added, and unsubscribe preferences are preserved.</p>
+          </div>
+          <Button type="button" variant="outline" disabled={syncingEmailAudience || loadingEmailAudience} onClick={() => void syncEmailAudience()} className="shrink-0 rounded-none">
+            {(syncingEmailAudience || loadingEmailAudience) && <Loader2 className="h-4 w-4 animate-spin" />} Sync approved users
+          </Button>
+        </div>
+        <div className="mt-5 grid gap-3 sm:grid-cols-3">
+          <StatusCard icon={UserRoundCheck} label="Active approved users" value={loadingEmailAudience ? "—" : String(emailAudience?.approvedCount ?? "—")} note="Primary email addresses" />
+          <StatusCard icon={Mail} label="Resend audience" value={loadingEmailAudience ? "—" : String(emailAudience?.segmentCount ?? "—")} note="Current segment contacts" />
+          <StatusCard icon={Send} label="Pending changes" value={loadingEmailAudience ? "—" : String((emailAudience?.pendingAdds || 0) + (emailAudience?.pendingRemovals || 0))} note={emailAudience ? `${emailAudience.pendingAdds} to add · ${emailAudience.pendingRemovals} to remove` : "Audience status"} />
+        </div>
+      </section>}
+
       {adminSection === "announcements" && <section id="announcement-editor" className="scroll-mt-24 border border-border bg-white p-6 sm:p-8">
           <div className="flex items-center justify-between"><div><div className="font-mono text-xs uppercase tracking-widest text-primary">Announcements</div><h2 className="mt-2 text-xl font-light">{editingAnnouncementId ? "Edit announcement" : "Publish or migrate an update"}</h2></div><Megaphone className="h-5 w-5 text-primary" /></div>
           {editingAnnouncementId && <div className="mt-3 inline-flex bg-amber-50 px-2 py-1 font-mono text-xs text-amber-800">Editing existing announcement</div>}
@@ -1516,10 +1627,18 @@ const Admin = ({ demoMode }: { demoMode: boolean }) => {
             </div>
             <Input type="url" value={sourceUrl} onChange={(event) => setSourceUrl(event.target.value)} placeholder="Original Google Groups URL (optional)" className="rounded-none" />
             <textarea value={announcementBody} onChange={(event) => setAnnouncementBody(event.target.value)} className="min-h-44 w-full border border-input bg-background p-3 text-sm outline-none focus:border-primary" placeholder="Copy the complete announcement body…" />
+            <label className={cn("flex items-start gap-3 border p-4", emailOptionDisabled ? "border-slate-200 bg-slate-50 text-slate-400" : "border-sky-200 bg-sky-50 text-slate-700")}>
+              <input type="checkbox" checked={sendAnnouncementEmail} disabled={emailOptionDisabled} onChange={(event) => setSendAnnouncementEmail(event.target.checked)} className="mt-1 h-4 w-4 accent-sky-600" />
+              <span>
+                <span className="block text-sm font-medium">Email approved users when publishing</span>
+                <span className="mt-1 block text-xs leading-relaxed">Sends once to each active user's primary email through Resend. Publishing edits does not send again.</span>
+                {emailOptionDisabled && <span className="mt-1 block text-xs">Email is disabled for migrated historical posts and announcements that were already emailed.</span>}
+              </span>
+            </label>
             <div className="flex flex-wrap justify-end gap-2">
               {editingAnnouncementId && <Button type="button" variant="ghost" disabled={savingAnnouncement !== null} onClick={clearAnnouncementForm} className="rounded-none">Cancel edit</Button>}
               <Button type="button" variant="outline" disabled={savingAnnouncement !== null} onClick={() => void saveAnnouncement("draft")} className="rounded-none">{savingAnnouncement === "draft" && <Loader2 className="h-4 w-4 animate-spin" />} {editingAnnouncementId ? "Save as draft" : "Save draft"}</Button>
-              <Button type="button" disabled={savingAnnouncement !== null} onClick={() => void saveAnnouncement("published")} className="rounded-none">{savingAnnouncement === "published" && <Loader2 className="h-4 w-4 animate-spin" />} {editingAnnouncementId ? "Update and publish" : "Publish"}</Button>
+              <Button type="button" disabled={savingAnnouncement !== null} onClick={() => void saveAnnouncement("published")} className="rounded-none">{savingAnnouncement === "published" && <Loader2 className="h-4 w-4 animate-spin" />} {sendAnnouncementEmail ? "Publish and email users" : editingAnnouncementId ? "Update and publish" : "Publish"}</Button>
             </div>
           </div>
       </section>}
@@ -1531,7 +1650,7 @@ const Admin = ({ demoMode }: { demoMode: boolean }) => {
             : <div className="divide-y divide-border">
               {adminAnnouncements.map((announcement) => (
                 <div key={announcement.id} className="grid gap-4 px-6 py-5 md:grid-cols-[170px_minmax(0,1fr)_auto] md:items-center">
-                  <div><div className="font-mono text-xs text-muted-foreground">{announcementDate(announcement.originalPublishedAt || announcement.publishedAt)}</div><span className={cn("mt-2 inline-flex px-2 py-1 font-mono text-[11px] uppercase", announcement.status === "published" ? "bg-emerald-50 text-emerald-700" : "bg-amber-50 text-amber-800")}>{announcement.status}</span></div>
+                  <div><div className="font-mono text-xs text-muted-foreground">{announcementDate(announcement.originalPublishedAt || announcement.publishedAt)}</div><div className="mt-2 flex flex-wrap gap-1"><span className={cn("inline-flex px-2 py-1 font-mono text-[11px] uppercase", announcement.status === "published" ? "bg-emerald-50 text-emerald-700" : "bg-amber-50 text-amber-800")}>{announcement.status}</span>{announcement.emailDelivery && <span className={cn("inline-flex px-2 py-1 font-mono text-[11px] uppercase", announcement.emailDelivery.status === "sent" ? "bg-sky-50 text-sky-700" : announcement.emailDelivery.status === "failed" ? "bg-red-50 text-red-700" : "bg-slate-100 text-slate-600")}>email {announcement.emailDelivery.status}</span>}</div></div>
                   <div className="min-w-0"><div className="text-sm font-medium text-slate-800">{announcement.title}</div><p className="mt-1 line-clamp-2 text-xs leading-relaxed text-muted-foreground">{announcement.summary}</p></div>
                   <Button type="button" variant="outline" onClick={() => editAnnouncement(announcement)} className="rounded-none">Edit</Button>
                 </div>

@@ -95,9 +95,24 @@ CREATE TABLE IF NOT EXISTS announcement_reads (
   PRIMARY KEY (user_id, announcement_id)
 );
 
+CREATE TABLE IF NOT EXISTS announcement_email_deliveries (
+  id TEXT PRIMARY KEY,
+  announcement_id TEXT NOT NULL REFERENCES announcements(id),
+  provider TEXT NOT NULL DEFAULT 'resend',
+  provider_broadcast_id TEXT,
+  status TEXT NOT NULL DEFAULT 'queued' CHECK (status IN ('queued', 'sent', 'failed')),
+  recipient_count INTEGER,
+  requested_by_user_id TEXT REFERENCES users(id),
+  error_message TEXT,
+  created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE(announcement_id)
+);
+
 CREATE INDEX IF NOT EXISTS idx_user_identities_email ON user_identities(normalized_email);
 CREATE INDEX IF NOT EXISTS idx_group_memberships_import ON group_memberships(last_import_id);
 CREATE INDEX IF NOT EXISTS idx_access_requests_status ON access_requests(workflow_status, created_at);
 CREATE INDEX IF NOT EXISTS idx_access_events_user_time ON access_events(user_id, occurred_at);
 CREATE INDEX IF NOT EXISTS idx_announcements_status_date ON announcements(status, published_at, original_published_at);
 CREATE INDEX IF NOT EXISTS idx_announcement_reads_user ON announcement_reads(user_id, read_at);
+CREATE INDEX IF NOT EXISTS idx_announcement_email_deliveries_announcement ON announcement_email_deliveries(announcement_id, created_at);
