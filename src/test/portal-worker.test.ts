@@ -20,9 +20,10 @@ describe("announcement email template", () => {
       category: "Release",
     }, { preview: true, includeUnsubscribe: false });
 
-    expect(html).toContain("NCI Dose Tools Team");
+    expect(html).toContain('>NCI Dose Tools</a> Team');
     expect(html).toContain("National Cancer Institute");
-    expect(html).toContain('href="https://ncidose.github.io/"');
+    expect(html.match(/href="https:\/\/ncidose\.github\.io\/"/g)).toHaveLength(2);
+    expect(html).not.toContain("Visit the NCI Dose Tools public website");
     expect(html).toContain("Preview · Sent only to the portal administrator");
     expect(html).toContain("Release &lt;Update&gt;");
     expect(html).not.toContain("RESEND_UNSUBSCRIBE_URL");
