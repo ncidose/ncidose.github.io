@@ -191,9 +191,9 @@ export const Portal = ({ publicLanding = false }: { publicLanding?: boolean }) =
                   {section === "admin" && "Portal administration"}
                 </h1>
               </div>
-              <div className="inline-flex items-center gap-2 border border-amber-200 bg-amber-50 px-3 py-2 font-mono text-xs text-amber-800">
-                <span className="h-2 w-2 rounded-full bg-amber-500" />
-                {demoMode ? "Local preview — no live downloads" : "Secure portal — live downloads"}
+              <div className="inline-flex items-center gap-2 border border-primary/20 bg-primary/5 px-3 py-2 font-mono text-xs text-primary">
+                <ShieldCheck className="h-4 w-4" />
+                {demoMode ? "Preview mode" : "Access verified"}
               </div>
             </div>
 
