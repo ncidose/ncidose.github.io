@@ -113,11 +113,23 @@ export const Portal = ({ publicLanding = false }: { publicLanding?: boolean }) =
         });
         setAuthState("ready");
       })
-      .catch((error) => {
-        if (error.name !== "AbortError") setAuthState("denied");
+      .catch(async (error) => {
+        if (error.name === "AbortError") return;
+        if (error.message === "denied" && standalonePortal) {
+          try {
+            await fetch("/cdn-cgi/access/logout", {
+              credentials: "include",
+              redirect: "manual",
+            });
+          } finally {
+            window.location.replace(`${publicSiteUrl}#/portal/request-access?reason=unapproved`);
+          }
+          return;
+        }
+        setAuthState("denied");
       });
     return () => controller.abort();
-  }, [demoMode, publicLanding, isAccessRequest]);
+  }, [demoMode, publicLanding, isAccessRequest, standalonePortal]);
 
   const signIn = (role: "user" | "admin") => {
     const nextUser = role === "admin" ? demoAdminUser : demoApprovedUser;
@@ -362,12 +374,14 @@ const PortalLoading = () => (
 );
 
 const AccessRequest = () => {
+  const location = useLocation();
   const [submitted, setSubmitted] = useState(false);
   const [preparingPdf, setPreparingPdf] = useState(false);
   const [pdfError, setPdfError] = useState("");
   const [eligibility, setEligibility] = useState({ nonprofit: "", commercialReplacement: "", clinicalUse: "" });
   const isIneligible = eligibility.nonprofit === "no" || eligibility.commercialReplacement === "yes" || eligibility.clinicalUse === "yes";
   const eligibilityComplete = Object.values(eligibility).every(Boolean);
+  const redirectedAfterUnapprovedSignIn = new URLSearchParams(location.search).get("reason") === "unapproved";
 
   if (submitted) {
     return (
@@ -404,6 +418,24 @@ const AccessRequest = () => {
   return (
     <div className="min-h-screen bg-slate-50">
       <PortalPublicHeader />
+      {redirectedAfterUnapprovedSignIn && (
+        <div className="border-b border-amber-200 bg-amber-50">
+          <div className="container mx-auto flex flex-col gap-3 px-6 py-5 text-sm leading-relaxed text-amber-950 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <p className="font-medium">No approved portal account was found for the email you verified.</p>
+              <p className="mt-1 text-amber-900">
+                Already approved? Sign in again with the email linked to your account. New users can continue with the STA request below.
+              </p>
+            </div>
+            <Link
+              to="/portal"
+              className="inline-flex shrink-0 items-center justify-center border border-amber-700 px-4 py-2 font-medium text-amber-900 hover:bg-amber-100"
+            >
+              Try another email
+            </Link>
+          </div>
+        </div>
+      )}
       <main className="container mx-auto grid gap-10 px-6 py-12 lg:grid-cols-[0.85fr_1.15fr] lg:py-16">
         <section className="lg:sticky lg:top-10 lg:self-start">
           <div className="font-mono text-xs uppercase tracking-widest text-primary">New user access</div>
