@@ -1231,7 +1231,7 @@ type EmailAudienceStatus = {
   pendingRemovals: number;
 };
 
-type UserSortKey = "name" | "email" | "approved" | "joined" | "lastLogin" | "status";
+type UserSortKey = "name" | "email" | "joined" | "lastLogin";
 
 const emptyAdminActivity: AdminActivityData = {
   summary: { downloadsToday: 0, downloads7Days: 0, downloads30Days: 0, downloadUsers30Days: 0, logins30Days: 0 },
@@ -1481,10 +1481,8 @@ const Admin = ({ demoMode }: { demoMode: boolean }) => {
     const sortValue = (entry: ManagedPortalUser) => {
       const primaryEmail = entry.identities.find((identity) => identity.primary)?.email || entry.identities[0]?.email || "";
       if (userSort.key === "email") return primaryEmail;
-      if (userSort.key === "approved") return entry.approvedAt || "";
       if (userSort.key === "joined") return entry.groupJoinedAt || entry.createdAt || "";
       if (userSort.key === "lastLogin") return entry.lastLoginAt || "";
-      if (userSort.key === "status") return entry.accessStatus;
       return entry.name || primaryEmail;
     };
     return [...matchingUsers].sort((left, right) => {
@@ -1648,13 +1646,11 @@ const Admin = ({ demoMode }: { demoMode: boolean }) => {
           <div><div className="font-mono text-xs uppercase tracking-widest text-primary">User management</div><h2 className="mt-2 text-xl font-light">Approved user directory</h2></div>
           <div className="relative w-full sm:w-80"><Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" /><Input value={userSearch} onChange={(event) => setUserSearch(event.target.value)} placeholder="Search name, email, or institution" className="rounded-none pl-9" /></div>
         </div>
-        {!loadingUsers && filteredUsers.length > 0 && <div className="hidden border-b border-border bg-slate-50 px-6 py-3 lg:grid lg:grid-cols-[minmax(0,1.1fr)_minmax(0,1.4fr)_120px_155px_120px_90px_auto] lg:items-center lg:gap-4">
+        {!loadingUsers && filteredUsers.length > 0 && <div className="hidden border-b border-border bg-slate-50 px-6 py-3 lg:grid lg:grid-cols-[minmax(0,1.1fr)_minmax(0,1.4fr)_150px_130px_auto] lg:items-center lg:gap-4">
           {sortHeader("name", "Name")}
           {sortHeader("email", "Email")}
-          {sortHeader("approved", "Approved")}
-          {sortHeader("joined", "Group joined / Added")}
+          {sortHeader("joined", "Joined")}
           {sortHeader("lastLogin", "Last login")}
-          {sortHeader("status", "Status")}
           <div className="text-right text-xs font-medium uppercase tracking-wide text-slate-500">Actions</div>
         </div>}
         {loadingUsers ? (
@@ -1667,13 +1663,11 @@ const Admin = ({ demoMode }: { demoMode: boolean }) => {
               const primaryEmail = managedUser.identities.find((identity) => identity.primary)?.email || managedUser.identities[0]?.email || "No email";
               const additionalEmail = managedUser.identities.find((identity) => !identity.primary);
               return (
-                <div key={managedUser.id} className="grid gap-4 px-6 py-5 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,1.4fr)_120px_155px_120px_90px_auto] lg:items-center">
+                <div key={managedUser.id} className="grid gap-4 px-6 py-5 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,1.4fr)_150px_130px_auto] lg:items-center">
                   <div className="min-w-0"><div className="truncate text-sm font-medium text-slate-800">{managedUser.name || primaryEmail.split("@")[0]}</div><div className="mt-1 flex items-center gap-1.5 truncate text-xs text-muted-foreground"><Building2 className="h-3.5 w-3.5 shrink-0" /> {[managedUser.institution, managedUser.country].filter(Boolean).join(" · ") || "Profile not provided"}</div></div>
                   <div className="min-w-0"><div className="truncate text-sm text-slate-700">{primaryEmail}</div>{additionalEmail && <div className="mt-1 truncate text-xs text-muted-foreground">+ {additionalEmail.email} · {additionalEmail.verified ? "verified" : "pending"}</div>}</div>
-                  <div className="text-xs text-muted-foreground"><span className="lg:hidden">Approved </span>{managedUser.approvedAt ? announcementDate(managedUser.approvedAt) : "—"}</div>
-                  <div className="text-xs text-muted-foreground"><span className="lg:hidden">{managedUser.groupJoinedAt ? "Google Group joined " : "Added to portal "}</span>{announcementDate(managedUser.groupJoinedAt || managedUser.createdAt)}</div>
+                  <div className="text-xs text-muted-foreground"><span className="lg:hidden">Joined </span>{announcementDate(managedUser.groupJoinedAt || managedUser.createdAt)}</div>
                   <div className="text-xs text-muted-foreground"><span className="lg:hidden">Last login </span>{managedUser.lastLoginAt ? announcementDate(managedUser.lastLoginAt) : "—"}</div>
-                  <div><span className={cn("px-2 py-1 font-mono text-xs", managedUser.accessStatus === "active" ? "bg-emerald-50 text-emerald-700" : "bg-slate-100 text-slate-600")}>{managedUser.accessStatus}</span></div>
                   <div className="flex flex-wrap items-center gap-2 lg:justify-end"><Button type="button" variant="outline" disabled={updatingUserId === managedUser.id || deletingUserId === managedUser.id || managedUser.role === "admin"} onClick={() => void changeUserStatus(managedUser)} className="rounded-none">{updatingUserId === managedUser.id ? <Loader2 className="h-4 w-4 animate-spin" /> : managedUser.accessStatus === "active" ? "Suspend" : "Reactivate"}</Button>{managedUser.accessStatus === "suspended" && managedUser.role !== "admin" && <Button type="button" variant="outline" disabled={updatingUserId === managedUser.id || deletingUserId === managedUser.id} onClick={() => void deleteUser(managedUser)} className="rounded-none border-red-200 text-red-700 hover:bg-red-50 hover:text-red-800">{deletingUserId === managedUser.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />} Delete</Button>}</div>
                 </div>
               );
