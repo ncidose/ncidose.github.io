@@ -1033,10 +1033,10 @@ const Account = ({
       </section>
 
       <section className="border border-border bg-white p-6 sm:p-8 xl:col-span-2">
-        <div className="flex items-start gap-4"><div className="flex h-10 w-10 items-center justify-center border border-primary text-primary"><Mail className="h-5 w-5" /></div><div><h2 className="text-lg font-medium">Add one institutional email</h2><p className="mt-1 text-sm text-muted-foreground">Optional: link one additional email without changing your STA approval or download history.</p></div></div>
+        <div className="flex items-start gap-4"><div className="flex h-10 w-10 items-center justify-center border border-primary text-primary"><Mail className="h-5 w-5" /></div><div><h2 className="text-lg font-medium">Add a secondary email</h2><p className="mt-1 text-sm text-muted-foreground">Optional: link one additional work or personal email without changing your STA approval or download history.</p></div></div>
         <div className="mt-6 max-w-xl">
           {!additionalIdentity ? (
-            <div className="flex flex-col gap-2 sm:flex-row"><Input type="email" value={newEmail} onChange={(event) => setNewEmail(event.target.value)} placeholder="name@institution.edu" disabled={savingEmail} className="rounded-none" /><Button variant="outline" disabled={!newEmail.includes("@") || savingEmail} onClick={() => void addEmail()} className="shrink-0 rounded-none">{savingEmail ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />} Add email</Button></div>
+            <div className="flex flex-col gap-2 sm:flex-row"><Input type="email" value={newEmail} onChange={(event) => setNewEmail(event.target.value)} placeholder="secondary@email.com" disabled={savingEmail} className="rounded-none" /><Button variant="outline" disabled={!newEmail.includes("@") || savingEmail} onClick={() => void addEmail()} className="shrink-0 rounded-none">{savingEmail ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />} Add email</Button></div>
           ) : !additionalIdentity.verified ? (
             <div className="border border-amber-200 bg-amber-50 p-4">
               <div className="flex items-start gap-2 text-sm text-amber-900"><Mail className="mt-0.5 h-4 w-4 shrink-0" /><p>To verify <strong>{additionalIdentity.email}</strong>, sign out and return to the User Portal using that email. Cloudflare will send the one-time code.</p></div>
@@ -1066,6 +1066,7 @@ type ManagedPortalUser = {
 
 const Admin = ({ demoMode }: { demoMode: boolean }) => {
   const { toast } = useToast();
+  const [adminSection, setAdminSection] = useState<"users" | "announcements">("users");
   const [announcementTitle, setAnnouncementTitle] = useState("");
   const [announcementBody, setAnnouncementBody] = useState("");
   const [announcementCategory, setAnnouncementCategory] = useState<"Release" | "Maintenance" | "Access">("Release");
@@ -1248,13 +1249,18 @@ const Admin = ({ demoMode }: { demoMode: boolean }) => {
 
   return (
     <div className="space-y-8">
-      <div className="grid gap-4 md:grid-cols-3">
+      <nav aria-label="Admin sections" className="flex border border-border bg-white p-1">
+        <button type="button" onClick={() => setAdminSection("users")} className={cn("flex flex-1 items-center justify-center gap-2 px-4 py-3 text-sm transition-colors sm:flex-none", adminSection === "users" ? "bg-primary text-primary-foreground" : "text-slate-600 hover:bg-slate-50 hover:text-primary")}><Users className="h-4 w-4" /> User Management</button>
+        <button type="button" onClick={() => setAdminSection("announcements")} className={cn("flex flex-1 items-center justify-center gap-2 px-4 py-3 text-sm transition-colors sm:flex-none", adminSection === "announcements" ? "bg-primary text-primary-foreground" : "text-slate-600 hover:bg-slate-50 hover:text-primary")}><Megaphone className="h-4 w-4" /> Announcements</button>
+      </nav>
+
+      {adminSection === "users" && <div className="grid gap-4 md:grid-cols-3">
         <StatusCard icon={Users} label="Approved users" value={loadingUsers ? "—" : String(managedUsers.length)} note="All portal accounts" />
         <StatusCard icon={UserRoundCheck} label="Active" value={loadingUsers ? "—" : String(managedUsers.filter((entry) => entry.accessStatus === "active").length)} note="Can access downloads" />
         <StatusCard icon={ShieldCheck} label="Suspended" value={loadingUsers ? "—" : String(managedUsers.filter((entry) => entry.accessStatus === "suspended").length)} note="Access retained but disabled" />
-      </div>
+      </div>}
 
-      <section className="border border-border bg-white p-6 sm:p-8">
+      {adminSection === "users" && <section className="border border-border bg-white p-6 sm:p-8">
         <div className="flex items-start gap-4">
           <div className="flex h-10 w-10 shrink-0 items-center justify-center border border-primary text-primary"><UserRoundCheck className="h-5 w-5" /></div>
           <div><div className="font-mono text-xs uppercase tracking-widest text-primary">New STA approval</div><h2 className="mt-2 text-xl font-light">Add an approved user</h2><p className="mt-2 text-sm text-muted-foreground">Use the email address included in the NCI Technology Transfer approval message. The user can add one alternate email after signing in.</p></div>
@@ -1268,9 +1274,9 @@ const Admin = ({ demoMode }: { demoMode: boolean }) => {
         <div className="mt-4 flex justify-end">
           <Button type="button" disabled={creatingUser || !newUserName.trim() || !newUserEmail.includes("@")} onClick={() => void createUser()} className="rounded-none">{creatingUser && <Loader2 className="h-4 w-4 animate-spin" />} Add approved user</Button>
         </div>
-      </section>
+      </section>}
 
-      <section className="border border-border bg-white">
+      {adminSection === "users" && <section className="border border-border bg-white">
         <div className="flex flex-wrap items-center justify-between gap-4 border-b border-border px-6 py-5">
           <div><div className="font-mono text-xs uppercase tracking-widest text-primary">User management</div><h2 className="mt-2 text-xl font-light">Approved user directory</h2></div>
           <div className="relative w-full sm:w-80"><Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" /><Input value={userSearch} onChange={(event) => setUserSearch(event.target.value)} placeholder="Search name, email, or institution" className="rounded-none pl-9" /></div>
@@ -1295,10 +1301,11 @@ const Admin = ({ demoMode }: { demoMode: boolean }) => {
             })}
           </div>
         )}
-      </section>
+      </section>}
 
-      <div className="grid gap-6 xl:grid-cols-2">
-        <section id="announcement-editor" className="scroll-mt-24 border border-border bg-white p-6">
+      {adminSection === "users" && <section className="border border-border bg-white p-6"><div className="flex items-center justify-between"><div><div className="font-mono text-xs uppercase tracking-widest text-primary">New approvals</div><h2 className="mt-2 text-xl font-light">Simple activation workflow</h2></div><Users className="h-5 w-5 text-primary" /></div><div className="mt-6 grid gap-3 sm:grid-cols-2">{["Receive the executed STA approval email from NCI Technology Transfer", "Add the approved email in the form above", "Send the User Portal link to the recipient", "The recipient may verify one secondary email"].map((item, index) => <div key={item} className="flex items-center gap-3 border border-border p-3"><div className="flex h-6 w-6 shrink-0 items-center justify-center bg-primary/10 font-mono text-xs text-primary">{index + 1}</div><span className="text-sm text-slate-700">{item}</span></div>)}</div></section>}
+
+      {adminSection === "announcements" && <section id="announcement-editor" className="scroll-mt-24 border border-border bg-white p-6 sm:p-8">
           <div className="flex items-center justify-between"><div><div className="font-mono text-xs uppercase tracking-widest text-primary">Announcements</div><h2 className="mt-2 text-xl font-light">{editingAnnouncementId ? "Edit announcement" : "Publish or migrate an update"}</h2></div><Megaphone className="h-5 w-5 text-primary" /></div>
           {editingAnnouncementId && <div className="mt-3 inline-flex bg-amber-50 px-2 py-1 font-mono text-xs text-amber-800">Editing existing announcement</div>}
           <p className="mt-3 text-xs leading-relaxed text-muted-foreground">For a Google Groups post, copy the original title and body and enter its original date. Leave the historical fields blank for a new portal announcement.</p>
@@ -1316,11 +1323,9 @@ const Admin = ({ demoMode }: { demoMode: boolean }) => {
               <Button type="button" disabled={savingAnnouncement !== null} onClick={() => void saveAnnouncement("published")} className="rounded-none">{savingAnnouncement === "published" && <Loader2 className="h-4 w-4 animate-spin" />} {editingAnnouncementId ? "Update and publish" : "Publish"}</Button>
             </div>
           </div>
-        </section>
-        <section className="border border-border bg-white p-6"><div className="flex items-center justify-between"><div><div className="font-mono text-xs uppercase tracking-widest text-primary">New approvals</div><h2 className="mt-2 text-xl font-light">Simple activation workflow</h2></div><Users className="h-5 w-5 text-primary" /></div><div className="mt-6 space-y-3">{["Receive the executed STA approval email from NCI Technology Transfer", "Add the approved email in the form above", "Send the User Portal link to the recipient", "The recipient may verify one additional institutional email"].map((item, index) => <div key={item} className="flex items-center gap-3 border border-border p-3"><div className="flex h-6 w-6 shrink-0 items-center justify-center bg-primary/10 font-mono text-xs text-primary">{index + 1}</div><span className="text-sm text-slate-700">{item}</span></div>)}</div></section>
-      </div>
+      </section>}
 
-      <section className="border border-border bg-white">
+      {adminSection === "announcements" && <section className="border border-border bg-white">
         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border px-6 py-5"><div><div className="font-mono text-xs uppercase tracking-widest text-primary">Announcement management</div><h2 className="mt-2 text-xl font-light">Published posts and drafts</h2></div><div className="font-mono text-xs text-muted-foreground">{adminAnnouncements.length} posts</div></div>
         {loadingAdminAnnouncements ? <div className="flex items-center justify-center gap-3 p-10 text-sm text-muted-foreground"><Loader2 className="h-5 w-5 animate-spin text-primary" /> Loading announcement list…</div>
           : adminAnnouncements.length === 0 ? <div className="p-10 text-center text-sm text-muted-foreground">No announcements have been saved.</div>
@@ -1333,7 +1338,7 @@ const Admin = ({ demoMode }: { demoMode: boolean }) => {
                 </div>
               ))}
             </div>}
-      </section>
+      </section>}
     </div>
   );
 };

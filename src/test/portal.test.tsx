@@ -68,7 +68,7 @@ describe("portal migration experience", () => {
       </MemoryRouter>,
     );
 
-    fireEvent.change(screen.getByPlaceholderText("name@institution.edu"), { target: { value: "researcher@university.edu" } });
+    fireEvent.change(screen.getByPlaceholderText("secondary@email.com"), { target: { value: "researcher@university.edu" } });
     fireEvent.click(screen.getByRole("button", { name: /add email/i }));
 
     expect(screen.getAllByText("researcher@university.edu")).toHaveLength(2);
@@ -87,5 +87,9 @@ describe("portal migration experience", () => {
     expect(screen.getByRole("heading", { name: /add an approved user/i })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: /approved user directory/i })).toBeInTheDocument();
     expect(screen.getByText("approved.user@gmail.com")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: /announcements/i }));
+    expect(screen.getByRole("heading", { name: /publish or migrate an update/i })).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: /add an approved user/i })).not.toBeInTheDocument();
   });
 });
