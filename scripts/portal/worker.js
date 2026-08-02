@@ -250,11 +250,36 @@ const escapeHtml = (value) => String(value || "")
 export const announcementEmailHtml = (announcement, options = {}) => {
   const preview = options.preview === true;
   const includeUnsubscribe = options.includeUnsubscribe !== false;
+  const headerLabel = options.headerLabel || "User Portal Update";
   const paragraphs = announcement.body.split(/\n{2,}/).map((paragraph) => `<p style="margin:0 0 18px;line-height:1.65">${escapeHtml(paragraph).replaceAll("\n", "<br>")}</p>`).join("");
   const previewBanner = preview ? `<tr><td style="background:#e8f3fa;border-bottom:1px solid #c8ddea;padding:10px 36px;color:#285a78;font-size:12px;font-weight:700;letter-spacing:.08em;text-align:center;text-transform:uppercase">Preview · Sent only to the portal administrator</td></tr>` : "";
   const unsubscribe = includeUnsubscribe ? `<br><a href="{{{RESEND_UNSUBSCRIBE_URL}}}" style="color:#44647c;text-decoration:underline">Unsubscribe from announcement emails</a>` : "";
-  return `<!doctype html><html><head><meta name="viewport" content="width=device-width,initial-scale=1"><title>${escapeHtml(announcement.title)}</title></head><body style="margin:0;padding:0;background:#edf3f7;color:#172b3a;font-family:Arial,Helvetica,sans-serif"><div style="display:none;max-height:0;overflow:hidden;opacity:0">${escapeHtml(announcement.body.slice(0, 140))}</div><table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background:#edf3f7"><tr><td align="center" style="padding:32px 14px"><table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="max-width:680px;background:#ffffff;border:1px solid #c9d7e2"><tr><td style="background:#123f63;border-bottom:5px solid #2ba8df;padding:25px 36px"><a href="https://ncidose.github.io/" style="color:#ffffff;font-size:24px;font-weight:400;letter-spacing:.01em;text-decoration:none">NCI Dose Tools</a><div style="margin-top:7px;color:#c9e5f4;font-size:11px;letter-spacing:.16em;text-transform:uppercase">User Portal Update</div></td></tr>${previewBanner}<tr><td style="padding:38px 36px 20px"><span style="display:inline-block;background:#e9f5fb;color:#126b9a;font-size:11px;font-weight:700;letter-spacing:.12em;padding:7px 10px;text-transform:uppercase">${escapeHtml(announcement.category)}</span><h1 style="color:#143047;font-size:30px;font-weight:400;line-height:1.25;margin:18px 0 27px">${escapeHtml(announcement.title)}</h1><div style="color:#2c4050;font-size:16px;line-height:1.65">${paragraphs}</div><table role="presentation" cellspacing="0" cellpadding="0" border="0" style="margin:30px 0 12px"><tr><td style="background:#147da8"><a href="https://portal.ncidosetools.com" style="display:inline-block;color:#ffffff;font-size:15px;font-weight:700;padding:14px 22px;text-decoration:none">Open NCI Dose Tools User Portal</a></td></tr></table></td></tr><tr><td style="padding:8px 36px 34px"><div style="border-top:1px solid #d8e2ea;padding-top:22px;color:#2b4355;font-size:14px;line-height:1.6">Sincerely,<br><strong>NCI Dose Team</strong><br><a href="https://ncidose.github.io/" style="color:#2b4355;text-decoration:underline">NCI Dose Tools portal</a><br><span style="color:#627688">National Cancer Institute</span></div></td></tr><tr><td style="background:#f4f7f9;border-top:1px solid #d8e2ea;padding:20px 36px;color:#607486;font-size:11px;line-height:1.6">This message was sent to an email linked to an approved NCI Dose Tools User Portal account.${unsubscribe}</td></tr></table></td></tr></table></body></html>`;
+  return `<!doctype html><html><head><meta name="viewport" content="width=device-width,initial-scale=1"><title>${escapeHtml(announcement.title)}</title></head><body style="margin:0;padding:0;background:#edf3f7;color:#172b3a;font-family:Arial,Helvetica,sans-serif"><div style="display:none;max-height:0;overflow:hidden;opacity:0">${escapeHtml(announcement.body.slice(0, 140))}</div><table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background:#edf3f7"><tr><td align="center" style="padding:32px 14px"><table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="max-width:680px;background:#ffffff;border:1px solid #c9d7e2"><tr><td style="background:#123f63;border-bottom:5px solid #2ba8df;padding:25px 36px"><a href="https://ncidose.github.io/" style="color:#ffffff;font-size:24px;font-weight:400;letter-spacing:.01em;text-decoration:none">NCI Dose Tools</a><div style="margin-top:7px;color:#c9e5f4;font-size:11px;letter-spacing:.16em;text-transform:uppercase">${escapeHtml(headerLabel)}</div></td></tr>${previewBanner}<tr><td style="padding:38px 36px 20px"><span style="display:inline-block;background:#e9f5fb;color:#126b9a;font-size:11px;font-weight:700;letter-spacing:.12em;padding:7px 10px;text-transform:uppercase">${escapeHtml(announcement.category)}</span><h1 style="color:#143047;font-size:30px;font-weight:400;line-height:1.25;margin:18px 0 27px">${escapeHtml(announcement.title)}</h1><div style="color:#2c4050;font-size:16px;line-height:1.65">${paragraphs}</div><table role="presentation" cellspacing="0" cellpadding="0" border="0" style="margin:30px 0 12px"><tr><td style="background:#147da8"><a href="https://portal.ncidosetools.com" style="display:inline-block;color:#ffffff;font-size:15px;font-weight:700;padding:14px 22px;text-decoration:none">Open NCI Dose Tools User Portal</a></td></tr></table></td></tr><tr><td style="padding:8px 36px 34px"><div style="border-top:1px solid #d8e2ea;padding-top:22px;color:#2b4355;font-size:14px;line-height:1.6">Sincerely,<br><strong>NCI Dose Team</strong><br><a href="https://ncidose.github.io/" style="color:#2b4355;text-decoration:underline">NCI Dose Tools portal</a><br><span style="color:#627688">National Cancer Institute</span></div></td></tr><tr><td style="background:#f4f7f9;border-top:1px solid #d8e2ea;padding:20px 36px;color:#607486;font-size:11px;line-height:1.6">This message was sent to an email linked to an approved NCI Dose Tools User Portal account.${unsubscribe}</td></tr></table></td></tr></table></body></html>`;
 };
+
+export const welcomeEmailHtml = (displayName, email) => announcementEmailHtml({
+  title: "Welcome to the NCI Dose Tools User Portal",
+  category: "Approved access",
+  body: `Hello ${displayName || "NCI Dose Tools user"},\n\nYour approved access to the NCI Dose Tools User Portal is ready.\n\nSign in using ${email}. A one-time verification code will be sent to that address.\n\nUse the User Portal to download approved software releases, review announcements, and manage your account email.`,
+}, { includeUnsubscribe: false, headerLabel: "Approved User Access" });
+
+export const secondaryEmailAddedHtml = (displayName, email) => announcementEmailHtml({
+  title: "Secondary email added to your NCI Dose Tools account",
+  category: "Account update",
+  body: `Hello ${displayName || "NCI Dose Tools user"},\n\n${email} has been successfully linked to your approved NCI Dose Tools User Portal account.\n\nTo verify this address, sign out of the portal and sign in again using ${email}. Cloudflare Access will send a one-time verification code to this address. After verification, you can sign in with either email.\n\nIf you did not make this change, please contact the NCI Dose Team.`,
+}, { includeUnsubscribe: false, headerLabel: "Account Confirmation" });
+
+async function sendPortalAccountEmail(env, { to, subject, html, text }) {
+  const result = await resendRequest(env, "/emails", {
+    method: "POST",
+    body: JSON.stringify({ from: env.RESEND_FROM, to: [to], subject, html, text }),
+  });
+  return { status: "sent", sentTo: to, providerEmailId: result.id || null };
+}
+
+const welcomeEmailText = (displayName, email) => `Hello ${displayName || "NCI Dose Tools user"},\n\nYour approved access to the NCI Dose Tools User Portal is ready.\n\nSign in using ${email}. A one-time verification code will be sent to that address.\n\nOpen User Portal: https://portal.ncidosetools.com\n\nSincerely,\nNCI Dose Team\nNCI Dose Tools portal: https://ncidose.github.io/\nNational Cancer Institute`;
+
+const secondaryEmailAddedText = (displayName, email) => `Hello ${displayName || "NCI Dose Tools user"},\n\n${email} has been successfully linked to your approved NCI Dose Tools User Portal account.\n\nTo verify this address, sign out and sign in again using ${email}. After verification, you can sign in with either email.\n\nIf you did not make this change, please contact the NCI Dose Team.\n\nOpen User Portal: https://portal.ncidosetools.com\n\nSincerely,\nNCI Dose Team\nNCI Dose Tools portal: https://ncidose.github.io/\nNational Cancer Institute`;
 
 async function sendAnnouncementBroadcast(env, announcement, requestedByUserId, recipientCount) {
   const existing = await env.DB.prepare("SELECT status FROM announcement_email_deliveries WHERE announcement_id=?").bind(announcement.id).first();
@@ -347,7 +372,26 @@ export default {
           VALUES (?, ?, 'user_added', ?, 0, 0)
         `).bind(id, user.id, newEmail).run();
         context.waitUntil(env.DB.prepare("INSERT INTO access_events (id, user_id, event_type, metadata_json) VALUES (?, ?, 'email_added', ?)").bind(crypto.randomUUID(), user.id, JSON.stringify({ email: newEmail })).run());
-        return json({ identity: { id, provider: "user_added", email: newEmail, verified: false, primary: false } }, 201, cors);
+        let confirmationEmail = { status: "not_configured", sentTo: newEmail };
+        if (env.RESEND_API_KEY && env.RESEND_SEGMENT_ID && env.RESEND_FROM) {
+          try {
+            confirmationEmail = await sendPortalAccountEmail(env, {
+              to: newEmail,
+              subject: "Secondary email added to your NCI Dose Tools account",
+              html: secondaryEmailAddedHtml(user.display_name, newEmail),
+              text: secondaryEmailAddedText(user.display_name, newEmail),
+            });
+          } catch (error) {
+            confirmationEmail = { status: "failed", sentTo: newEmail, error: String(error.message || error) };
+          }
+        }
+        context.waitUntil(env.DB.prepare("INSERT INTO access_events (id, user_id, event_type, metadata_json) VALUES (?, ?, ?, ?)").bind(
+          crypto.randomUUID(),
+          user.id,
+          confirmationEmail.status === "sent" ? "secondary_email_notice_sent" : "secondary_email_notice_failed",
+          JSON.stringify({ email: newEmail, status: confirmationEmail.status }),
+        ).run());
+        return json({ identity: { id, provider: "user_added", email: newEmail, verified: false, primary: false }, confirmationEmail }, 201, cors);
       }
 
       if (request.method === "PATCH" && url.pathname === "/api/account/profile") {
@@ -506,9 +550,32 @@ export default {
           `).bind(identityId, userId, approvedEmail),
           env.DB.prepare("INSERT INTO access_events (id, user_id, event_type, metadata_json) VALUES (?, ?, 'user_activated', ?)").bind(crypto.randomUUID(), userId, JSON.stringify({ approvedEmail, activatedBy: user.id })),
         ]);
-        if (env.RESEND_API_KEY && env.RESEND_SEGMENT_ID) {
-          context.waitUntil(addResendContactToAudience(env, approvedEmail).catch(() => undefined));
+        let welcomeEmail = { status: "not_configured", sentTo: approvedEmail };
+        if (env.RESEND_API_KEY && env.RESEND_SEGMENT_ID && env.RESEND_FROM) {
+          const [audienceResult, emailResult] = await Promise.allSettled([
+            addResendContactToAudience(env, approvedEmail),
+            sendPortalAccountEmail(env, {
+              to: approvedEmail,
+              subject: "Welcome to the NCI Dose Tools User Portal",
+              html: welcomeEmailHtml(displayName, approvedEmail),
+              text: welcomeEmailText(displayName, approvedEmail),
+            }),
+          ]);
+          welcomeEmail = emailResult.status === "fulfilled"
+            ? emailResult.value
+            : { status: "failed", sentTo: approvedEmail, error: String(emailResult.reason?.message || emailResult.reason) };
+          if (audienceResult.status === "rejected") {
+            context.waitUntil(env.DB.prepare("INSERT INTO access_events (id, user_id, event_type, metadata_json) VALUES (?, ?, 'email_audience_sync_failed', ?)").bind(
+              crypto.randomUUID(), userId, JSON.stringify({ email: approvedEmail }),
+            ).run());
+          }
         }
+        context.waitUntil(env.DB.prepare("INSERT INTO access_events (id, user_id, event_type, metadata_json) VALUES (?, ?, ?, ?)").bind(
+          crypto.randomUUID(),
+          userId,
+          welcomeEmail.status === "sent" ? "welcome_email_sent" : "welcome_email_failed",
+          JSON.stringify({ email: approvedEmail, status: welcomeEmail.status }),
+        ).run());
         return json({
           user: {
             id: userId,
@@ -524,6 +591,7 @@ export default {
             lastLoginAt: null,
             identities: [{ id: identityId, provider: "sta_approved", email: approvedEmail, verified: false, primary: true }],
           },
+          welcomeEmail,
         }, 201, cors);
       }
 

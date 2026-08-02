@@ -1099,7 +1099,12 @@ const Account = ({
       }
       setUser({ ...user, identities: [...user.identities, body.identity] });
       setNewEmail("");
-      toast({ title: "Email added", description: "Sign out, then sign in with the new email to verify it." });
+      toast({
+        title: body.confirmationEmail?.status === "sent" ? "Email added and confirmation sent" : "Email added",
+        description: body.confirmationEmail?.status === "failed"
+          ? "The email is linked, but the confirmation message could not be sent. Sign out, then sign in with the new email to verify it."
+          : "A confirmation message was sent to the new email. Sign out, then sign in with it to verify the address.",
+      });
     } catch (error) {
       toast({ title: "Unable to add email", description: error instanceof Error ? error.message : undefined, variant: "destructive" });
     } finally {
@@ -1393,7 +1398,12 @@ const Admin = ({ demoMode }: { demoMode: boolean }) => {
       setNewUserInstitution("");
       setNewUserCountry("");
       setNewUserApprovedAt(new Date().toISOString().slice(0, 10));
-      toast({ title: "Approved user added", description: `${body.user.identities[0].email} can now use the User Portal.` });
+      toast({
+        title: body.welcomeEmail?.status === "sent" ? "Approved user added and welcome email sent" : "Approved user added",
+        description: body.welcomeEmail?.status === "failed"
+          ? `${body.user.identities[0].email} can use the portal, but the welcome email could not be sent.`
+          : `A welcome message was sent to ${body.user.identities[0].email}.`,
+      });
       void loadEmailAudience();
     } catch (error) {
       toast({ title: "Unable to add user", description: error instanceof Error ? error.message : undefined, variant: "destructive" });
