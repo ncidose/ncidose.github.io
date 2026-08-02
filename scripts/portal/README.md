@@ -24,6 +24,7 @@ Only `member`, `manager`, and `owner` rows are eligible for portal access. `invi
 - The executed-STA spreadsheet is not used to authenticate portal users. It remains the source for the public world-map totals and outreach reporting.
 - A user may optionally add one secondary work or personal email after signing in with the address already linked to the account. The added address is stored as pending and becomes verified when the user signs in through Cloudflare Access with that address.
 - For newly executed STAs, an administrator registers the email copied on the NCI Technology Transfer approval message. The recipient can use that email immediately and may link one additional verified address later.
+- Users may optionally maintain their full name, institution, and country in Account. These fields update the private administrator directory only and do not alter STA approval or public world-map data.
 - The Cloudflare Access Allow policy must permit One-time PIN authentication to reach the Worker. The Worker remains the authorization boundary: only active emails linked in D1 receive portal or download access.
 
 ## Production design

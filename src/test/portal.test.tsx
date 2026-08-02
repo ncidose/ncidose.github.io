@@ -74,6 +74,7 @@ describe("portal migration experience", () => {
     expect(screen.getAllByText("researcher@university.edu")).toHaveLength(2);
     expect(screen.getByText(/sign out and return to the User Portal/i)).toBeInTheDocument();
     expect(screen.queryByText(/Preview code/i)).not.toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /profile information/i })).toBeInTheDocument();
   });
 
   it("shows approved-user management only in the admin view", () => {

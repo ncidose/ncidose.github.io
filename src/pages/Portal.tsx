@@ -51,6 +51,7 @@ type PortalUser = {
   name: string;
   primaryEmail: string;
   institution: string;
+  country?: string;
   role: "user" | "admin";
   staStatus: "Approved";
   staApprovedOn: string;
@@ -102,7 +103,8 @@ export const Portal = ({ publicLanding = false }: { publicLanding?: boolean }) =
           id: apiUser.id,
           name: displayName,
           primaryEmail: apiUser.primary_email || email,
-          institution: apiUser.institution || "Not specified",
+          institution: apiUser.institution || "",
+          country: apiUser.country || "",
           role: apiUser.role,
           staStatus: "Approved",
           staApprovedOn: apiUser.approved_at || "Existing approval",
@@ -942,9 +944,38 @@ const Account = ({
 }) => {
   const { toast } = useToast();
   const [newEmail, setNewEmail] = useState("");
+  const [profileName, setProfileName] = useState(user.name);
+  const [profileInstitution, setProfileInstitution] = useState(user.institution);
+  const [profileCountry, setProfileCountry] = useState(user.country || "");
+  const [savingProfile, setSavingProfile] = useState(false);
   const [savingEmail, setSavingEmail] = useState(false);
   const [removingEmailId, setRemovingEmailId] = useState<string | null>(null);
   const additionalIdentity = user.identities.find((identity) => !identity.primary);
+
+  const saveProfile = async () => {
+    if (demoMode) {
+      setUser({ ...user, name: profileName.trim() || user.primaryEmail.split("@")[0], institution: profileInstitution.trim(), country: profileCountry.trim() });
+      toast({ title: "Profile updated" });
+      return;
+    }
+    setSavingProfile(true);
+    try {
+      const response = await fetch("/api/account/profile", {
+        method: "PATCH",
+        credentials: "include",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ name: profileName, institution: profileInstitution, country: profileCountry }),
+      });
+      const body = await response.json();
+      if (!response.ok) throw new Error("The profile could not be saved.");
+      setUser({ ...user, name: body.profile.name || user.primaryEmail.split("@")[0], institution: body.profile.institution || "", country: body.profile.country || "" });
+      toast({ title: "Profile updated", description: "Your information is now visible in the administrator directory." });
+    } catch (error) {
+      toast({ title: "Unable to update profile", description: error instanceof Error ? error.message : undefined, variant: "destructive" });
+    } finally {
+      setSavingProfile(false);
+    }
+  };
 
   const addEmail = async () => {
     if (!newEmail.includes("@")) return;
@@ -1005,7 +1036,7 @@ const Account = ({
         <dl className="mt-8 grid gap-5 border-t border-border pt-6 sm:grid-cols-2">
           <div><dt className="font-mono text-xs uppercase tracking-wider text-muted-foreground">Status</dt><dd className="mt-2 inline-flex items-center gap-2 text-sm font-medium text-emerald-700"><Check className="h-4 w-4" /> {user.staStatus}</dd></div>
           <div><dt className="font-mono text-xs uppercase tracking-wider text-muted-foreground">Approved</dt><dd className="mt-2 text-sm text-slate-800">{user.staApprovedOn}</dd></div>
-          <div><dt className="font-mono text-xs uppercase tracking-wider text-muted-foreground">Institution</dt><dd className="mt-2 text-sm text-slate-800">{user.institution}</dd></div>
+          <div><dt className="font-mono text-xs uppercase tracking-wider text-muted-foreground">Institution</dt><dd className="mt-2 text-sm text-slate-800">{user.institution || "Not provided"}</dd></div>
           <div><dt className="font-mono text-xs uppercase tracking-wider text-muted-foreground">Primary email</dt><dd className="mt-2 text-sm text-slate-800">{user.primaryEmail}</dd></div>
         </dl>
       </section>
@@ -1033,6 +1064,16 @@ const Account = ({
       </section>
 
       <section className="border border-border bg-white p-6 sm:p-8 xl:col-span-2">
+        <div className="flex items-start gap-4"><div className="flex h-10 w-10 items-center justify-center border border-primary text-primary"><CircleUserRound className="h-5 w-5" /></div><div><h2 className="text-lg font-medium">Profile information</h2><p className="mt-1 text-sm text-muted-foreground">Optional. These details help the portal administrator maintain the approved-user directory.</p></div></div>
+        <div className="mt-6 grid gap-3 md:grid-cols-3">
+          <Input value={profileName} onChange={(event) => setProfileName(event.target.value)} placeholder="Full name" disabled={savingProfile} className="rounded-none" />
+          <Input value={profileInstitution} onChange={(event) => setProfileInstitution(event.target.value)} placeholder="Institution" disabled={savingProfile} className="rounded-none" />
+          <Input value={profileCountry} onChange={(event) => setProfileCountry(event.target.value)} placeholder="Country" disabled={savingProfile} className="rounded-none" />
+        </div>
+        <div className="mt-4 flex justify-end"><Button type="button" variant="outline" disabled={savingProfile} onClick={() => void saveProfile()} className="rounded-none">{savingProfile && <Loader2 className="h-4 w-4 animate-spin" />} Save profile</Button></div>
+      </section>
+
+      <section className="border border-border bg-white p-6 sm:p-8 xl:col-span-2">
         <div className="flex items-start gap-4"><div className="flex h-10 w-10 items-center justify-center border border-primary text-primary"><Mail className="h-5 w-5" /></div><div><h2 className="text-lg font-medium">Add a secondary email</h2><p className="mt-1 text-sm text-muted-foreground">Optional: link one additional work or personal email without changing your STA approval or download history.</p></div></div>
         <div className="mt-6 max-w-xl">
           {!additionalIdentity ? (
@@ -1055,6 +1096,7 @@ type ManagedPortalUser = {
   id: string;
   name: string | null;
   institution: string | null;
+  country: string | null;
   role: "user" | "admin";
   accessStatus: "active" | "suspended";
   approvalSource: string;
@@ -1082,6 +1124,7 @@ const Admin = ({ demoMode }: { demoMode: boolean }) => {
   const [newUserName, setNewUserName] = useState("");
   const [newUserEmail, setNewUserEmail] = useState("");
   const [newUserInstitution, setNewUserInstitution] = useState("");
+  const [newUserCountry, setNewUserCountry] = useState("");
   const [newUserApprovedAt, setNewUserApprovedAt] = useState(() => new Date().toISOString().slice(0, 10));
   const [creatingUser, setCreatingUser] = useState(false);
   const [updatingUserId, setUpdatingUserId] = useState<string | null>(null);
@@ -1093,6 +1136,7 @@ const Admin = ({ demoMode }: { demoMode: boolean }) => {
           id: demoApprovedUser.id,
           name: demoApprovedUser.name,
           institution: demoApprovedUser.institution,
+          country: null,
           role: "user",
           accessStatus: "active",
           approvalSource: "google_group",
@@ -1129,7 +1173,7 @@ const Admin = ({ demoMode }: { demoMode: boolean }) => {
         method: "POST",
         credentials: "include",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ name: newUserName, email: newUserEmail, institution: newUserInstitution, approvedAt: newUserApprovedAt }),
+        body: JSON.stringify({ name: newUserName, email: newUserEmail, institution: newUserInstitution, country: newUserCountry, approvedAt: newUserApprovedAt }),
       });
       const body = await response.json();
       if (!response.ok) throw new Error(body.error === "email_in_use" ? "That email is already registered." : "The user could not be added.");
@@ -1137,6 +1181,7 @@ const Admin = ({ demoMode }: { demoMode: boolean }) => {
       setNewUserName("");
       setNewUserEmail("");
       setNewUserInstitution("");
+      setNewUserCountry("");
       setNewUserApprovedAt(new Date().toISOString().slice(0, 10));
       toast({ title: "Approved user added", description: `${body.user.identities[0].email} can now use the User Portal.` });
     } catch (error) {
@@ -1173,7 +1218,7 @@ const Admin = ({ demoMode }: { demoMode: boolean }) => {
   const filteredUsers = useMemo(() => {
     const query = userSearch.trim().toLowerCase();
     if (!query) return managedUsers;
-    return managedUsers.filter((entry) => [entry.name, entry.institution, ...entry.identities.map((identity) => identity.email)].filter(Boolean).some((value) => String(value).toLowerCase().includes(query)));
+    return managedUsers.filter((entry) => [entry.name, entry.institution, entry.country, ...entry.identities.map((identity) => identity.email)].filter(Boolean).some((value) => String(value).toLowerCase().includes(query)));
   }, [managedUsers, userSearch]);
 
   useEffect(() => {
@@ -1265,10 +1310,11 @@ const Admin = ({ demoMode }: { demoMode: boolean }) => {
           <div className="flex h-10 w-10 shrink-0 items-center justify-center border border-primary text-primary"><UserRoundCheck className="h-5 w-5" /></div>
           <div><div className="font-mono text-xs uppercase tracking-widest text-primary">New STA approval</div><h2 className="mt-2 text-xl font-light">Add an approved user</h2><p className="mt-2 text-sm text-muted-foreground">Use the email address included in the NCI Technology Transfer approval message. The user can add one alternate email after signing in.</p></div>
         </div>
-        <div className="mt-6 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+        <div className="mt-6 grid gap-3 md:grid-cols-2 xl:grid-cols-5">
           <Input value={newUserName} onChange={(event) => setNewUserName(event.target.value)} placeholder="Full name" className="rounded-none" />
           <Input type="email" value={newUserEmail} onChange={(event) => setNewUserEmail(event.target.value)} placeholder="Approved email" className="rounded-none" />
           <Input value={newUserInstitution} onChange={(event) => setNewUserInstitution(event.target.value)} placeholder="Institution (optional)" className="rounded-none" />
+          <Input value={newUserCountry} onChange={(event) => setNewUserCountry(event.target.value)} placeholder="Country (optional)" className="rounded-none" />
           <Input type="date" value={newUserApprovedAt} onChange={(event) => setNewUserApprovedAt(event.target.value)} className="rounded-none" />
         </div>
         <div className="mt-4 flex justify-end">
@@ -1292,7 +1338,7 @@ const Admin = ({ demoMode }: { demoMode: boolean }) => {
               const additionalEmail = managedUser.identities.find((identity) => !identity.primary);
               return (
                 <div key={managedUser.id} className="grid gap-4 px-6 py-5 lg:grid-cols-[minmax(0,1.2fr)_minmax(0,1.4fr)_170px_auto] lg:items-center">
-                  <div className="min-w-0"><div className="truncate text-sm font-medium text-slate-800">{managedUser.name || primaryEmail.split("@")[0]}</div><div className="mt-1 flex items-center gap-1.5 truncate text-xs text-muted-foreground"><Building2 className="h-3.5 w-3.5 shrink-0" /> {managedUser.institution || "Institution not recorded"}</div></div>
+                  <div className="min-w-0"><div className="truncate text-sm font-medium text-slate-800">{managedUser.name || primaryEmail.split("@")[0]}</div><div className="mt-1 flex items-center gap-1.5 truncate text-xs text-muted-foreground"><Building2 className="h-3.5 w-3.5 shrink-0" /> {[managedUser.institution, managedUser.country].filter(Boolean).join(" · ") || "Profile not provided"}</div></div>
                   <div className="min-w-0"><div className="truncate text-sm text-slate-700">{primaryEmail}</div>{additionalEmail && <div className="mt-1 truncate text-xs text-muted-foreground">+ {additionalEmail.email} · {additionalEmail.verified ? "verified" : "pending"}</div>}</div>
                   <div className="text-xs text-muted-foreground"><div>Approved {announcementDate(managedUser.approvedAt)}</div><div className="mt-1">Last login {managedUser.lastLoginAt ? announcementDate(managedUser.lastLoginAt) : "—"}</div></div>
                   <div className="flex items-center justify-between gap-3 lg:justify-end"><span className={cn("px-2 py-1 font-mono text-xs", managedUser.accessStatus === "active" ? "bg-emerald-50 text-emerald-700" : "bg-slate-100 text-slate-600")}>{managedUser.accessStatus}</span><Button type="button" variant="outline" disabled={updatingUserId === managedUser.id || managedUser.role === "admin"} onClick={() => void changeUserStatus(managedUser)} className="rounded-none">{updatingUserId === managedUser.id ? <Loader2 className="h-4 w-4 animate-spin" /> : managedUser.accessStatus === "active" ? "Suspend" : "Reactivate"}</Button></div>

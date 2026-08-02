@@ -61,7 +61,7 @@ async function authenticatedEmail(request, env) {
 
 async function userForEmail(email, env) {
   return env.DB.prepare(`
-    SELECT users.id, users.display_name, users.institution, users.role, users.sta_status,
+    SELECT users.id, users.display_name, users.institution, users.country, users.role, users.sta_status,
       users.access_status, users.approved_at, identities.normalized_email AS signed_in_email
     FROM user_identities identities
     JOIN users ON users.id = identities.user_id
@@ -172,6 +172,18 @@ export default {
         return json({ identity: { id, provider: "user_added", email: newEmail, verified: false, primary: false } }, 201, cors);
       }
 
+      if (request.method === "PATCH" && url.pathname === "/api/account/profile") {
+        const originError = requireSameOrigin(request, url, cors);
+        if (originError) return originError;
+        const input = await request.json();
+        const displayName = cleanText(input.name, 200) || null;
+        const institution = cleanText(input.institution, 300) || null;
+        const country = cleanText(input.country, 120) || null;
+        await env.DB.prepare("UPDATE users SET display_name=?, institution=?, country=?, updated_at=CURRENT_TIMESTAMP WHERE id=?").bind(displayName, institution, country, user.id).run();
+        context.waitUntil(env.DB.prepare("INSERT INTO access_events (id, user_id, event_type) VALUES (?, ?, 'profile_updated')").bind(crypto.randomUUID(), user.id).run());
+        return json({ profile: { name: displayName, institution, country } }, 200, cors);
+      }
+
       const accountEmailMatch = url.pathname.match(/^\/api\/account\/emails\/([0-9a-f-]+)$/i);
       if (request.method === "DELETE" && accountEmailMatch) {
         const originError = requireSameOrigin(request, url, cors);
@@ -188,7 +200,7 @@ export default {
         if (user.role !== "admin") return json({ error: "administrator_required" }, 403, cors);
         const [usersResult, identitiesResult] = await Promise.all([
           env.DB.prepare(`
-            SELECT users.id, users.display_name, users.institution, users.role, users.sta_status,
+            SELECT users.id, users.display_name, users.institution, users.country, users.role, users.sta_status,
               users.access_status, users.approval_source, users.approved_at, users.created_at,
               (SELECT MAX(events.occurred_at) FROM access_events events
                 WHERE events.user_id=users.id AND events.event_type='login') AS last_login_at
@@ -215,6 +227,7 @@ export default {
             id: entry.id,
             name: entry.display_name,
             institution: entry.institution,
+            country: entry.country,
             role: entry.role,
             staStatus: entry.sta_status,
             accessStatus: entry.access_status,
@@ -235,6 +248,7 @@ export default {
         const approvedEmail = normalizePortalEmail(input.email);
         const displayName = cleanText(input.name, 200);
         const institution = cleanText(input.institution, 300);
+        const country = cleanText(input.country, 120);
         const approvedAt = cleanText(input.approvedAt, 40) || new Date().toISOString().slice(0, 10);
         if (!approvedEmail || !displayName) return json({ error: "name_and_valid_email_required" }, 400, cors);
         const existing = await env.DB.prepare("SELECT id FROM user_identities WHERE normalized_email=?").bind(approvedEmail).first();
@@ -243,9 +257,9 @@ export default {
         const identityId = crypto.randomUUID();
         await env.DB.batch([
           env.DB.prepare(`
-            INSERT INTO users (id, display_name, institution, role, sta_status, access_status, approval_source, approved_at)
-            VALUES (?, ?, ?, 'user', 'approved', 'active', 'sta_admin', ?)
-          `).bind(userId, displayName, institution || null, approvedAt),
+            INSERT INTO users (id, display_name, institution, country, role, sta_status, access_status, approval_source, approved_at)
+            VALUES (?, ?, ?, ?, 'user', 'approved', 'active', 'sta_admin', ?)
+          `).bind(userId, displayName, institution || null, country || null, approvedAt),
           env.DB.prepare(`
             INSERT INTO user_identities (id, user_id, provider, normalized_email, email_verified, is_primary)
             VALUES (?, ?, 'sta_approved', ?, 0, 1)
@@ -257,6 +271,7 @@ export default {
             id: userId,
             name: displayName,
             institution: institution || null,
+            country: country || null,
             role: "user",
             staStatus: "approved",
             accessStatus: "active",

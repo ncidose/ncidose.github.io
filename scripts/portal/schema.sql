@@ -4,6 +4,7 @@ CREATE TABLE IF NOT EXISTS users (
   id TEXT PRIMARY KEY,
   display_name TEXT,
   institution TEXT,
+  country TEXT,
   role TEXT NOT NULL DEFAULT 'user' CHECK (role IN ('user', 'admin')),
   sta_status TEXT NOT NULL DEFAULT 'approved',
   access_status TEXT NOT NULL DEFAULT 'active' CHECK (access_status IN ('pending', 'active', 'suspended')),
