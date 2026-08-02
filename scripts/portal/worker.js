@@ -240,6 +240,68 @@ export default {
         }, 200, cors);
       }
 
+      if (request.method === "GET" && url.pathname === "/api/admin/activity") {
+        if (user.role !== "admin") return json({ error: "administrator_required" }, 403, cors);
+        const [summary, toolResult, fileResult, recentResult] = await Promise.all([
+          env.DB.prepare(`
+            SELECT
+              SUM(CASE WHEN event_type='download' AND occurred_at >= datetime('now', '-1 day') THEN 1 ELSE 0 END) AS downloads_today,
+              SUM(CASE WHEN event_type='download' AND occurred_at >= datetime('now', '-7 days') THEN 1 ELSE 0 END) AS downloads_7_days,
+              SUM(CASE WHEN event_type='download' AND occurred_at >= datetime('now', '-30 days') THEN 1 ELSE 0 END) AS downloads_30_days,
+              COUNT(DISTINCT CASE WHEN event_type='download' AND occurred_at >= datetime('now', '-30 days') THEN user_id END) AS download_users_30_days,
+              SUM(CASE WHEN event_type='login' AND occurred_at >= datetime('now', '-30 days') THEN 1 ELSE 0 END) AS logins_30_days
+            FROM access_events
+          `).first(),
+          env.DB.prepare(`
+            SELECT CASE WHEN instr(object_key, '/') > 0 THEN substr(object_key, 1, instr(object_key, '/') - 1) ELSE object_key END AS tool,
+              COUNT(*) AS downloads
+            FROM access_events
+            WHERE event_type='download' AND occurred_at >= datetime('now', '-30 days') AND object_key IS NOT NULL
+            GROUP BY tool
+            ORDER BY downloads DESC, tool ASC
+          `).all(),
+          env.DB.prepare(`
+            SELECT object_key AS file, COUNT(*) AS downloads
+            FROM access_events
+            WHERE event_type='download' AND occurred_at >= datetime('now', '-30 days') AND object_key IS NOT NULL
+            GROUP BY object_key
+            ORDER BY downloads DESC, object_key ASC
+            LIMIT 20
+          `).all(),
+          env.DB.prepare(`
+            SELECT events.id, events.event_type, events.object_key, events.occurred_at,
+              users.display_name,
+              (SELECT identities.normalized_email FROM user_identities identities
+                WHERE identities.user_id=events.user_id
+                ORDER BY identities.is_primary DESC, identities.created_at ASC LIMIT 1) AS email
+            FROM access_events events
+            LEFT JOIN users ON users.id=events.user_id
+            WHERE events.event_type IN ('login', 'download')
+            ORDER BY events.occurred_at DESC
+            LIMIT 100
+          `).all(),
+        ]);
+        return json({
+          summary: {
+            downloadsToday: Number(summary.downloads_today || 0),
+            downloads7Days: Number(summary.downloads_7_days || 0),
+            downloads30Days: Number(summary.downloads_30_days || 0),
+            downloadUsers30Days: Number(summary.download_users_30_days || 0),
+            logins30Days: Number(summary.logins_30_days || 0),
+          },
+          tools: toolResult.results.map((entry) => ({ tool: entry.tool || "Other", downloads: Number(entry.downloads) })),
+          files: fileResult.results.map((entry) => ({ file: entry.file, downloads: Number(entry.downloads) })),
+          recent: recentResult.results.map((entry) => ({
+            id: entry.id,
+            eventType: entry.event_type,
+            file: entry.object_key,
+            occurredAt: entry.occurred_at,
+            name: entry.display_name,
+            email: entry.email,
+          })),
+        }, 200, cors);
+      }
+
       if (request.method === "POST" && url.pathname === "/api/admin/users") {
         if (user.role !== "admin") return json({ error: "administrator_required" }, 403, cors);
         const originError = requireSameOrigin(request, url, cors);

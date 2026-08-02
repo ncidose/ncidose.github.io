@@ -93,5 +93,9 @@ describe("portal migration experience", () => {
     fireEvent.click(screen.getByRole("button", { name: /announcements/i }));
     expect(screen.getByRole("heading", { name: /publish or migrate an update/i })).toBeInTheDocument();
     expect(screen.queryByRole("heading", { name: /add an approved user/i })).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: /activity/i }));
+    expect(screen.getByRole("heading", { name: /recent logins and downloads/i })).toBeInTheDocument();
+    expect(screen.getByText(/No activity recorded/i)).toBeInTheDocument();
   });
 });

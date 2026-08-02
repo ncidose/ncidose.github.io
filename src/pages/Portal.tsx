@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Link, Navigate, useLocation, useNavigate } from "react-router-dom";
 import {
   ArrowLeft,
+  BarChart3,
   Bell,
   Building2,
   Check,
@@ -840,6 +841,11 @@ const announcementDate = (value: string | null) => {
   return new Intl.DateTimeFormat("en-US", { year: "numeric", month: "long", day: "numeric" }).format(new Date(normalized));
 };
 
+const activityDate = (value: string) => {
+  const normalized = value.includes(" ") ? `${value.replace(" ", "T")}Z` : value;
+  return new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric", year: "numeric", hour: "numeric", minute: "2-digit" }).format(new Date(normalized));
+};
+
 const Announcements = ({ demoMode }: { demoMode: boolean }) => {
   const [announcements, setAnnouncements] = useState<LiveAnnouncement[]>([]);
   const [loading, setLoading] = useState(!demoMode);
@@ -1108,9 +1114,29 @@ type ManagedPortalUser = {
   identities: PortalIdentity[];
 };
 
+type AdminActivityData = {
+  summary: {
+    downloadsToday: number;
+    downloads7Days: number;
+    downloads30Days: number;
+    downloadUsers30Days: number;
+    logins30Days: number;
+  };
+  tools: Array<{ tool: string; downloads: number }>;
+  files: Array<{ file: string; downloads: number }>;
+  recent: Array<{ id: string; eventType: "login" | "download"; file: string | null; occurredAt: string; name: string | null; email: string | null }>;
+};
+
+const emptyAdminActivity: AdminActivityData = {
+  summary: { downloadsToday: 0, downloads7Days: 0, downloads30Days: 0, downloadUsers30Days: 0, logins30Days: 0 },
+  tools: [],
+  files: [],
+  recent: [],
+};
+
 const Admin = ({ demoMode }: { demoMode: boolean }) => {
   const { toast } = useToast();
-  const [adminSection, setAdminSection] = useState<"users" | "announcements">("users");
+  const [adminSection, setAdminSection] = useState<"users" | "announcements" | "activity">("users");
   const [announcementTitle, setAnnouncementTitle] = useState("");
   const [announcementBody, setAnnouncementBody] = useState("");
   const [announcementCategory, setAnnouncementCategory] = useState<"Release" | "Maintenance" | "Access">("Release");
@@ -1130,6 +1156,8 @@ const Admin = ({ demoMode }: { demoMode: boolean }) => {
   const [newUserApprovedAt, setNewUserApprovedAt] = useState(() => new Date().toISOString().slice(0, 10));
   const [creatingUser, setCreatingUser] = useState(false);
   const [updatingUserId, setUpdatingUserId] = useState<string | null>(null);
+  const [activityData, setActivityData] = useState<AdminActivityData>(emptyAdminActivity);
+  const [loadingActivity, setLoadingActivity] = useState(!demoMode);
 
   useEffect(() => {
     if (demoMode) {
@@ -1235,6 +1263,17 @@ const Admin = ({ demoMode }: { demoMode: boolean }) => {
       .finally(() => setLoadingAdminAnnouncements(false));
   }, [demoMode, toast]);
 
+  useEffect(() => {
+    if (demoMode) return;
+    fetch("/api/admin/activity", { credentials: "include" })
+      .then(async (response) => {
+        if (!response.ok) throw new Error("Activity data could not be loaded.");
+        setActivityData(await response.json());
+      })
+      .catch((error) => toast({ title: "Unable to load activity", description: error instanceof Error ? error.message : undefined, variant: "destructive" }))
+      .finally(() => setLoadingActivity(false));
+  }, [demoMode, toast]);
+
   const clearAnnouncementForm = () => {
     setAnnouncementTitle("");
     setAnnouncementBody("");
@@ -1296,9 +1335,10 @@ const Admin = ({ demoMode }: { demoMode: boolean }) => {
 
   return (
     <div className="space-y-8">
-      <nav aria-label="Admin sections" className="flex border border-border bg-white p-1">
-        <button type="button" onClick={() => setAdminSection("users")} className={cn("flex flex-1 items-center justify-center gap-2 px-4 py-3 text-sm transition-colors sm:flex-none", adminSection === "users" ? "bg-primary text-primary-foreground" : "text-slate-600 hover:bg-slate-50 hover:text-primary")}><Users className="h-4 w-4" /> User Management</button>
-        <button type="button" onClick={() => setAdminSection("announcements")} className={cn("flex flex-1 items-center justify-center gap-2 px-4 py-3 text-sm transition-colors sm:flex-none", adminSection === "announcements" ? "bg-primary text-primary-foreground" : "text-slate-600 hover:bg-slate-50 hover:text-primary")}><Megaphone className="h-4 w-4" /> Announcements</button>
+      <nav aria-label="Admin sections" className="flex overflow-x-auto border border-border bg-white p-1">
+        <button type="button" onClick={() => setAdminSection("users")} className={cn("flex flex-1 items-center justify-center gap-2 whitespace-nowrap px-4 py-3 text-sm transition-colors sm:flex-none", adminSection === "users" ? "bg-primary text-primary-foreground" : "text-slate-600 hover:bg-slate-50 hover:text-primary")}><Users className="h-4 w-4" /> User Management</button>
+        <button type="button" onClick={() => setAdminSection("announcements")} className={cn("flex flex-1 items-center justify-center gap-2 whitespace-nowrap px-4 py-3 text-sm transition-colors sm:flex-none", adminSection === "announcements" ? "bg-primary text-primary-foreground" : "text-slate-600 hover:bg-slate-50 hover:text-primary")}><Megaphone className="h-4 w-4" /> Announcements</button>
+        <button type="button" onClick={() => setAdminSection("activity")} className={cn("flex flex-1 items-center justify-center gap-2 whitespace-nowrap px-4 py-3 text-sm transition-colors sm:flex-none", adminSection === "activity" ? "bg-primary text-primary-foreground" : "text-slate-600 hover:bg-slate-50 hover:text-primary")}><BarChart3 className="h-4 w-4" /> Activity</button>
       </nav>
 
       {adminSection === "users" && <div className="grid gap-4 md:grid-cols-3">
@@ -1352,6 +1392,36 @@ const Admin = ({ demoMode }: { demoMode: boolean }) => {
       </section>}
 
       {adminSection === "users" && <section className="border border-border bg-white p-6"><div className="flex items-center justify-between"><div><div className="font-mono text-xs uppercase tracking-widest text-primary">New approvals</div><h2 className="mt-2 text-xl font-light">Simple activation workflow</h2></div><Users className="h-5 w-5 text-primary" /></div><div className="mt-6 grid gap-3 sm:grid-cols-2">{["Receive the executed STA approval email from NCI Technology Transfer", "Add the approved email in the form above", "Send the User Portal link to the recipient", "The recipient may verify one secondary email"].map((item, index) => <div key={item} className="flex items-center gap-3 border border-border p-3"><div className="flex h-6 w-6 shrink-0 items-center justify-center bg-primary/10 font-mono text-xs text-primary">{index + 1}</div><span className="text-sm text-slate-700">{item}</span></div>)}</div></section>}
+
+      {adminSection === "activity" && (loadingActivity ? (
+        <div className="flex items-center justify-center gap-3 border border-border bg-white p-12 text-sm text-muted-foreground"><Loader2 className="h-5 w-5 animate-spin text-primary" /> Loading activity…</div>
+      ) : (
+        <>
+          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
+            <StatusCard icon={Download} label="Today" value={String(activityData.summary.downloadsToday)} note="Downloads in 24 hours" />
+            <StatusCard icon={Download} label="Last 7 days" value={String(activityData.summary.downloads7Days)} note="File downloads" />
+            <StatusCard icon={Download} label="Last 30 days" value={String(activityData.summary.downloads30Days)} note="File downloads" />
+            <StatusCard icon={Users} label="Downloading users" value={String(activityData.summary.downloadUsers30Days)} note="Unique users in 30 days" />
+            <StatusCard icon={ShieldCheck} label="Portal sign-ins" value={String(activityData.summary.logins30Days)} note="Sign-ins in 30 days" />
+          </div>
+
+          <div className="grid gap-6 xl:grid-cols-2">
+            <section className="border border-border bg-white">
+              <div className="border-b border-border px-6 py-5"><div className="font-mono text-xs uppercase tracking-widest text-primary">Last 30 days</div><h2 className="mt-2 text-xl font-light">Downloads by tool</h2></div>
+              {activityData.tools.length === 0 ? <div className="p-8 text-sm text-muted-foreground">No downloads recorded.</div> : <div className="divide-y divide-border">{activityData.tools.map((entry) => <div key={entry.tool} className="flex items-center justify-between px-6 py-4"><span className="text-sm font-medium text-slate-800">{entry.tool}</span><span className="font-mono text-sm text-primary">{entry.downloads}</span></div>)}</div>}
+            </section>
+            <section className="border border-border bg-white">
+              <div className="border-b border-border px-6 py-5"><div className="font-mono text-xs uppercase tracking-widest text-primary">Last 30 days</div><h2 className="mt-2 text-xl font-light">Most downloaded files</h2></div>
+              {activityData.files.length === 0 ? <div className="p-8 text-sm text-muted-foreground">No downloads recorded.</div> : <div className="divide-y divide-border">{activityData.files.slice(0, 10).map((entry) => <div key={entry.file} className="flex items-start justify-between gap-4 px-6 py-4"><span className="min-w-0 break-words text-sm text-slate-700">{entry.file}</span><span className="shrink-0 font-mono text-sm text-primary">{entry.downloads}</span></div>)}</div>}
+            </section>
+          </div>
+
+          <section className="border border-border bg-white">
+            <div className="border-b border-border px-6 py-5"><div className="font-mono text-xs uppercase tracking-widest text-primary">Audit history</div><h2 className="mt-2 text-xl font-light">Recent logins and downloads</h2></div>
+            {activityData.recent.length === 0 ? <div className="p-8 text-sm text-muted-foreground">No activity recorded.</div> : <div className="divide-y divide-border">{activityData.recent.map((entry) => <div key={entry.id} className="grid gap-2 px-6 py-4 md:grid-cols-[150px_minmax(0,1fr)_minmax(0,1.2fr)] md:items-center"><div><span className={cn("inline-flex px-2 py-1 font-mono text-[11px] uppercase", entry.eventType === "download" ? "bg-primary/10 text-primary" : "bg-slate-100 text-slate-600")}>{entry.eventType}</span></div><div className="min-w-0"><div className="truncate text-sm text-slate-800">{entry.name || entry.email || "Unknown user"}</div>{entry.name && <div className="mt-1 truncate text-xs text-muted-foreground">{entry.email}</div>}</div><div className="min-w-0 text-xs text-muted-foreground"><div className="truncate">{entry.file || "Portal sign-in"}</div><div className="mt-1">{activityDate(entry.occurredAt)}</div></div></div>)}</div>}
+          </section>
+        </>
+      ))}
 
       {adminSection === "announcements" && <section id="announcement-editor" className="scroll-mt-24 border border-border bg-white p-6 sm:p-8">
           <div className="flex items-center justify-between"><div><div className="font-mono text-xs uppercase tracking-widest text-primary">Announcements</div><h2 className="mt-2 text-xl font-light">{editingAnnouncementId ? "Edit announcement" : "Publish or migrate an update"}</h2></div><Megaphone className="h-5 w-5 text-primary" /></div>
