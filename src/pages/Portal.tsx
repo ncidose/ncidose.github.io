@@ -155,6 +155,17 @@ export const Portal = ({ publicLanding = false }: { publicLanding?: boolean }) =
     navigate("/portal");
   };
 
+  const retryWithAnotherEmail = async () => {
+    try {
+      await fetch("/cdn-cgi/access/logout", {
+        credentials: "include",
+        redirect: "manual",
+      });
+    } finally {
+      window.location.replace(portalLinks.securePortal);
+    }
+  };
+
   if (!standalonePortalBuild && isAccessRequest && !user) {
     return <AccessRequest />;
   }
@@ -164,7 +175,14 @@ export const Portal = ({ publicLanding = false }: { publicLanding?: boolean }) =
   }
 
   if (!user) {
-    return <PortalSignIn demoMode={demoMode} accessDenied={authState === "denied"} onSignIn={signIn} />;
+    return (
+      <PortalSignIn
+        demoMode={demoMode}
+        accessDenied={authState === "denied"}
+        onSignIn={signIn}
+        onRetrySignIn={retryWithAnotherEmail}
+      />
+    );
   }
 
   if (section === "admin" && user.role !== "admin") {
@@ -214,14 +232,20 @@ const PortalSignIn = ({
   demoMode,
   accessDenied,
   onSignIn,
+  onRetrySignIn,
   securePortalUrl,
 }: {
   demoMode: boolean;
   accessDenied: boolean;
   onSignIn: (role: "user" | "admin") => void;
+  onRetrySignIn?: () => void | Promise<void>;
   securePortalUrl?: string;
 }) => {
   const beginSecureSignIn = () => {
+    if (accessDenied && onRetrySignIn) {
+      void onRetrySignIn();
+      return;
+    }
     if (securePortalUrl) {
       window.location.assign(securePortalUrl);
       return;
@@ -278,10 +302,11 @@ const PortalSignIn = ({
 
           <Button
             className="h-12 w-full rounded-none"
-            disabled={!demoMode && !securePortalUrl}
+            disabled={!demoMode && !securePortalUrl && !(accessDenied && onRetrySignIn)}
             onClick={beginSecureSignIn}
           >
-            <Mail className="h-4 w-4" /> Sign in with approved email
+            <Mail className="h-4 w-4" />
+            {accessDenied ? "Try another email" : "Sign in with approved email"}
           </Button>
           <div className="mt-4 space-y-2 border-l-2 border-primary/20 pl-3 text-xs leading-relaxed text-muted-foreground">
             <p><span className="font-medium text-slate-700">Previous Google Group users:</span> use the Gmail address registered with the group.</p>
