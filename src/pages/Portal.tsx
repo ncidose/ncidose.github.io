@@ -263,13 +263,13 @@ const PortalSignIn = ({
           <div className="mb-7">
             <h2 className="text-2xl font-light">Sign in</h2>
             <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
-              Existing approved users can continue with the Gmail address previously used for the ncidose Google Group.
+              Sign in with an email already linked to your approved portal account.
             </p>
           </div>
 
           {!demoMode && accessDenied && (
             <div className="mb-6 border border-amber-200 bg-amber-50 p-4 text-sm leading-relaxed text-amber-900">
-              This email is not currently linked to approved portal access. If you are an existing user, sign in with the Gmail address used for the ncidose Google Group.
+              This email is not linked to approved portal access. Try your Google Group Gmail, portal invitation email, or a verified secondary email.
             </div>
           )}
 
@@ -280,9 +280,11 @@ const PortalSignIn = ({
           >
             <Mail className="h-4 w-4" /> Sign in with approved email
           </Button>
-          <p className="mt-3 text-center text-xs leading-relaxed text-muted-foreground">
-            Use the Gmail address previously registered with the ncidose Google Group, or another email already approved for your account. Cloudflare will send a one-time code.
-          </p>
+          <div className="mt-4 space-y-2 border-l-2 border-primary/20 pl-3 text-xs leading-relaxed text-muted-foreground">
+            <p><span className="font-medium text-slate-700">Previous Google Group users:</span> use the Gmail address registered with the group.</p>
+            <p><span className="font-medium text-slate-700">Newly approved users:</span> use the email where you received the User Portal invitation—usually your institutional email.</p>
+            <p>Cloudflare will send a one-time code to that address.</p>
+          </div>
 
           <div className="mt-6 flex items-start gap-2 bg-slate-50 p-3 text-xs leading-relaxed text-slate-600">
             <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-primary" />

@@ -15,7 +15,8 @@ describe("portal migration experience", () => {
       </MemoryRouter>,
     );
 
-    expect(screen.getByText(/Gmail address previously used/i)).toBeInTheDocument();
+    expect(screen.getByText(/Previous Google Group users/i)).toBeInTheDocument();
+    expect(screen.getByText(/Newly approved users/i)).toBeInTheDocument();
     expect(screen.getByText(/cloudflare will send a one-time code/i)).toBeInTheDocument();
   });
 
