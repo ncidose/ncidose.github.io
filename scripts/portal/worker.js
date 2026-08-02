@@ -149,7 +149,7 @@ export default {
     try {
       const email = await authenticatedEmail(request, env);
       const user = await userForEmail(email, env);
-      if (!user || user.access_status !== "active") return json({ error: "portal_access_denied" }, 403, cors);
+      if (!user || user.access_status !== "active") return json({ error: "portal_access_denied", email }, 403, cors);
 
       if (request.method === "GET" && url.pathname === "/api/me") {
         await env.DB.prepare("UPDATE user_identities SET email_verified=1, updated_at=CURRENT_TIMESTAMP WHERE normalized_email=?").bind(email).run();

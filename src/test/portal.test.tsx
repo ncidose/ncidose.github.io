@@ -62,18 +62,6 @@ describe("portal migration experience", () => {
     expect(screen.getAllByText(/If the answer is YES, please do not continue with the Software Transfer Agreement/i)).toHaveLength(2);
   });
 
-  it("explains why an unapproved email was redirected to the STA workflow", () => {
-    render(
-      <MemoryRouter initialEntries={["/portal/request-access?reason=unapproved"]}>
-        <Portal />
-      </MemoryRouter>,
-    );
-
-    expect(screen.getByText(/No approved portal account was found for the email you verified/i)).toBeInTheDocument();
-    expect(screen.getByText(/New users can continue with the STA request below/i)).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /try another email/i })).toHaveAttribute("href", "/portal");
-  });
-
   it("lets an approved user add one optional email for verification", () => {
     window.sessionStorage.setItem("ncidose-portal-demo-user", "user");
     render(

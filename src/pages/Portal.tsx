@@ -85,6 +85,7 @@ export const Portal = ({ publicLanding = false }: { publicLanding?: boolean }) =
   const demoMode = !standalonePortal && (import.meta.env.DEV || import.meta.env.VITE_PORTAL_DEMO_MODE === "true");
   const [user, setUser] = useState<PortalUser | null>(() => demoMode ? getStoredUser() : null);
   const [authState, setAuthState] = useState<"loading" | "ready" | "denied">(demoMode ? "ready" : "loading");
+  const [deniedEmail, setDeniedEmail] = useState("");
   const pathSection = location.pathname.split("/")[2] as PortalSection | undefined;
   const validSections: PortalSection[] = ["overview", "downloads", "announcements", "account", "admin"];
   const section: PortalSection = pathSection && validSections.includes(pathSection) ? pathSection : "overview";
@@ -95,7 +96,14 @@ export const Portal = ({ publicLanding = false }: { publicLanding?: boolean }) =
     const controller = new AbortController();
     fetch("/api/me", { credentials: "include", signal: controller.signal })
       .then(async (response) => {
-        if (!response.ok) throw new Error(response.status === 403 ? "denied" : "authentication");
+        if (!response.ok) {
+          const error = new Error(response.status === 403 ? "denied" : "authentication") as Error & { email?: string };
+          if (response.status === 403) {
+            const body = await response.json().catch(() => ({}));
+            error.email = typeof body.email === "string" ? body.email : "";
+          }
+          throw error;
+        }
         const body = await response.json();
         const apiUser = body.user;
         const email = apiUser.signed_in_email;
@@ -113,23 +121,13 @@ export const Portal = ({ publicLanding = false }: { publicLanding?: boolean }) =
         });
         setAuthState("ready");
       })
-      .catch(async (error) => {
+      .catch((error: Error & { email?: string }) => {
         if (error.name === "AbortError") return;
-        if (error.message === "denied" && standalonePortal) {
-          try {
-            await fetch("/cdn-cgi/access/logout", {
-              credentials: "include",
-              redirect: "manual",
-            });
-          } finally {
-            window.location.replace(`${publicSiteUrl}#/portal/request-access?reason=unapproved`);
-          }
-          return;
-        }
+        if (error.message === "denied") setDeniedEmail(error.email || "");
         setAuthState("denied");
       });
     return () => controller.abort();
-  }, [demoMode, publicLanding, isAccessRequest, standalonePortal]);
+  }, [demoMode, publicLanding, isAccessRequest]);
 
   const signIn = (role: "user" | "admin") => {
     const nextUser = role === "admin" ? demoAdminUser : demoApprovedUser;
@@ -191,6 +189,7 @@ export const Portal = ({ publicLanding = false }: { publicLanding?: boolean }) =
       <PortalSignIn
         demoMode={demoMode}
         accessDenied={authState === "denied"}
+        deniedEmail={deniedEmail}
         onSignIn={signIn}
         onRetrySignIn={retryWithAnotherEmail}
       />
@@ -243,12 +242,14 @@ export const Portal = ({ publicLanding = false }: { publicLanding?: boolean }) =
 const PortalSignIn = ({
   demoMode,
   accessDenied,
+  deniedEmail,
   onSignIn,
   onRetrySignIn,
   securePortalUrl,
 }: {
   demoMode: boolean;
   accessDenied: boolean;
+  deniedEmail?: string;
   onSignIn: (role: "user" | "admin") => void;
   onRetrySignIn?: () => void | Promise<void>;
   securePortalUrl?: string;
@@ -298,60 +299,84 @@ const PortalSignIn = ({
 
         <div className="border border-border bg-white p-7 shadow-xl shadow-slate-200/50 sm:p-9">
           <div className="mb-7">
-            <h2 className="text-2xl font-light">Sign in</h2>
+            <h2 className="text-2xl font-light">{accessDenied ? "Email not registered" : "Sign in"}</h2>
             <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
-              Sign in with an email already linked to your approved portal account.
+              {accessDenied
+                ? "Email verification was successful, but this address is not linked to an approved portal account."
+                : "Sign in with an email already linked to your approved portal account."}
             </p>
           </div>
 
           {!demoMode && accessDenied && (
             <div className="mb-6 border border-amber-200 bg-amber-50 p-4 text-sm leading-relaxed text-amber-900">
-              <p className="font-medium">No approved portal access was found for this email.</p>
+              <p className="font-medium">
+                No approved portal access was found
+                {deniedEmail ? <> for <span className="break-all">{deniedEmail}</span></> : " for this email"}.
+              </p>
               <p className="mt-2">Existing users should try the Gmail address previously registered with the Google Group, the email in their portal invitation, or a verified secondary email.</p>
               <p className="mt-2">New users must prepare and submit a signed Software Transfer Agreement (STA) before download access can be activated.</p>
             </div>
           )}
 
-          <Button
-            className="h-12 w-full rounded-none"
-            disabled={!demoMode && !securePortalUrl && !(accessDenied && onRetrySignIn)}
-            onClick={beginSecureSignIn}
-          >
-            <Mail className="h-4 w-4" />
-            {accessDenied ? "Try another email" : "Sign in with approved email"}
-          </Button>
-          <div className="mt-4 space-y-2 border-l-2 border-primary/20 pl-3 text-xs leading-relaxed text-muted-foreground">
-            <p><span className="font-medium text-slate-700">Previous Google Group users:</span> use the Gmail address registered with the group.</p>
-            <p><span className="font-medium text-slate-700">Newly approved users:</span> use the email where you received the User Portal invitation—usually your institutional email.</p>
-            <p>Cloudflare verifies the email with a one-time code. Email verification alone does not grant software access.</p>
-          </div>
-
-          <div className="mt-6 flex items-start gap-2 bg-slate-50 p-3 text-xs leading-relaxed text-slate-600">
-            <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
-            If you do not sign out, you may not need a new code on every visit. A new code is required after the secure session expires.
-          </div>
-
-          <div className="mt-7 border-t border-border pt-6">
-            <div className="font-mono text-xs uppercase tracking-wider text-primary">New user</div>
-            <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
-              Start here to check eligibility, prepare the STA request, and follow the approval steps.
-            </p>
-          </div>
-
-          {standalonePortalBuild ? (
-            <a
-              href={`${publicSiteUrl}#/portal/request-access`}
-              className="mt-5 flex items-center justify-center gap-2 border border-primary px-4 py-3 text-sm font-medium text-primary transition-colors hover:bg-primary hover:text-white"
-            >
-              Prepare and submit an STA <ChevronRight className="h-4 w-4" />
-            </a>
+          {accessDenied ? (
+            <div className="space-y-3">
+              <a
+                href={`${publicSiteUrl}#/portal/request-access`}
+                className="flex items-center justify-center gap-2 bg-primary px-4 py-3 text-sm font-medium text-white transition-colors hover:bg-primary/90"
+              >
+                Prepare and submit an STA <ChevronRight className="h-4 w-4" />
+              </a>
+              <Button
+                variant="outline"
+                className="h-12 w-full rounded-none"
+                onClick={beginSecureSignIn}
+              >
+                <Mail className="h-4 w-4" /> Try another email
+              </Button>
+            </div>
           ) : (
-            <Link
-              to="/portal/request-access"
-              className="mt-5 flex items-center justify-center gap-2 border border-primary px-4 py-3 text-sm font-medium text-primary transition-colors hover:bg-primary hover:text-white"
-            >
-              Prepare and submit an STA <ChevronRight className="h-4 w-4" />
-            </Link>
+            <>
+              <Button
+                className="h-12 w-full rounded-none"
+                disabled={!demoMode && !securePortalUrl}
+                onClick={beginSecureSignIn}
+              >
+                <Mail className="h-4 w-4" /> Sign in with approved email
+              </Button>
+              <div className="mt-4 space-y-2 border-l-2 border-primary/20 pl-3 text-xs leading-relaxed text-muted-foreground">
+                <p><span className="font-medium text-slate-700">Previous Google Group users:</span> use the Gmail address registered with the group.</p>
+                <p><span className="font-medium text-slate-700">Newly approved users:</span> use the email where you received the User Portal invitation—usually your institutional email.</p>
+                <p>Cloudflare verifies the email with a one-time code. Email verification alone does not grant software access.</p>
+              </div>
+
+              <div className="mt-6 flex items-start gap-2 bg-slate-50 p-3 text-xs leading-relaxed text-slate-600">
+                <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+                If you do not sign out, you may not need a new code on every visit. A new code is required after the secure session expires.
+              </div>
+
+              <div className="mt-7 border-t border-border pt-6">
+                <div className="font-mono text-xs uppercase tracking-wider text-primary">New user</div>
+                <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
+                  Start here to check eligibility, prepare the STA request, and follow the approval steps.
+                </p>
+              </div>
+
+              {standalonePortalBuild ? (
+                <a
+                  href={`${publicSiteUrl}#/portal/request-access`}
+                  className="mt-5 flex items-center justify-center gap-2 border border-primary px-4 py-3 text-sm font-medium text-primary transition-colors hover:bg-primary hover:text-white"
+                >
+                  Prepare and submit an STA <ChevronRight className="h-4 w-4" />
+                </a>
+              ) : (
+                <Link
+                  to="/portal/request-access"
+                  className="mt-5 flex items-center justify-center gap-2 border border-primary px-4 py-3 text-sm font-medium text-primary transition-colors hover:bg-primary hover:text-white"
+                >
+                  Prepare and submit an STA <ChevronRight className="h-4 w-4" />
+                </Link>
+              )}
+            </>
           )}
 
           {demoMode && (
@@ -374,14 +399,12 @@ const PortalLoading = () => (
 );
 
 const AccessRequest = () => {
-  const location = useLocation();
   const [submitted, setSubmitted] = useState(false);
   const [preparingPdf, setPreparingPdf] = useState(false);
   const [pdfError, setPdfError] = useState("");
   const [eligibility, setEligibility] = useState({ nonprofit: "", commercialReplacement: "", clinicalUse: "" });
   const isIneligible = eligibility.nonprofit === "no" || eligibility.commercialReplacement === "yes" || eligibility.clinicalUse === "yes";
   const eligibilityComplete = Object.values(eligibility).every(Boolean);
-  const redirectedAfterUnapprovedSignIn = new URLSearchParams(location.search).get("reason") === "unapproved";
 
   if (submitted) {
     return (
@@ -418,24 +441,6 @@ const AccessRequest = () => {
   return (
     <div className="min-h-screen bg-slate-50">
       <PortalPublicHeader />
-      {redirectedAfterUnapprovedSignIn && (
-        <div className="border-b border-amber-200 bg-amber-50">
-          <div className="container mx-auto flex flex-col gap-3 px-6 py-5 text-sm leading-relaxed text-amber-950 sm:flex-row sm:items-center sm:justify-between">
-            <div>
-              <p className="font-medium">No approved portal account was found for the email you verified.</p>
-              <p className="mt-1 text-amber-900">
-                Already approved? Sign in again with the email linked to your account. New users can continue with the STA request below.
-              </p>
-            </div>
-            <Link
-              to="/portal"
-              className="inline-flex shrink-0 items-center justify-center border border-amber-700 px-4 py-2 font-medium text-amber-900 hover:bg-amber-100"
-            >
-              Try another email
-            </Link>
-          </div>
-        </div>
-      )}
       <main className="container mx-auto grid gap-10 px-6 py-12 lg:grid-cols-[0.85fr_1.15fr] lg:py-16">
         <section className="lg:sticky lg:top-10 lg:self-start">
           <div className="font-mono text-xs uppercase tracking-widest text-primary">New user access</div>
