@@ -270,10 +270,10 @@ const PortalSignIn = ({
     <div className="min-h-screen bg-slate-50">
       <header className="border-b border-border bg-white">
         <div className="container mx-auto flex h-16 items-center justify-between px-6">
-          <Link to="/" className="text-lg font-light tracking-tight">NCI Dose Tools</Link>
-          <Link to="/" className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-primary">
+          <a href={publicSiteUrl} className="text-lg font-light tracking-tight">NCI Dose Tools</a>
+          <a href={publicSiteUrl} className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-primary">
             <ArrowLeft className="h-4 w-4" /> Back to public site
-          </Link>
+          </a>
         </div>
       </header>
 
