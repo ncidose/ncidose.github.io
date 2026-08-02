@@ -765,6 +765,8 @@ const Downloads = ({ demoMode }: { demoMode: boolean }) => {
   const normalizedSearch = search.trim().toLowerCase();
   const visibleFolders = folders.filter((folder) => itemName(folder).toLowerCase().includes(normalizedSearch));
   const visibleFiles = files.filter((file) => itemName(file.key).toLowerCase().includes(normalizedSearch));
+  const visibleFolderDownloads = visibleFiles.filter((file) => prefix === "PHANTOM/nci_size/" && file.key.endsWith(".zip"));
+  const visibleRegularFiles = visibleFiles.filter((file) => !visibleFolderDownloads.includes(file));
 
   return (
     <div className="space-y-6">
@@ -799,6 +801,12 @@ const Downloads = ({ demoMode }: { demoMode: boolean }) => {
           <div className="p-8 text-center"><p className="text-sm text-destructive">{loadError}</p><Button type="button" variant="outline" onClick={() => void loadFolder(prefix)} className="mt-4 rounded-none">Try again</Button></div>
         ) : (
           <div className="divide-y divide-border">
+            {visibleFolderDownloads.map((file) => (
+              <div key={file.key} className="flex flex-col justify-between gap-4 bg-primary/5 px-6 py-4 sm:flex-row sm:items-center">
+                <div className="flex min-w-0 items-center gap-4"><div className="flex h-10 w-10 shrink-0 items-center justify-center bg-primary text-white"><FileArchive className="h-5 w-5" /></div><div className="min-w-0"><div className="break-words text-sm font-medium text-slate-800">{itemName(file.key)}</div><div className="mt-1 text-xs text-muted-foreground">Complete folder · ZIP · {formatBytes(file.size)}</div></div></div>
+                <Button type="button" onClick={() => downloadFile(file)} className="shrink-0 rounded-none"><Download className="h-4 w-4" /> Download ZIP</Button>
+              </div>
+            ))}
             {visibleFolders.map((folder) => (
               <button key={folder} type="button" onClick={() => void loadFolder(folder)} className="flex w-full items-center gap-4 px-6 py-4 text-left hover:bg-slate-50">
                 <div className="flex h-10 w-10 shrink-0 items-center justify-center border border-border bg-slate-50"><Folder className="h-5 w-5 text-primary" /></div>
@@ -806,7 +814,7 @@ const Downloads = ({ demoMode }: { demoMode: boolean }) => {
                 <ChevronRight className="ml-auto h-4 w-4 text-muted-foreground" />
               </button>
             ))}
-            {visibleFiles.map((file) => (
+            {visibleRegularFiles.map((file) => (
               <div key={file.key} className="flex flex-col justify-between gap-4 px-6 py-4 sm:flex-row sm:items-center">
                 <div className="flex min-w-0 items-center gap-4"><div className="flex h-10 w-10 shrink-0 items-center justify-center border border-border bg-slate-50"><FileArchive className="h-5 w-5 text-primary" /></div><div className="min-w-0"><div className="break-words text-sm font-medium text-slate-800">{itemName(file.key)}</div><div className="mt-1 text-xs text-muted-foreground">{formatBytes(file.size)}</div></div></div>
                 <Button type="button" onClick={() => downloadFile(file)} className="shrink-0 rounded-none"><Download className="h-4 w-4" /> Download</Button>

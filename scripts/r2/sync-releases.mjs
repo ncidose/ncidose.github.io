@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 import { createReadStream } from "node:fs";
-import { open, readdir, stat } from "node:fs/promises";
+import { mkdtemp, open, readdir, rm, stat } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { execFileSync } from "node:child_process";
@@ -15,6 +15,7 @@ const token = process.env.NCIDOSE_R2_UPLOAD_TOKEN || execFileSync(
 const partSize = 32 * 1024 * 1024;
 const fileConcurrency = 4;
 const excludedNames = new Set([".DS_Store", "upload_to_r2.py"]);
+const bundleFolders = ["arm_highres", "arm_lowres", "armless_highres", "armless_lowres"];
 
 const mimeTypes = new Map([
   [".csv", "text/csv; charset=utf-8"],
@@ -142,7 +143,20 @@ async function listRemote() {
   return objects;
 }
 
-const files = await collect(source);
+const bundleTempDirectory = await mkdtemp(path.join(os.tmpdir(), "ncidose-r2-bundles-"));
+try {
+const bundleFiles = [];
+for (const folder of bundleFolders) {
+  const bundleParent = "PHANTOM/nci_size";
+  const folderPath = path.join(source, bundleParent, folder);
+  if (!(await stat(folderPath).catch(() => null))?.isDirectory()) continue;
+  const archive = path.join(bundleTempDirectory, `${folder}.zip`);
+  console.log(`Building folder download ${folder}.zip`);
+  execFileSync("zip", ["-0", "-q", "-r", archive, folder, "-x", "*/.DS_Store"], { cwd: path.join(source, bundleParent) });
+  bundleFiles.push({ absolute: archive, key: `${bundleParent}/${folder}.zip`, size: (await stat(archive)).size });
+}
+
+const files = [...(await collect(source)), ...bundleFiles];
 const totalBytes = files.reduce((sum, file) => sum + file.size, 0);
 console.log(`Syncing ${files.length} files (${totalBytes} bytes) from ${source}`);
 
@@ -174,3 +188,6 @@ const matchedBytes = files.reduce((sum, file) => sum + (remoteMap.get(file.key) 
 console.log(`SUMMARY uploaded=${uploaded} skipped=${skipped} failed=${errors.length}`);
 console.log(`VERIFY local_files=${files.length} matched_files=${files.length - missing.length} local_bytes=${totalBytes} matched_bytes=${matchedBytes} remote_objects=${remote.length}`);
 if (errors.length || missing.length) process.exitCode = 1;
+} finally {
+  await rm(bundleTempDirectory, { recursive: true, force: true });
+}

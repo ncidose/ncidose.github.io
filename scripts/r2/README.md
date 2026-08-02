@@ -19,8 +19,10 @@ npm run r2:sync -- /absolute/path/to/releases
 ```
 
 The sync is additive: it uploads new or changed files and skips objects whose
-byte size and SHA-256 metadata match. It never deletes R2 objects. `.DS_Store`
-and the legacy `upload_to_r2.py` helper are excluded.
+byte size and SHA-256 metadata match. It also builds four ZIP downloads for
+the folders under `PHANTOM/nci_size` and places them at the top of that portal
+folder. It never deletes R2 objects. `.DS_Store` and the legacy
+`upload_to_r2.py` helper are excluded.
 
 ## Security
 
