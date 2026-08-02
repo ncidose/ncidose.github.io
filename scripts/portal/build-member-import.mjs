@@ -30,8 +30,8 @@ for (const member of result.members) {
   const identityId = stableId("eml", member.email);
   const portalRole = member.groupStatus === "owner" ? "admin" : "user";
   statements.push(
-    `INSERT OR IGNORE INTO users (id, role, access_status, approval_source) VALUES (${sqlString(userId)}, ${sqlString(portalRole)}, 'active', 'google_group');`,
-    `UPDATE users SET role=${sqlString(portalRole)}, access_status='active', updated_at=CURRENT_TIMESTAMP WHERE id=${sqlString(userId)};`,
+    `INSERT OR IGNORE INTO users (id, role, access_status, approval_source, group_joined_at) VALUES (${sqlString(userId)}, ${sqlString(portalRole)}, 'active', 'google_group', ${member.joinedAt ? sqlString(member.joinedAt) : "NULL"});`,
+    `UPDATE users SET role=${sqlString(portalRole)}, access_status='active', group_joined_at=${member.joinedAt ? sqlString(member.joinedAt) : "group_joined_at"}, updated_at=CURRENT_TIMESTAMP WHERE id=${sqlString(userId)};`,
     `INSERT OR IGNORE INTO user_identities (id, user_id, provider, normalized_email, is_primary) VALUES (${sqlString(identityId)}, ${sqlString(userId)}, 'google_group', ${sqlString(member.email)}, 1);`,
   );
 }

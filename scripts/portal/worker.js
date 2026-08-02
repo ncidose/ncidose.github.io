@@ -423,7 +423,7 @@ export default {
         const [usersResult, identitiesResult] = await Promise.all([
           env.DB.prepare(`
             SELECT users.id, users.display_name, users.institution, users.country, users.role, users.sta_status,
-              users.access_status, users.approval_source, users.approved_at, users.created_at,
+              users.access_status, users.approval_source, users.approved_at, users.group_joined_at, users.created_at,
               (SELECT MAX(events.occurred_at) FROM access_events events
                 WHERE events.user_id=users.id AND events.event_type='login') AS last_login_at
             FROM users
@@ -455,6 +455,7 @@ export default {
             accessStatus: entry.access_status,
             approvalSource: entry.approval_source,
             approvedAt: entry.approved_at,
+            groupJoinedAt: entry.group_joined_at,
             createdAt: entry.created_at,
             lastLoginAt: entry.last_login_at,
             identities: identitiesByUser.get(entry.id) || [],
@@ -587,6 +588,7 @@ export default {
             accessStatus: "active",
             approvalSource: "sta_admin",
             approvedAt,
+            groupJoinedAt: null,
             createdAt: new Date().toISOString(),
             lastLoginAt: null,
             identities: [{ id: identityId, provider: "sta_approved", email: approvedEmail, verified: false, primary: true }],

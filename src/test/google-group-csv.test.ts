@@ -22,4 +22,15 @@ describe("Google Groups CSV import", () => {
     expect(result.awaitingMembership).toHaveLength(2);
     expect(result.invalid).toHaveLength(0);
   });
+
+  it("reads the Google Group join date when the export includes it", () => {
+    const csv = [
+      "Members for group NCI DOSE GROUP",
+      "Email address,Nickname,Group status,Join year,Join month,Join day",
+      "member@example.org,Member,member,2025,8,7",
+    ].join("\n");
+
+    const result = readGoogleGroupExport(csv);
+    expect(result.portalEligible[0].joinedAt).toBe("2025-08-07");
+  });
 });

@@ -10,6 +10,7 @@ CREATE TABLE IF NOT EXISTS users (
   access_status TEXT NOT NULL DEFAULT 'active' CHECK (access_status IN ('pending', 'active', 'suspended')),
   approval_source TEXT NOT NULL DEFAULT 'google_group',
   approved_at TEXT,
+  group_joined_at TEXT,
   created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
 );

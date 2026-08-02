@@ -52,6 +52,9 @@ export function readGoogleGroupExport(text) {
   const headers = rows[headerIndex].map((header) => header.trim());
   const emailIndex = headers.indexOf("Email address");
   const statusIndex = headers.indexOf("Group status");
+  const joinYearIndex = headers.indexOf("Join year");
+  const joinMonthIndex = headers.indexOf("Join month");
+  const joinDayIndex = headers.indexOf("Join day");
   if (emailIndex < 0 || statusIndex < 0) {
     throw new Error("Google Groups export must include Email address and Group status.");
   }
@@ -73,7 +76,14 @@ export function readGoogleGroupExport(text) {
       continue;
     }
     seen.add(email);
-    members.push({ email, groupStatus, approved: APPROVED_GROUP_STATUSES.has(groupStatus) });
+    const joinYear = Number(row[joinYearIndex]);
+    const joinMonth = Number(row[joinMonthIndex]);
+    const joinDay = Number(row[joinDayIndex]);
+    const joinedAt = joinYearIndex >= 0 && joinMonthIndex >= 0 && joinDayIndex >= 0
+      && joinYear >= 2000 && joinMonth >= 1 && joinMonth <= 12 && joinDay >= 1 && joinDay <= 31
+      ? `${joinYear}-${String(joinMonth).padStart(2, "0")}-${String(joinDay).padStart(2, "0")}`
+      : null;
+    members.push({ email, groupStatus, joinedAt, approved: APPROVED_GROUP_STATUSES.has(groupStatus) });
   }
 
   const statusCounts = members.reduce((counts, member) => {

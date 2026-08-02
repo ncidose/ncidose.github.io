@@ -13,6 +13,7 @@
     "literature:update": "node scripts/generate-literature-data.mjs",
     "portal:members:check": "node scripts/portal/import-google-group.mjs --check",
     "portal:members:prepare": "node scripts/portal/build-member-import.mjs",
+    "portal:members:join-dates": "node scripts/portal/build-group-join-date-update.mjs",
     "portal:api:dev": "npx --yes wrangler@latest dev --config scripts/portal/wrangler.jsonc",
     "portal:api:deploy": "npm run build:portal && npx --yes wrangler@latest deploy --config scripts/portal/wrangler.jsonc",
     "r2:sync": "node scripts/r2/sync-releases.mjs",
