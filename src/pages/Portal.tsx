@@ -270,7 +270,9 @@ const PortalSignIn = ({
 
           {!demoMode && accessDenied && (
             <div className="mb-6 border border-amber-200 bg-amber-50 p-4 text-sm leading-relaxed text-amber-900">
-              This email is not linked to approved portal access. Try your Google Group Gmail, portal invitation email, or a verified secondary email.
+              <p className="font-medium">No approved portal access was found for this email.</p>
+              <p className="mt-2">Existing users should try the Gmail address previously registered with the Google Group, the email in their portal invitation, or a verified secondary email.</p>
+              <p className="mt-2">New users must prepare and submit a signed Software Transfer Agreement (STA) before download access can be activated.</p>
             </div>
           )}
 
@@ -284,7 +286,7 @@ const PortalSignIn = ({
           <div className="mt-4 space-y-2 border-l-2 border-primary/20 pl-3 text-xs leading-relaxed text-muted-foreground">
             <p><span className="font-medium text-slate-700">Previous Google Group users:</span> use the Gmail address registered with the group.</p>
             <p><span className="font-medium text-slate-700">Newly approved users:</span> use the email where you received the User Portal invitation—usually your institutional email.</p>
-            <p>Cloudflare will send a one-time code to that address.</p>
+            <p>Cloudflare verifies the email with a one-time code. Email verification alone does not grant software access.</p>
           </div>
 
           <div className="mt-6 flex items-start gap-2 bg-slate-50 p-3 text-xs leading-relaxed text-slate-600">
@@ -299,12 +301,21 @@ const PortalSignIn = ({
             </p>
           </div>
 
-          <Link
-            to="/portal/request-access"
-            className="mt-5 flex items-center justify-center gap-2 border border-primary px-4 py-3 text-sm font-medium text-primary transition-colors hover:bg-primary hover:text-white"
-          >
-            Request access as a new user <ChevronRight className="h-4 w-4" />
-          </Link>
+          {standalonePortalBuild ? (
+            <a
+              href={`${publicSiteUrl}#/portal/request-access`}
+              className="mt-5 flex items-center justify-center gap-2 border border-primary px-4 py-3 text-sm font-medium text-primary transition-colors hover:bg-primary hover:text-white"
+            >
+              Prepare and submit an STA <ChevronRight className="h-4 w-4" />
+            </a>
+          ) : (
+            <Link
+              to="/portal/request-access"
+              className="mt-5 flex items-center justify-center gap-2 border border-primary px-4 py-3 text-sm font-medium text-primary transition-colors hover:bg-primary hover:text-white"
+            >
+              Prepare and submit an STA <ChevronRight className="h-4 w-4" />
+            </Link>
+          )}
 
           {demoMode && (
             <button type="button" onClick={() => onSignIn("admin")} className="mt-5 w-full text-center font-mono text-xs text-muted-foreground hover:text-primary">

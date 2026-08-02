@@ -17,7 +17,8 @@ describe("portal migration experience", () => {
 
     expect(screen.getByText(/Previous Google Group users/i)).toBeInTheDocument();
     expect(screen.getByText(/Newly approved users/i)).toBeInTheDocument();
-    expect(screen.getByText(/cloudflare will send a one-time code/i)).toBeInTheDocument();
+    expect(screen.getByText(/Cloudflare verifies the email with a one-time code/i)).toBeInTheDocument();
+    expect(screen.getByText(/Email verification alone does not grant software access/i)).toBeInTheDocument();
   });
 
   it("opens an approved account without a new registration step", () => {
@@ -42,8 +43,8 @@ describe("portal migration experience", () => {
 
     expect(screen.getByRole("heading", { name: /your approved tools, in one place/i })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /sign in with approved email/i })).toBeEnabled();
-    expect(screen.getByText(/cloudflare will send a one-time code/i)).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /request access as a new user/i })).toBeInTheDocument();
+    expect(screen.getByText(/Cloudflare verifies the email with a one-time code/i)).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /prepare and submit an STA/i })).toBeInTheDocument();
   });
 
   it("shows the NCI STA workflow for a new user", () => {

@@ -4,6 +4,12 @@
   "main": "worker.js",
   "compatibility_date": "2026-08-01",
   "workers_dev": true,
+  "routes": [
+    {
+      "pattern": "portal.ncidosetools.com",
+      "custom_domain": true
+    }
+  ],
   "assets": {
     "directory": "../../dist",
     "binding": "ASSETS",
@@ -14,7 +20,7 @@
     "ENVIRONMENT": "production",
     "ACCESS_TEAM_DOMAIN": "wild-lab-6e97.cloudflareaccess.com",
     "ACCESS_AUD": "d2f0c8b27d7f5c5e69445455354cfe733db79f884fca6aa4d05db7c5ffd70834",
-    "ALLOWED_ORIGINS": "https://ncidose.github.io,http://127.0.0.1:8084"
+    "ALLOWED_ORIGINS": "https://ncidose.github.io,https://portal.ncidosetools.com,http://127.0.0.1:8084"
   },
   "d1_databases": [
     {

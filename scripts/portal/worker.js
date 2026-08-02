@@ -139,6 +139,12 @@ export default {
     const cors = corsHeaders(request, env);
     if (request.method === "OPTIONS") return new Response(null, { status: 204, headers: cors });
     if (request.method === "GET" && url.pathname === "/health") return json({ ok: true, service: "ncidose-portal-api" }, 200, cors);
+    // Cloudflare Access verifies control of the email address. Serve the portal
+    // shell after that check so the app can explain an unapproved D1 identity;
+    // every API and download route remains protected by the authorization check below.
+    if (request.method === "GET" && !url.pathname.startsWith("/api/") && env.ASSETS) {
+      return env.ASSETS.fetch(request);
+    }
 
     try {
       const email = await authenticatedEmail(request, env);
@@ -490,7 +496,6 @@ export default {
         return new Response(object.body, { headers });
       }
 
-      if (request.method === "GET" && env.ASSETS) return env.ASSETS.fetch(request);
       return json({ error: "not_found" }, 404, cors);
     } catch (error) {
       return json({ error: "authentication_required", detail: env.ENVIRONMENT === "development" ? String(error) : undefined }, 401, cors);
