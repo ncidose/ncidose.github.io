@@ -351,7 +351,7 @@ const PortalSignIn = ({
 
               <div className="mt-6 flex items-start gap-2 bg-slate-50 p-3 text-xs leading-relaxed text-slate-600">
                 <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
-                If you do not sign out, you may not need a new code on every visit. A new code is required after the secure session expires.
+                Your secure session lasts up to 24 hours on the same device and browser. Signing out or clearing browser cookies ends it sooner.
               </div>
 
               <div className="mt-7 border-t border-border pt-6">
