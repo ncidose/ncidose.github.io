@@ -20,7 +20,8 @@ describe("announcement email template", () => {
       category: "Release",
     }, { preview: true, includeUnsubscribe: false });
 
-    expect(html).toContain('>NCI Dose Tools</a> Team');
+    expect(html).toContain("NCI Dose Team");
+    expect(html).toContain('>NCI Dose Tools portal</a>');
     expect(html).toContain("National Cancer Institute");
     expect(html.match(/href="https:\/\/ncidose\.github\.io\/"/g)).toHaveLength(2);
     expect(html).not.toContain("Visit the NCI Dose Tools public website");
