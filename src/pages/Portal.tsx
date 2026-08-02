@@ -101,12 +101,12 @@ export const Portal = ({ publicLanding = false }: { publicLanding?: boolean }) =
         setUser({
           id: apiUser.id,
           name: displayName,
-          primaryEmail: email,
+          primaryEmail: apiUser.primary_email || email,
           institution: apiUser.institution || "Not specified",
           role: apiUser.role,
           staStatus: "Approved",
           staApprovedOn: apiUser.approved_at || "Existing approval",
-          identities: [{ id: `access-${apiUser.id}`, provider: "Verified email", email, verified: true, primary: true }],
+          identities: apiUser.identities || [{ id: `access-${apiUser.id}`, provider: "Verified email", email, verified: true, primary: true }],
         });
         setAuthState("ready");
       })
@@ -198,7 +198,7 @@ export const Portal = ({ publicLanding = false }: { publicLanding?: boolean }) =
             {section === "overview" && <Overview user={user} demoMode={demoMode} />}
             {section === "downloads" && <Downloads demoMode={demoMode} />}
             {section === "announcements" && <Announcements demoMode={demoMode} />}
-            {section === "account" && <Account user={user} setUser={setUser} />}
+            {section === "account" && <Account user={user} setUser={setUser} demoMode={demoMode} onSignOut={signOut} />}
             {section === "admin" && <Admin demoMode={demoMode} />}
           </div>
         </main>
@@ -929,22 +929,73 @@ const Announcements = ({ demoMode }: { demoMode: boolean }) => {
   );
 };
 
-const Account = ({ user, setUser }: { user: PortalUser; setUser: (user: PortalUser) => void }) => {
+const Account = ({
+  user,
+  setUser,
+  demoMode,
+  onSignOut,
+}: {
+  user: PortalUser;
+  setUser: (user: PortalUser) => void;
+  demoMode: boolean;
+  onSignOut: () => Promise<void>;
+}) => {
+  const { toast } = useToast();
   const [newEmail, setNewEmail] = useState("");
-  const [code, setCode] = useState("");
-  const [step, setStep] = useState<"idle" | "sent" | "verified">("idle");
-  const identities = useMemo(
-    () => step === "verified" && !user.identities.some((identity) => identity.email === newEmail)
-      ? [...user.identities, { id: "new-email", provider: "Email", email: newEmail, verified: true, primary: false }]
-      : user.identities,
-    [newEmail, step, user.identities],
-  );
+  const [savingEmail, setSavingEmail] = useState(false);
+  const [removingEmailId, setRemovingEmailId] = useState<string | null>(null);
+  const additionalIdentity = user.identities.find((identity) => !identity.primary);
 
-  const makePrimary = (email: string) => {
-    setUser({ ...user, primaryEmail: email, identities: identities.map((identity) => ({ ...identity, primary: identity.email === email })) } as PortalUser);
-    setStep("idle");
-    setCode("");
-    setNewEmail("");
+  const addEmail = async () => {
+    if (!newEmail.includes("@")) return;
+    if (demoMode) {
+      const identity: PortalIdentity = { id: "preview-email", provider: "Added email", email: newEmail.trim().toLowerCase(), verified: false, primary: false };
+      setUser({ ...user, identities: [...user.identities, identity] });
+      setNewEmail("");
+      return;
+    }
+    setSavingEmail(true);
+    try {
+      const response = await fetch("/api/account/emails", {
+        method: "POST",
+        credentials: "include",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ email: newEmail }),
+      });
+      const body = await response.json();
+      if (!response.ok) {
+        const message = body.error === "email_in_use" ? "That email is already linked to another account."
+          : body.error === "additional_email_limit" ? "Only one additional email can be linked."
+            : body.error === "email_already_linked" ? "That email is already linked to your account."
+              : "The email could not be added.";
+        throw new Error(message);
+      }
+      setUser({ ...user, identities: [...user.identities, body.identity] });
+      setNewEmail("");
+      toast({ title: "Email added", description: "Sign out, then sign in with the new email to verify it." });
+    } catch (error) {
+      toast({ title: "Unable to add email", description: error instanceof Error ? error.message : undefined, variant: "destructive" });
+    } finally {
+      setSavingEmail(false);
+    }
+  };
+
+  const removeEmail = async (identity: PortalIdentity) => {
+    if (demoMode) {
+      setUser({ ...user, identities: user.identities.filter((entry) => entry.id !== identity.id) });
+      return;
+    }
+    setRemovingEmailId(identity.id);
+    try {
+      const response = await fetch(`/api/account/emails/${identity.id}`, { method: "DELETE", credentials: "include" });
+      if (!response.ok) throw new Error("The email could not be removed.");
+      setUser({ ...user, identities: user.identities.filter((entry) => entry.id !== identity.id) });
+      toast({ title: "Additional email removed" });
+    } catch (error) {
+      toast({ title: "Unable to remove email", description: error instanceof Error ? error.message : undefined, variant: "destructive" });
+    } finally {
+      setRemovingEmailId(null);
+    }
   };
 
   return (
@@ -962,22 +1013,55 @@ const Account = ({ user, setUser }: { user: PortalUser; setUser: (user: PortalUs
       <section className="border border-border bg-white p-6 sm:p-8">
         <div className="font-mono text-xs uppercase tracking-widest text-primary">Login methods</div>
         <div className="mt-5 space-y-3">
-          {identities.map((identity) => (
-            <div key={identity.id} className="border border-border p-4"><div className="flex items-start justify-between gap-3"><div><div className="text-sm font-medium text-slate-800">{identity.email}</div><div className="mt-1 text-xs text-muted-foreground">{identity.provider} · Verified</div></div>{identity.primary && <span className="bg-primary/10 px-2 py-1 font-mono text-xs text-primary">Primary</span>}</div>{!identity.primary && <button type="button" onClick={() => makePrimary(identity.email)} className="mt-3 text-xs text-primary hover:underline">Make primary</button>}</div>
+          {user.identities.map((identity) => (
+            <div key={identity.id} className="border border-border p-4">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <div className="text-sm font-medium text-slate-800">{identity.email}</div>
+                  <div className="mt-1 text-xs text-muted-foreground">{identity.primary ? "Original approved email" : "Additional email"} · {identity.verified ? "Verified" : "Verification required"}</div>
+                </div>
+                <span className={cn("px-2 py-1 font-mono text-xs", identity.verified ? "bg-emerald-50 text-emerald-700" : "bg-amber-50 text-amber-800")}>{identity.verified ? "Verified" : "Pending"}</span>
+              </div>
+              {!identity.primary && (
+                <button type="button" disabled={removingEmailId === identity.id} onClick={() => void removeEmail(identity)} className="mt-3 text-xs text-slate-500 hover:text-destructive disabled:opacity-50">
+                  {removingEmailId === identity.id ? "Removing…" : "Remove additional email"}
+                </button>
+              )}
+            </div>
           ))}
         </div>
       </section>
 
       <section className="border border-border bg-white p-6 sm:p-8 xl:col-span-2">
-        <div className="flex items-start gap-4"><div className="flex h-10 w-10 items-center justify-center border border-primary text-primary"><Mail className="h-5 w-5" /></div><div><h2 className="text-lg font-medium">Use your institutional email</h2><p className="mt-1 text-sm text-muted-foreground">Optional: add and verify another email without changing your STA approval or download history.</p></div></div>
+        <div className="flex items-start gap-4"><div className="flex h-10 w-10 items-center justify-center border border-primary text-primary"><Mail className="h-5 w-5" /></div><div><h2 className="text-lg font-medium">Add one institutional email</h2><p className="mt-1 text-sm text-muted-foreground">Optional: link one additional email without changing your STA approval or download history.</p></div></div>
         <div className="mt-6 max-w-xl">
-          <div className="flex gap-2"><Input type="email" value={newEmail} onChange={(event) => setNewEmail(event.target.value)} placeholder="name@institution.edu" disabled={step !== "idle"} className="rounded-none" /><Button variant="outline" disabled={!newEmail.includes("@") || step !== "idle"} onClick={() => setStep("sent")} className="rounded-none"><Plus className="h-4 w-4" /> Add email</Button></div>
-          {step === "sent" && <div className="mt-4 border border-border bg-slate-50 p-4"><p className="text-sm text-slate-700">Enter the verification code sent to {newEmail}. Preview code: <strong>246810</strong></p><div className="mt-3 flex gap-2"><Input value={code} onChange={(event) => setCode(event.target.value)} placeholder="6-digit code" className="max-w-48 rounded-none" /><Button disabled={code !== "246810"} onClick={() => setStep("verified")} className="rounded-none">Verify</Button></div></div>}
-          {step === "verified" && <div className="mt-4 flex items-center gap-2 border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-800"><Check className="h-4 w-4" /> {newEmail} is verified. You may make it your primary login above.</div>}
+          {!additionalIdentity ? (
+            <div className="flex flex-col gap-2 sm:flex-row"><Input type="email" value={newEmail} onChange={(event) => setNewEmail(event.target.value)} placeholder="name@institution.edu" disabled={savingEmail} className="rounded-none" /><Button variant="outline" disabled={!newEmail.includes("@") || savingEmail} onClick={() => void addEmail()} className="shrink-0 rounded-none">{savingEmail ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />} Add email</Button></div>
+          ) : !additionalIdentity.verified ? (
+            <div className="border border-amber-200 bg-amber-50 p-4">
+              <div className="flex items-start gap-2 text-sm text-amber-900"><Mail className="mt-0.5 h-4 w-4 shrink-0" /><p>To verify <strong>{additionalIdentity.email}</strong>, sign out and return to the User Portal using that email. Cloudflare will send the one-time code.</p></div>
+              <Button type="button" variant="outline" onClick={() => void onSignOut()} className="mt-4 rounded-none border-amber-300 bg-white">Sign out to verify</Button>
+            </div>
+          ) : (
+            <div className="flex items-start gap-2 border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-800"><Check className="mt-0.5 h-4 w-4 shrink-0" /><p>{additionalIdentity.email} is verified. You can now sign in with either email.</p></div>
+          )}
         </div>
       </section>
     </div>
   );
+};
+
+type ManagedPortalUser = {
+  id: string;
+  name: string | null;
+  institution: string | null;
+  role: "user" | "admin";
+  accessStatus: "active" | "suspended";
+  approvalSource: string;
+  approvedAt: string | null;
+  createdAt: string;
+  lastLoginAt: string | null;
+  identities: PortalIdentity[];
 };
 
 const Admin = ({ demoMode }: { demoMode: boolean }) => {
@@ -991,12 +1075,105 @@ const Admin = ({ demoMode }: { demoMode: boolean }) => {
   const [editingAnnouncementId, setEditingAnnouncementId] = useState<string | null>(null);
   const [adminAnnouncements, setAdminAnnouncements] = useState<LiveAnnouncement[]>([]);
   const [loadingAdminAnnouncements, setLoadingAdminAnnouncements] = useState(!demoMode);
-  const previewAction = (name: string, action: string) => toast({ title: `${action} preview`, description: `${name}'s request would be updated after the production database is connected.` });
-  const requests = [
-    { id: "NCID-2026-081", name: "Dr. Maya Chen", institution: "Example Medical Center", stage: "Executed STA received", action: "Activate" },
-    { id: "NCID-2026-080", name: "Prof. Daniel Rossi", institution: "Example University", stage: "NCI review", action: "View" },
-    { id: "NCID-2026-079", name: "Dr. Amina Yusuf", institution: "Research Institute", stage: "Awaiting STA", action: "Remind" },
-  ];
+  const [managedUsers, setManagedUsers] = useState<ManagedPortalUser[]>([]);
+  const [loadingUsers, setLoadingUsers] = useState(!demoMode);
+  const [userSearch, setUserSearch] = useState("");
+  const [newUserName, setNewUserName] = useState("");
+  const [newUserEmail, setNewUserEmail] = useState("");
+  const [newUserInstitution, setNewUserInstitution] = useState("");
+  const [newUserApprovedAt, setNewUserApprovedAt] = useState(() => new Date().toISOString().slice(0, 10));
+  const [creatingUser, setCreatingUser] = useState(false);
+  const [updatingUserId, setUpdatingUserId] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (demoMode) {
+      setManagedUsers([
+        {
+          id: demoApprovedUser.id,
+          name: demoApprovedUser.name,
+          institution: demoApprovedUser.institution,
+          role: "user",
+          accessStatus: "active",
+          approvalSource: "google_group",
+          approvedAt: demoApprovedUser.staApprovedOn,
+          createdAt: demoApprovedUser.staApprovedOn,
+          lastLoginAt: null,
+          identities: demoApprovedUser.identities,
+        },
+      ]);
+      return;
+    }
+    fetch("/api/admin/users", { credentials: "include" })
+      .then(async (response) => {
+        if (!response.ok) throw new Error("Approved users could not be loaded.");
+        const body = await response.json();
+        setManagedUsers(body.users);
+      })
+      .catch((error) => toast({ title: "Unable to load approved users", description: error instanceof Error ? error.message : undefined, variant: "destructive" }))
+      .finally(() => setLoadingUsers(false));
+  }, [demoMode, toast]);
+
+  const createUser = async () => {
+    if (!newUserName.trim() || !newUserEmail.includes("@")) {
+      toast({ title: "Name and approved email are required", variant: "destructive" });
+      return;
+    }
+    if (demoMode) {
+      toast({ title: "Local preview", description: "The approved user would be added to the production database." });
+      return;
+    }
+    setCreatingUser(true);
+    try {
+      const response = await fetch("/api/admin/users", {
+        method: "POST",
+        credentials: "include",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ name: newUserName, email: newUserEmail, institution: newUserInstitution, approvedAt: newUserApprovedAt }),
+      });
+      const body = await response.json();
+      if (!response.ok) throw new Error(body.error === "email_in_use" ? "That email is already registered." : "The user could not be added.");
+      setManagedUsers((current) => [body.user, ...current]);
+      setNewUserName("");
+      setNewUserEmail("");
+      setNewUserInstitution("");
+      setNewUserApprovedAt(new Date().toISOString().slice(0, 10));
+      toast({ title: "Approved user added", description: `${body.user.identities[0].email} can now use the User Portal.` });
+    } catch (error) {
+      toast({ title: "Unable to add user", description: error instanceof Error ? error.message : undefined, variant: "destructive" });
+    } finally {
+      setCreatingUser(false);
+    }
+  };
+
+  const changeUserStatus = async (managedUser: ManagedPortalUser) => {
+    const accessStatus = managedUser.accessStatus === "active" ? "suspended" : "active";
+    if (demoMode) {
+      setManagedUsers((current) => current.map((entry) => entry.id === managedUser.id ? { ...entry, accessStatus } : entry));
+      return;
+    }
+    setUpdatingUserId(managedUser.id);
+    try {
+      const response = await fetch(`/api/admin/users/${managedUser.id}`, {
+        method: "PATCH",
+        credentials: "include",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ accessStatus }),
+      });
+      if (!response.ok) throw new Error("The access status could not be changed.");
+      setManagedUsers((current) => current.map((entry) => entry.id === managedUser.id ? { ...entry, accessStatus } : entry));
+      toast({ title: accessStatus === "active" ? "User reactivated" : "User suspended" });
+    } catch (error) {
+      toast({ title: "Unable to update user", description: error instanceof Error ? error.message : undefined, variant: "destructive" });
+    } finally {
+      setUpdatingUserId(null);
+    }
+  };
+
+  const filteredUsers = useMemo(() => {
+    const query = userSearch.trim().toLowerCase();
+    if (!query) return managedUsers;
+    return managedUsers.filter((entry) => [entry.name, entry.institution, ...entry.identities.map((identity) => identity.email)].filter(Boolean).some((value) => String(value).toLowerCase().includes(query)));
+  }, [managedUsers, userSearch]);
 
   useEffect(() => {
     if (demoMode) return;
@@ -1071,28 +1248,53 @@ const Admin = ({ demoMode }: { demoMode: boolean }) => {
 
   return (
     <div className="space-y-8">
-      <div className="grid gap-4 md:grid-cols-4">
-        <StatusCard icon={Users} label="Portal eligible" value="239" note="Current Google Group members" />
-        <StatusCard icon={ClipboardCheck} label="Access requests" value="3" note="Preview workflow queue" />
-        <StatusCard icon={FileArchive} label="R2 objects" value="2,773" note="9.01 GB verified" />
-        <StatusCard icon={Download} label="Downloads" value="—" note="Tracking begins at launch" />
+      <div className="grid gap-4 md:grid-cols-3">
+        <StatusCard icon={Users} label="Approved users" value={loadingUsers ? "—" : String(managedUsers.length)} note="All portal accounts" />
+        <StatusCard icon={UserRoundCheck} label="Active" value={loadingUsers ? "—" : String(managedUsers.filter((entry) => entry.accessStatus === "active").length)} note="Can access downloads" />
+        <StatusCard icon={ShieldCheck} label="Suspended" value={loadingUsers ? "—" : String(managedUsers.filter((entry) => entry.accessStatus === "suspended").length)} note="Access retained but disabled" />
       </div>
+
+      <section className="border border-border bg-white p-6 sm:p-8">
+        <div className="flex items-start gap-4">
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center border border-primary text-primary"><UserRoundCheck className="h-5 w-5" /></div>
+          <div><div className="font-mono text-xs uppercase tracking-widest text-primary">New STA approval</div><h2 className="mt-2 text-xl font-light">Add an approved user</h2><p className="mt-2 text-sm text-muted-foreground">Use the email address included in the NCI Technology Transfer approval message. The user can add one alternate email after signing in.</p></div>
+        </div>
+        <div className="mt-6 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+          <Input value={newUserName} onChange={(event) => setNewUserName(event.target.value)} placeholder="Full name" className="rounded-none" />
+          <Input type="email" value={newUserEmail} onChange={(event) => setNewUserEmail(event.target.value)} placeholder="Approved email" className="rounded-none" />
+          <Input value={newUserInstitution} onChange={(event) => setNewUserInstitution(event.target.value)} placeholder="Institution (optional)" className="rounded-none" />
+          <Input type="date" value={newUserApprovedAt} onChange={(event) => setNewUserApprovedAt(event.target.value)} className="rounded-none" />
+        </div>
+        <div className="mt-4 flex justify-end">
+          <Button type="button" disabled={creatingUser || !newUserName.trim() || !newUserEmail.includes("@")} onClick={() => void createUser()} className="rounded-none">{creatingUser && <Loader2 className="h-4 w-4 animate-spin" />} Add approved user</Button>
+        </div>
+      </section>
 
       <section className="border border-border bg-white">
         <div className="flex flex-wrap items-center justify-between gap-4 border-b border-border px-6 py-5">
-          <div><div className="font-mono text-xs uppercase tracking-widest text-primary">Access workflow</div><h2 className="mt-2 text-xl font-light">STA and account activation</h2></div>
-          <Link to="/portal/request-access" className="inline-flex items-center gap-2 text-sm text-primary">Preview request form <ExternalLink className="h-4 w-4" /></Link>
+          <div><div className="font-mono text-xs uppercase tracking-widest text-primary">User management</div><h2 className="mt-2 text-xl font-light">Approved user directory</h2></div>
+          <div className="relative w-full sm:w-80"><Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" /><Input value={userSearch} onChange={(event) => setUserSearch(event.target.value)} placeholder="Search name, email, or institution" className="rounded-none pl-9" /></div>
         </div>
-        <div className="divide-y divide-border">
-          {requests.map((request) => (
-            <div key={request.id} className="grid gap-4 px-6 py-5 md:grid-cols-[1fr_1fr_180px_auto] md:items-center">
-              <div><div className="font-mono text-xs text-primary">{request.id}</div><div className="mt-1 text-sm font-medium text-slate-800">{request.name}</div></div>
-              <div className="flex items-center gap-2 text-sm text-muted-foreground"><Building2 className="h-4 w-4" /> {request.institution}</div>
-              <div><span className={cn("inline-flex px-2 py-1 font-mono text-xs", request.stage === "Executed STA received" ? "bg-emerald-50 text-emerald-700" : "bg-amber-50 text-amber-800")}>{request.stage}</span></div>
-              <Button variant={request.action === "Activate" ? "default" : "outline"} className="rounded-none" onClick={() => previewAction(request.name, request.action)}>{request.action}</Button>
-            </div>
-          ))}
-        </div>
+        {loadingUsers ? (
+          <div className="flex items-center justify-center gap-3 p-10 text-sm text-muted-foreground"><Loader2 className="h-5 w-5 animate-spin text-primary" /> Loading approved users…</div>
+        ) : filteredUsers.length === 0 ? (
+          <div className="p-10 text-center text-sm text-muted-foreground">No matching users.</div>
+        ) : (
+          <div className="divide-y divide-border">
+            {filteredUsers.map((managedUser) => {
+              const primaryEmail = managedUser.identities.find((identity) => identity.primary)?.email || managedUser.identities[0]?.email || "No email";
+              const additionalEmail = managedUser.identities.find((identity) => !identity.primary);
+              return (
+                <div key={managedUser.id} className="grid gap-4 px-6 py-5 lg:grid-cols-[minmax(0,1.2fr)_minmax(0,1.4fr)_170px_auto] lg:items-center">
+                  <div className="min-w-0"><div className="truncate text-sm font-medium text-slate-800">{managedUser.name || primaryEmail.split("@")[0]}</div><div className="mt-1 flex items-center gap-1.5 truncate text-xs text-muted-foreground"><Building2 className="h-3.5 w-3.5 shrink-0" /> {managedUser.institution || "Institution not recorded"}</div></div>
+                  <div className="min-w-0"><div className="truncate text-sm text-slate-700">{primaryEmail}</div>{additionalEmail && <div className="mt-1 truncate text-xs text-muted-foreground">+ {additionalEmail.email} · {additionalEmail.verified ? "verified" : "pending"}</div>}</div>
+                  <div className="text-xs text-muted-foreground"><div>Approved {announcementDate(managedUser.approvedAt)}</div><div className="mt-1">Last login {managedUser.lastLoginAt ? announcementDate(managedUser.lastLoginAt) : "—"}</div></div>
+                  <div className="flex items-center justify-between gap-3 lg:justify-end"><span className={cn("px-2 py-1 font-mono text-xs", managedUser.accessStatus === "active" ? "bg-emerald-50 text-emerald-700" : "bg-slate-100 text-slate-600")}>{managedUser.accessStatus}</span><Button type="button" variant="outline" disabled={updatingUserId === managedUser.id || managedUser.role === "admin"} onClick={() => void changeUserStatus(managedUser)} className="rounded-none">{updatingUserId === managedUser.id ? <Loader2 className="h-4 w-4 animate-spin" /> : managedUser.accessStatus === "active" ? "Suspend" : "Reactivate"}</Button></div>
+                </div>
+              );
+            })}
+          </div>
+        )}
       </section>
 
       <div className="grid gap-6 xl:grid-cols-2">
@@ -1115,7 +1317,7 @@ const Admin = ({ demoMode }: { demoMode: boolean }) => {
             </div>
           </div>
         </section>
-        <section className="border border-border bg-white p-6"><div className="flex items-center justify-between"><div><div className="font-mono text-xs uppercase tracking-widest text-primary">Migration</div><h2 className="mt-2 text-xl font-light">Existing user transition</h2></div><Users className="h-5 w-5 text-primary" /></div><div className="mt-6 space-y-3">{["Import 239 eligible Google Group accounts", "Let existing users sign in without re-registration", "Offer optional institutional email verification", "Run Google Group and portal in parallel"].map((item, index) => <div key={item} className="flex items-center gap-3 border border-border p-3"><div className="flex h-6 w-6 items-center justify-center bg-primary/10 font-mono text-xs text-primary">{index + 1}</div><span className="text-sm text-slate-700">{item}</span></div>)}</div></section>
+        <section className="border border-border bg-white p-6"><div className="flex items-center justify-between"><div><div className="font-mono text-xs uppercase tracking-widest text-primary">New approvals</div><h2 className="mt-2 text-xl font-light">Simple activation workflow</h2></div><Users className="h-5 w-5 text-primary" /></div><div className="mt-6 space-y-3">{["Receive the executed STA approval email from NCI Technology Transfer", "Add the approved email in the form above", "Send the User Portal link to the recipient", "The recipient may verify one additional institutional email"].map((item, index) => <div key={item} className="flex items-center gap-3 border border-border p-3"><div className="flex h-6 w-6 shrink-0 items-center justify-center bg-primary/10 font-mono text-xs text-primary">{index + 1}</div><span className="text-sm text-slate-700">{item}</span></div>)}</div></section>
       </div>
 
       <section className="border border-border bg-white">

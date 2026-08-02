@@ -59,4 +59,33 @@ describe("portal migration experience", () => {
     expect(screen.getByText(/If the answer is NO, please do not continue with the Software Transfer Agreement/i)).toBeInTheDocument();
     expect(screen.getAllByText(/If the answer is YES, please do not continue with the Software Transfer Agreement/i)).toHaveLength(2);
   });
+
+  it("lets an approved user add one optional email for verification", () => {
+    window.sessionStorage.setItem("ncidose-portal-demo-user", "user");
+    render(
+      <MemoryRouter initialEntries={["/portal/account"]}>
+        <Portal />
+      </MemoryRouter>,
+    );
+
+    fireEvent.change(screen.getByPlaceholderText("name@institution.edu"), { target: { value: "researcher@university.edu" } });
+    fireEvent.click(screen.getByRole("button", { name: /add email/i }));
+
+    expect(screen.getAllByText("researcher@university.edu")).toHaveLength(2);
+    expect(screen.getByText(/sign out and return to the User Portal/i)).toBeInTheDocument();
+    expect(screen.queryByText(/Preview code/i)).not.toBeInTheDocument();
+  });
+
+  it("shows approved-user management only in the admin view", () => {
+    window.sessionStorage.setItem("ncidose-portal-demo-user", "admin");
+    render(
+      <MemoryRouter initialEntries={["/portal/admin"]}>
+        <Portal />
+      </MemoryRouter>,
+    );
+
+    expect(screen.getByRole("heading", { name: /add an approved user/i })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /approved user directory/i })).toBeInTheDocument();
+    expect(screen.getByText("approved.user@gmail.com")).toBeInTheDocument();
+  });
 });
