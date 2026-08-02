@@ -580,6 +580,27 @@ export default {
         }
       }
 
+      if (request.method === "POST" && url.pathname === "/api/admin/email-audience/test") {
+        if (user.role !== "admin") return json({ error: "administrator_required" }, 403, cors);
+        const originError = requireSameOrigin(request, url, cors);
+        if (originError) return originError;
+        try {
+          const result = await resendRequest(env, "/emails", {
+            method: "POST",
+            body: JSON.stringify({
+              from: env.RESEND_FROM,
+              to: [user.signed_in_email],
+              subject: "NCI Dose Tools announcement email test",
+              html: `<div style="font-family:Arial,sans-serif;max-width:620px;padding:24px"><h1 style="font-weight:400">Email delivery is connected</h1><p>This test confirms that the NCI Dose Tools User Portal can send email through Resend.</p><p><a href="https://portal.ncidosetools.com">Open User Portal</a></p></div>`,
+              text: "Email delivery is connected. This test confirms that the NCI Dose Tools User Portal can send email through Resend.\n\nhttps://portal.ncidosetools.com",
+            }),
+          });
+          return json({ sentTo: user.signed_in_email, id: result.id || null }, 200, cors);
+        } catch (error) {
+          return json({ error: "resend_test_failed", detail: String(error.message || error) }, 502, cors);
+        }
+      }
+
       if (request.method === "GET" && url.pathname === "/api/announcements") {
         const includeDrafts = url.searchParams.get("includeDrafts") === "1" && user.role === "admin";
         const result = await env.DB.prepare(`

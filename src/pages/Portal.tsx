@@ -1257,6 +1257,7 @@ const Admin = ({ demoMode }: { demoMode: boolean }) => {
   const [emailAudience, setEmailAudience] = useState<EmailAudienceStatus | null>(null);
   const [loadingEmailAudience, setLoadingEmailAudience] = useState(!demoMode);
   const [syncingEmailAudience, setSyncingEmailAudience] = useState(false);
+  const [sendingTestEmail, setSendingTestEmail] = useState(false);
   const [sendAnnouncementEmail, setSendAnnouncementEmail] = useState(false);
 
   useEffect(() => {
@@ -1337,6 +1338,24 @@ const Admin = ({ demoMode }: { demoMode: boolean }) => {
       toast({ title: "Unable to synchronize audience", description: error instanceof Error ? error.message : undefined, variant: "destructive" });
     } finally {
       setSyncingEmailAudience(false);
+    }
+  };
+
+  const sendTestEmail = async () => {
+    if (demoMode) {
+      toast({ title: "Local preview", description: "A test email would be sent only to the signed-in administrator." });
+      return;
+    }
+    setSendingTestEmail(true);
+    try {
+      const response = await fetch("/api/admin/email-audience/test", { method: "POST", credentials: "include" });
+      const body = await response.json();
+      if (!response.ok) throw new Error(body.detail || "The test email could not be sent.");
+      toast({ title: "Test email sent", description: `Resend accepted a test message for ${body.sentTo}.` });
+    } catch (error) {
+      toast({ title: "Unable to send test email", description: error instanceof Error ? error.message : undefined, variant: "destructive" });
+    } finally {
+      setSendingTestEmail(false);
     }
   };
 
@@ -1604,9 +1623,14 @@ const Admin = ({ demoMode }: { demoMode: boolean }) => {
             <h2 className="mt-2 text-xl font-light">Resend announcement list</h2>
             <p className="mt-2 text-sm text-muted-foreground">One primary email per active approved user. Secondary emails are not added, and unsubscribe preferences are preserved.</p>
           </div>
-          <Button type="button" variant="outline" disabled={syncingEmailAudience || loadingEmailAudience} onClick={() => void syncEmailAudience()} className="shrink-0 rounded-none">
-            {(syncingEmailAudience || loadingEmailAudience) && <Loader2 className="h-4 w-4 animate-spin" />} Sync approved users
-          </Button>
+          <div className="flex shrink-0 flex-wrap gap-2">
+            <Button type="button" variant="outline" disabled={sendingTestEmail} onClick={() => void sendTestEmail()} className="rounded-none">
+              {sendingTestEmail ? <Loader2 className="h-4 w-4 animate-spin" /> : <Mail className="h-4 w-4" />} Send test to me
+            </Button>
+            <Button type="button" variant="outline" disabled={syncingEmailAudience || loadingEmailAudience} onClick={() => void syncEmailAudience()} className="rounded-none">
+              {(syncingEmailAudience || loadingEmailAudience) && <Loader2 className="h-4 w-4 animate-spin" />} Sync approved users
+            </Button>
+          </div>
         </div>
         <div className="mt-5 grid gap-3 sm:grid-cols-3">
           <StatusCard icon={UserRoundCheck} label="Active approved users" value={loadingEmailAudience ? "—" : String(emailAudience?.approvedCount ?? "—")} note="Primary email addresses" />
