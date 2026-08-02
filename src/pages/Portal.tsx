@@ -1342,16 +1342,25 @@ const Admin = ({ demoMode }: { demoMode: boolean }) => {
   };
 
   const sendTestEmail = async () => {
+    if (!announcementTitle.trim() || !announcementBody.trim()) {
+      toast({ title: "Write the title and announcement first", variant: "destructive" });
+      return;
+    }
     if (demoMode) {
-      toast({ title: "Local preview", description: "A test email would be sent only to the signed-in administrator." });
+      toast({ title: "Local preview", description: "The completed announcement would be emailed only to the signed-in administrator." });
       return;
     }
     setSendingTestEmail(true);
     try {
-      const response = await fetch("/api/admin/email-audience/test", { method: "POST", credentials: "include" });
+      const response = await fetch("/api/admin/email-audience/test", {
+        method: "POST",
+        credentials: "include",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ title: announcementTitle, body: announcementBody, category: announcementCategory }),
+      });
       const body = await response.json();
       if (!response.ok) throw new Error(body.detail || "The test email could not be sent.");
-      toast({ title: "Test email sent", description: `Resend accepted a test message for ${body.sentTo}.` });
+      toast({ title: "Announcement preview sent", description: `Only ${body.sentTo} received this preview. Nothing was published.` });
     } catch (error) {
       toast({ title: "Unable to send test email", description: error instanceof Error ? error.message : undefined, variant: "destructive" });
     } finally {
@@ -1624,9 +1633,6 @@ const Admin = ({ demoMode }: { demoMode: boolean }) => {
             <p className="mt-2 text-sm text-muted-foreground">One primary email per active approved user. Secondary emails are not added, and unsubscribe preferences are preserved.</p>
           </div>
           <div className="flex shrink-0 flex-wrap gap-2">
-            <Button type="button" variant="outline" disabled={sendingTestEmail} onClick={() => void sendTestEmail()} className="rounded-none">
-              {sendingTestEmail ? <Loader2 className="h-4 w-4 animate-spin" /> : <Mail className="h-4 w-4" />} Send test to me
-            </Button>
             <Button type="button" variant="outline" disabled={syncingEmailAudience || loadingEmailAudience} onClick={() => void syncEmailAudience()} className="rounded-none">
               {(syncingEmailAudience || loadingEmailAudience) && <Loader2 className="h-4 w-4 animate-spin" />} Sync approved users
             </Button>
@@ -1657,6 +1663,7 @@ const Admin = ({ demoMode }: { demoMode: boolean }) => {
             </label>
             <div className="flex flex-wrap justify-end gap-2">
               {editingAnnouncementId && <Button type="button" variant="ghost" disabled={savingAnnouncement !== null} onClick={clearAnnouncementForm} className="rounded-none">Cancel edit</Button>}
+              <Button type="button" variant="outline" disabled={savingAnnouncement !== null || sendingTestEmail || !announcementTitle.trim() || !announcementBody.trim()} onClick={() => void sendTestEmail()} className="rounded-none">{sendingTestEmail ? <Loader2 className="h-4 w-4 animate-spin" /> : <Mail className="h-4 w-4" />} Send preview to me</Button>
               <Button type="button" variant="outline" disabled={savingAnnouncement !== null} onClick={() => void saveAnnouncement("draft")} className="rounded-none">{savingAnnouncement === "draft" && <Loader2 className="h-4 w-4 animate-spin" />} {editingAnnouncementId ? "Save as draft" : "Save draft"}</Button>
               <Button type="button" disabled={savingAnnouncement !== null} onClick={() => void saveAnnouncement("published")} className="rounded-none">{savingAnnouncement === "published" && <Loader2 className="h-4 w-4 animate-spin" />} {sendAnnouncementEmail ? "Publish and email users" : editingAnnouncementId ? "Update and publish" : "Publish"}</Button>
             </div>

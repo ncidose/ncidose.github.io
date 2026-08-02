@@ -247,9 +247,13 @@ const escapeHtml = (value) => String(value || "")
   .replaceAll('"', "&quot;")
   .replaceAll("'", "&#039;");
 
-const announcementEmailHtml = (announcement) => {
+export const announcementEmailHtml = (announcement, options = {}) => {
+  const preview = options.preview === true;
+  const includeUnsubscribe = options.includeUnsubscribe !== false;
   const paragraphs = announcement.body.split(/\n{2,}/).map((paragraph) => `<p style="margin:0 0 18px;line-height:1.65">${escapeHtml(paragraph).replaceAll("\n", "<br>")}</p>`).join("");
-  return `<!doctype html><html><body style="margin:0;background:#f5f8fb;color:#172033;font-family:Arial,sans-serif"><div style="max-width:680px;margin:0 auto;padding:32px 20px"><div style="background:#fff;border:1px solid #dce5ef;padding:32px"><div style="font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:#168fd0">NCI Dose Tools · ${escapeHtml(announcement.category)}</div><h1 style="font-size:28px;font-weight:400;line-height:1.25;margin:14px 0 24px">${escapeHtml(announcement.title)}</h1><div style="font-size:16px">${paragraphs}</div><p style="margin:28px 0 0"><a href="https://portal.ncidosetools.com" style="display:inline-block;background:#159fda;color:#fff;text-decoration:none;padding:13px 20px">Open User Portal</a></p></div><div style="font-size:12px;line-height:1.6;color:#66758a;padding:18px 8px">You are receiving this update because your email is linked to an approved NCI Dose Tools portal account.<br><a href="{{{RESEND_UNSUBSCRIBE_URL}}}" style="color:#66758a">Unsubscribe from announcement emails</a></div></div></body></html>`;
+  const previewBanner = preview ? `<tr><td style="background:#e8f3fa;border-bottom:1px solid #c8ddea;padding:10px 36px;color:#285a78;font-size:12px;font-weight:700;letter-spacing:.08em;text-align:center;text-transform:uppercase">Preview · Sent only to the portal administrator</td></tr>` : "";
+  const unsubscribe = includeUnsubscribe ? `<br><a href="{{{RESEND_UNSUBSCRIBE_URL}}}" style="color:#44647c;text-decoration:underline">Unsubscribe from announcement emails</a>` : "";
+  return `<!doctype html><html><head><meta name="viewport" content="width=device-width,initial-scale=1"><title>${escapeHtml(announcement.title)}</title></head><body style="margin:0;padding:0;background:#edf3f7;color:#172b3a;font-family:Arial,Helvetica,sans-serif"><div style="display:none;max-height:0;overflow:hidden;opacity:0">${escapeHtml(announcement.body.slice(0, 140))}</div><table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background:#edf3f7"><tr><td align="center" style="padding:32px 14px"><table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="max-width:680px;background:#ffffff;border:1px solid #c9d7e2"><tr><td style="background:#123f63;border-bottom:5px solid #2ba8df;padding:25px 36px"><div style="color:#ffffff;font-size:24px;font-weight:400;letter-spacing:.01em">NCI Dose Tools</div><div style="margin-top:7px;color:#c9e5f4;font-size:11px;letter-spacing:.16em;text-transform:uppercase">User Portal Update</div></td></tr>${previewBanner}<tr><td style="padding:38px 36px 20px"><span style="display:inline-block;background:#e9f5fb;color:#126b9a;font-size:11px;font-weight:700;letter-spacing:.12em;padding:7px 10px;text-transform:uppercase">${escapeHtml(announcement.category)}</span><h1 style="color:#143047;font-size:30px;font-weight:400;line-height:1.25;margin:18px 0 27px">${escapeHtml(announcement.title)}</h1><div style="color:#2c4050;font-size:16px;line-height:1.65">${paragraphs}</div><table role="presentation" cellspacing="0" cellpadding="0" border="0" style="margin:30px 0 12px"><tr><td style="background:#147da8"><a href="https://portal.ncidosetools.com" style="display:inline-block;color:#ffffff;font-size:15px;font-weight:700;padding:14px 22px;text-decoration:none">Open NCI Dose Tools User Portal</a></td></tr></table></td></tr><tr><td style="padding:8px 36px 34px"><div style="border-top:1px solid #d8e2ea;padding-top:22px;color:#2b4355;font-size:14px;line-height:1.6">Sincerely,<br><strong>NCI Dose Tools Team</strong><br><span style="color:#627688">National Cancer Institute</span></div></td></tr><tr><td style="background:#f4f7f9;border-top:1px solid #d8e2ea;padding:20px 36px;color:#607486;font-size:11px;line-height:1.6">This message was sent to an email linked to an approved NCI Dose Tools User Portal account.${unsubscribe}</td></tr></table></td></tr></table></body></html>`;
 };
 
 async function sendAnnouncementBroadcast(env, announcement, requestedByUserId, recipientCount) {
@@ -585,14 +589,20 @@ export default {
         const originError = requireSameOrigin(request, url, cors);
         if (originError) return originError;
         try {
+          const input = await request.json();
+          const title = cleanText(input.title, 240);
+          const body = cleanText(input.body, 20000);
+          const category = announcementCategories.has(input.category) ? input.category : "Release";
+          if (!title || !body) return json({ error: "title_and_body_required" }, 400, cors);
+          const previewAnnouncement = { title, body, category };
           const result = await resendRequest(env, "/emails", {
             method: "POST",
             body: JSON.stringify({
               from: env.RESEND_FROM,
               to: [user.signed_in_email],
-              subject: "NCI Dose Tools announcement email test",
-              html: `<div style="font-family:Arial,sans-serif;max-width:620px;padding:24px"><h1 style="font-weight:400">Email delivery is connected</h1><p>This test confirms that the NCI Dose Tools User Portal can send email through Resend.</p><p><a href="https://portal.ncidosetools.com">Open User Portal</a></p></div>`,
-              text: "Email delivery is connected. This test confirms that the NCI Dose Tools User Portal can send email through Resend.\n\nhttps://portal.ncidosetools.com",
+              subject: `[Preview] ${title}`,
+              html: announcementEmailHtml(previewAnnouncement, { preview: true, includeUnsubscribe: false }),
+              text: `PREVIEW — sent only to the portal administrator\n\n${title}\n\n${body}\n\nOpen NCI Dose Tools User Portal: https://portal.ncidosetools.com\n\nSincerely,\nNCI Dose Tools Team\nNational Cancer Institute`,
             }),
           });
           return json({ sentTo: user.signed_in_email, id: result.id || null }, 200, cors);
