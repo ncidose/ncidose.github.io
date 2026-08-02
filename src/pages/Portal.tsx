@@ -1001,7 +1001,7 @@ const Announcements = ({ demoMode }: { demoMode: boolean }) => {
     <div>
       {loading ? <div className="flex items-center justify-center gap-3 p-12 text-sm text-muted-foreground"><Loader2 className="h-5 w-5 animate-spin text-primary" /> Loading announcements…</div>
         : error ? <div className="p-10 text-center text-sm text-destructive">{error}</div>
-          : items.length === 0 ? <div className="border border-border bg-white p-12 text-center"><Megaphone className="mx-auto h-8 w-8 text-primary" /><h2 className="mt-4 text-lg font-light">No announcements have been published yet.</h2><p className="mt-2 text-sm text-muted-foreground">Historical Google Groups announcements can be added from the administrator screen.</p></div>
+          : items.length === 0 ? <div className="border border-border bg-white p-12 text-center"><Megaphone className="mx-auto h-8 w-8 text-primary" /><h2 className="mt-4 text-lg font-light">No announcements have been published yet.</h2><p className="mt-2 text-sm text-muted-foreground">New portal announcements will appear here.</p></div>
             : <div className="grid gap-6 xl:grid-cols-[380px_minmax(0,1fr)] xl:items-start">
               <section className="border border-border bg-white">
                 <div className="border-b border-border px-5 py-4"><div className="font-mono text-xs uppercase tracking-widest text-primary">Announcement archive</div><p className="mt-2 text-xs text-muted-foreground">Select an announcement to read the full post.</p></div>
@@ -1513,7 +1513,7 @@ const Admin = ({ demoMode }: { demoMode: boolean }) => {
       const delivery = responseBody.emailDelivery;
       toast({
         title: delivery?.status === "sent" ? "Announcement published and email submitted" : status === "published" ? (wasEditing ? "Published announcement updated" : "Announcement published") : (wasEditing ? "Draft updated" : "Draft saved"),
-        description: delivery?.status === "failed" ? `The post was published, but email delivery failed: ${delivery.error || "Unknown Resend error"}` : delivery?.status === "sent" ? `Resend accepted the broadcast for ${delivery.recipientCount} approved users.` : originalPublishedAt ? "The original Google Groups date was preserved." : "The announcement is stored in the portal.",
+        description: delivery?.status === "failed" ? `The post was published, but email delivery failed: ${delivery.error || "Unknown Resend error"}` : delivery?.status === "sent" ? `Resend accepted the broadcast for ${delivery.recipientCount} approved users.` : "The announcement is stored in the portal.",
         variant: delivery?.status === "failed" ? "destructive" : undefined,
       });
     } catch (error) {
@@ -1640,23 +1640,19 @@ const Admin = ({ demoMode }: { demoMode: boolean }) => {
       </section>}
 
       {adminSection === "announcements" && <section id="announcement-editor" className="scroll-mt-24 border border-border bg-white p-6 sm:p-8">
-          <div className="flex items-center justify-between"><div><div className="font-mono text-xs uppercase tracking-widest text-primary">Announcements</div><h2 className="mt-2 text-xl font-light">{editingAnnouncementId ? "Edit announcement" : "Publish or migrate an update"}</h2></div><Megaphone className="h-5 w-5 text-primary" /></div>
+          <div className="flex items-center justify-between"><div><div className="font-mono text-xs uppercase tracking-widest text-primary">Announcements</div><h2 className="mt-2 text-xl font-light">{editingAnnouncementId ? "Edit announcement" : "Publish an update"}</h2></div><Megaphone className="h-5 w-5 text-primary" /></div>
           {editingAnnouncementId && <div className="mt-3 inline-flex bg-amber-50 px-2 py-1 font-mono text-xs text-amber-800">Editing existing announcement</div>}
-          <p className="mt-3 text-xs leading-relaxed text-muted-foreground">For a Google Groups post, copy the original title and body and enter its original date. Leave the historical fields blank for a new portal announcement.</p>
+          <p className="mt-3 text-xs leading-relaxed text-muted-foreground">Write an update for approved NCI Dose Tools users. You can publish it in the portal only or publish and send it by email.</p>
           <div className="mt-6 space-y-3">
             <Input value={announcementTitle} onChange={(event) => setAnnouncementTitle(event.target.value)} placeholder="Announcement title" className="rounded-none" />
-            <div className="grid gap-3 sm:grid-cols-2">
-              <label><span className="font-mono text-xs uppercase tracking-wider text-muted-foreground">Category</span><select value={announcementCategory} onChange={(event) => setAnnouncementCategory(event.target.value as typeof announcementCategory)} className="mt-2 h-10 w-full rounded-none border border-input bg-white px-3 text-sm"><option>Release</option><option>Maintenance</option><option>Access</option></select></label>
-              <label><span className="font-mono text-xs uppercase tracking-wider text-muted-foreground">Original post date</span><Input type="date" value={originalPublishedAt} onChange={(event) => setOriginalPublishedAt(event.target.value)} className="mt-2 rounded-none" /></label>
-            </div>
-            <Input type="url" value={sourceUrl} onChange={(event) => setSourceUrl(event.target.value)} placeholder="Original Google Groups URL (optional)" className="rounded-none" />
-            <textarea value={announcementBody} onChange={(event) => setAnnouncementBody(event.target.value)} className="min-h-44 w-full border border-input bg-background p-3 text-sm outline-none focus:border-primary" placeholder="Copy the complete announcement body…" />
+            <label className="block max-w-sm"><span className="font-mono text-xs uppercase tracking-wider text-muted-foreground">Category</span><select value={announcementCategory} onChange={(event) => setAnnouncementCategory(event.target.value as typeof announcementCategory)} className="mt-2 h-10 w-full rounded-none border border-input bg-white px-3 text-sm"><option>Release</option><option>Maintenance</option><option>Access</option></select></label>
+            <textarea value={announcementBody} onChange={(event) => setAnnouncementBody(event.target.value)} className="min-h-44 w-full border border-input bg-background p-3 text-sm outline-none focus:border-primary" placeholder="Write the announcement…" />
             <label className={cn("flex items-start gap-3 border p-4", emailOptionDisabled ? "border-slate-200 bg-slate-50 text-slate-400" : "border-sky-200 bg-sky-50 text-slate-700")}>
               <input type="checkbox" checked={sendAnnouncementEmail} disabled={emailOptionDisabled} onChange={(event) => setSendAnnouncementEmail(event.target.checked)} className="mt-1 h-4 w-4 accent-sky-600" />
               <span>
                 <span className="block text-sm font-medium">Email approved users when publishing</span>
                 <span className="mt-1 block text-xs leading-relaxed">Sends once to each active user's primary email through Resend. Publishing edits does not send again.</span>
-                {emailOptionDisabled && <span className="mt-1 block text-xs">Email is disabled for migrated historical posts and announcements that were already emailed.</span>}
+                {emailOptionDisabled && <span className="mt-1 block text-xs">Email is unavailable for older imported posts and announcements that were already emailed.</span>}
               </span>
             </label>
             <div className="flex flex-wrap justify-end gap-2">

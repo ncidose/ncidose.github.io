@@ -92,7 +92,9 @@ describe("portal migration experience", () => {
     expect(screen.getByText("approved.user@gmail.com")).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: /announcements/i }));
-    expect(screen.getByRole("heading", { name: /publish or migrate an update/i })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /publish an update/i })).toBeInTheDocument();
+    expect(screen.queryByText(/original post date/i)).not.toBeInTheDocument();
+    expect(screen.queryByPlaceholderText(/original google groups url/i)).not.toBeInTheDocument();
     expect(screen.queryByRole("heading", { name: /add an approved user/i })).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: /activity/i }));
