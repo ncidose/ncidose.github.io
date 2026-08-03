@@ -346,13 +346,19 @@ const ManualReader = ({ manual }: { manual: ManualDefinition }) => {
                 <div className="mb-4 font-mono text-[11px] uppercase tracking-widest text-muted-foreground">On this page</div>
                 <nav className="space-y-2.5">
                   {headings.map((heading, index) => (
-                    <a
+                    <button
+                      type="button"
                       key={`${heading.id}-${index}`}
-                      href={`#${heading.id}`}
-                      className={`block text-xs leading-relaxed text-muted-foreground hover:text-primary ${heading.depth === 3 ? "pl-3" : ""}`}
+                      onClick={() =>
+                        document.getElementById(heading.id)?.scrollIntoView({
+                          behavior: "smooth",
+                          block: "start",
+                        })
+                      }
+                      className={`block w-full text-left text-xs leading-relaxed text-muted-foreground hover:text-primary ${heading.depth === 3 ? "pl-3" : ""}`}
                     >
                       {heading.label}
-                    </a>
+                    </button>
                   ))}
                 </nav>
               </div>

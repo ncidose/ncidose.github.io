@@ -29,5 +29,6 @@ describe("public manuals", () => {
     expect(screen.getByRole("heading", { name: "NCICT 4 User Manual" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Introduction" })).toBeInTheDocument();
     expect(screen.getByText("Documented release 4.20260502")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Introduction" })).not.toHaveAttribute("href");
   });
 });
