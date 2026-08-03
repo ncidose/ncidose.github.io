@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { type FormEvent, useEffect, useMemo, useState } from "react";
 import { Link, Navigate, useLocation, useNavigate } from "react-router-dom";
 import {
   ArrowLeft,
@@ -75,6 +75,22 @@ const portalNav = [
 
 const publicSiteUrl = "https://ncidose.github.io/";
 
+const portalUserFromApi = (apiUser: Record<string, unknown>): PortalUser => {
+  const signedInEmail = String(apiUser.signed_in_email || apiUser.primary_email || "");
+  return {
+    id: String(apiUser.id),
+    name: String(apiUser.display_name || signedInEmail.split("@")[0]),
+    primaryEmail: String(apiUser.primary_email || signedInEmail),
+    signedInEmail,
+    institution: String(apiUser.institution || ""),
+    country: String(apiUser.country || ""),
+    role: apiUser.role === "admin" ? "admin" : "user",
+    staStatus: "Approved",
+    staApprovedOn: String(apiUser.approved_at || "Existing approval"),
+    identities: Array.isArray(apiUser.identities) ? apiUser.identities as PortalIdentity[] : [],
+  };
+};
+
 const getStoredUser = (): PortalUser | null => {
   if (typeof window === "undefined") return null;
   const value = window.sessionStorage.getItem("ncidose-portal-demo-user");
@@ -89,7 +105,7 @@ export const Portal = ({ publicLanding = false }: { publicLanding?: boolean }) =
   const standalonePortal = standalonePortalBuild;
   const demoMode = !standalonePortal && (import.meta.env.DEV || import.meta.env.VITE_PORTAL_DEMO_MODE === "true");
   const [user, setUser] = useState<PortalUser | null>(() => demoMode ? getStoredUser() : null);
-  const [authState, setAuthState] = useState<"loading" | "ready" | "denied">(demoMode ? "ready" : "loading");
+  const [authState, setAuthState] = useState<"loading" | "ready" | "signed-out" | "denied">(demoMode ? "ready" : "loading");
   const [deniedEmail, setDeniedEmail] = useState("");
   const pathSection = location.pathname.split("/")[2] as PortalSection | undefined;
   const validSections: PortalSection[] = ["overview", "downloads", "announcements", "account", "admin"];
@@ -110,27 +126,17 @@ export const Portal = ({ publicLanding = false }: { publicLanding?: boolean }) =
           throw error;
         }
         const body = await response.json();
-        const apiUser = body.user;
-        const email = apiUser.signed_in_email;
-        const displayName = apiUser.display_name || email.split("@")[0];
-        setUser({
-          id: apiUser.id,
-          name: displayName,
-          primaryEmail: apiUser.primary_email || email,
-          signedInEmail: email,
-          institution: apiUser.institution || "",
-          country: apiUser.country || "",
-          role: apiUser.role,
-          staStatus: "Approved",
-          staApprovedOn: apiUser.approved_at || "Existing approval",
-          identities: apiUser.identities || [{ id: `access-${apiUser.id}`, provider: "Verified email", email, verified: true, primary: true }],
-        });
+        setUser(portalUserFromApi(body.user));
         setAuthState("ready");
       })
       .catch((error: Error & { email?: string }) => {
         if (error.name === "AbortError") return;
-        if (error.message === "denied") setDeniedEmail(error.email || "");
-        setAuthState("denied");
+        if (error.message === "denied") {
+          setDeniedEmail(error.email || "");
+          setAuthState("denied");
+        } else {
+          setAuthState("signed-out");
+        }
       });
     return () => controller.abort();
   }, [demoMode, publicLanding, isAccessRequest]);
@@ -157,10 +163,10 @@ export const Portal = ({ publicLanding = false }: { publicLanding?: boolean }) =
   const signOut = async () => {
     if (!demoMode) {
       try {
-        await fetch("/cdn-cgi/access/logout", {
-          credentials: "include",
-          redirect: "manual",
-        });
+        await Promise.allSettled([
+          fetch("/api/auth/logout", { method: "POST", credentials: "include" }),
+          fetch("/cdn-cgi/access/logout", { credentials: "include", redirect: "manual" }),
+        ]);
       } finally {
         window.location.replace(publicSiteUrl);
       }
@@ -173,13 +179,22 @@ export const Portal = ({ publicLanding = false }: { publicLanding?: boolean }) =
 
   const retryWithAnotherEmail = async () => {
     try {
-      await fetch("/cdn-cgi/access/logout", {
-        credentials: "include",
-        redirect: "manual",
-      });
+      await Promise.allSettled([
+        fetch("/api/auth/logout", { method: "POST", credentials: "include" }),
+        fetch("/cdn-cgi/access/logout", { credentials: "include", redirect: "manual" }),
+      ]);
     } finally {
-      window.location.replace(portalLinks.securePortal);
+      setUser(null);
+      setDeniedEmail("");
+      setAuthState("signed-out");
     }
+  };
+
+  const completeEmailSignIn = (apiUser: Record<string, unknown>) => {
+    setUser(portalUserFromApi(apiUser));
+    setDeniedEmail("");
+    setAuthState("ready");
+    navigate("/portal");
   };
 
   if (!standalonePortalBuild && isAccessRequest && !user) {
@@ -198,6 +213,8 @@ export const Portal = ({ publicLanding = false }: { publicLanding?: boolean }) =
         deniedEmail={deniedEmail}
         onSignIn={signIn}
         onRetrySignIn={retryWithAnotherEmail}
+        selfHostedAuth={standalonePortal}
+        onAuthenticated={completeEmailSignIn}
       />
     );
   }
@@ -252,6 +269,8 @@ const PortalSignIn = ({
   onSignIn,
   onRetrySignIn,
   securePortalUrl,
+  selfHostedAuth = false,
+  onAuthenticated,
 }: {
   demoMode: boolean;
   accessDenied: boolean;
@@ -259,7 +278,15 @@ const PortalSignIn = ({
   onSignIn: (role: "user" | "admin") => void;
   onRetrySignIn?: () => void | Promise<void>;
   securePortalUrl?: string;
+  selfHostedAuth?: boolean;
+  onAuthenticated?: (apiUser: Record<string, unknown>) => void;
 }) => {
+  const [email, setEmail] = useState("");
+  const [code, setCode] = useState("");
+  const [challengeId, setChallengeId] = useState("");
+  const [authError, setAuthError] = useState("");
+  const [submittingAuth, setSubmittingAuth] = useState(false);
+
   const beginSecureSignIn = () => {
     if (accessDenied && onRetrySignIn) {
       void onRetrySignIn();
@@ -270,6 +297,68 @@ const PortalSignIn = ({
       return;
     }
     onSignIn("user");
+  };
+
+  const requestCode = async (event: FormEvent) => {
+    event.preventDefault();
+    setSubmittingAuth(true);
+    setAuthError("");
+    try {
+      const response = await fetch("/api/auth/request-code", {
+        method: "POST",
+        credentials: "include",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ email }),
+      });
+      const body = await response.json();
+      if (!response.ok) {
+        const message = body.error === "too_many_code_requests"
+          ? "Too many code requests. Please wait before trying again."
+          : body.error === "login_code_delivery_failed"
+            ? "The sign-in email could not be delivered. Please try again shortly."
+            : "A sign-in code could not be requested. Please check the email and try again.";
+        throw new Error(message);
+      }
+      setChallengeId(body.challengeId);
+      setCode("");
+    } catch (error) {
+      setAuthError(error instanceof Error ? error.message : "A sign-in code could not be requested.");
+    } finally {
+      setSubmittingAuth(false);
+    }
+  };
+
+  const verifyCode = async (event: FormEvent) => {
+    event.preventDefault();
+    if (!/^[0-9]{6}$/.test(code)) return;
+    setSubmittingAuth(true);
+    setAuthError("");
+    try {
+      const response = await fetch("/api/auth/verify-code", {
+        method: "POST",
+        credentials: "include",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ challengeId, code }),
+      });
+      const body = await response.json();
+      if (!response.ok) {
+        const message = body.error === "portal_access_denied"
+          ? "This portal account is not currently active."
+          : "That code is incorrect or has expired. Request a new code and try again.";
+        throw new Error(message);
+      }
+      onAuthenticated?.(body.user);
+    } catch (error) {
+      setAuthError(error instanceof Error ? error.message : "The sign-in code could not be verified.");
+    } finally {
+      setSubmittingAuth(false);
+    }
+  };
+
+  const changeEmail = () => {
+    setChallengeId("");
+    setCode("");
+    setAuthError("");
   };
 
   return (
@@ -340,6 +429,75 @@ const PortalSignIn = ({
                 <Mail className="h-4 w-4" /> Try another email
               </Button>
             </div>
+          ) : selfHostedAuth && !demoMode ? (
+            <>
+              {!challengeId ? (
+                <form onSubmit={requestCode} className="space-y-4">
+                  <label className="block">
+                    <span className="font-mono text-xs uppercase tracking-wider text-slate-600">Approved email</span>
+                    <Input
+                      type="email"
+                      value={email}
+                      onChange={(event) => setEmail(event.target.value)}
+                      placeholder="name@institution.edu"
+                      autoComplete="email"
+                      required
+                      disabled={submittingAuth}
+                      className="mt-2 h-12 rounded-none"
+                    />
+                  </label>
+                  {authError && <p role="alert" className="border border-destructive/20 bg-destructive/5 p-3 text-sm text-destructive">{authError}</p>}
+                  <Button type="submit" className="h-12 w-full rounded-none" disabled={submittingAuth || !email.includes("@")}>
+                    {submittingAuth ? <Loader2 className="h-4 w-4 animate-spin" /> : <Mail className="h-4 w-4" />} Send sign-in code
+                  </Button>
+                </form>
+              ) : (
+                <form onSubmit={verifyCode} className="space-y-4">
+                  <div className="border-l-2 border-primary/30 bg-primary/5 px-4 py-3 text-sm leading-relaxed text-slate-700">
+                    If <strong className="break-all">{email.trim().toLowerCase()}</strong> is linked to an active approved account, a six-digit code has been sent. The code expires in 10 minutes.
+                  </div>
+                  <label className="block">
+                    <span className="font-mono text-xs uppercase tracking-wider text-slate-600">Six-digit code</span>
+                    <Input
+                      type="text"
+                      inputMode="numeric"
+                      pattern="[0-9]{6}"
+                      maxLength={6}
+                      value={code}
+                      onChange={(event) => setCode(event.target.value.replace(/\D/g, "").slice(0, 6))}
+                      placeholder="000000"
+                      autoComplete="one-time-code"
+                      autoFocus
+                      required
+                      disabled={submittingAuth}
+                      className="mt-2 h-14 rounded-none text-center font-mono text-2xl tracking-[0.35em]"
+                    />
+                  </label>
+                  {authError && <p role="alert" className="border border-destructive/20 bg-destructive/5 p-3 text-sm text-destructive">{authError}</p>}
+                  <Button type="submit" className="h-12 w-full rounded-none" disabled={submittingAuth || code.length !== 6}>
+                    {submittingAuth ? <Loader2 className="h-4 w-4 animate-spin" /> : <ShieldCheck className="h-4 w-4" />} Verify and sign in
+                  </Button>
+                  <button type="button" onClick={changeEmail} className="w-full text-center text-sm text-muted-foreground hover:text-primary">Use a different email</button>
+                </form>
+              )}
+
+              <div className="mt-5 space-y-2 border-l-2 border-primary/20 pl-3 text-xs leading-relaxed text-muted-foreground">
+                <p><span className="font-medium text-slate-700">Previous Google Group users:</span> use the Gmail address registered with the group.</p>
+                <p><span className="font-medium text-slate-700">Newly approved users:</span> use the email in the User Portal welcome message.</p>
+                <p>Only an email already linked to an active approved account receives a sign-in code.</p>
+              </div>
+
+              <div className="mt-5 flex items-start gap-2 bg-slate-50 p-3 text-xs leading-relaxed text-slate-600">
+                <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+                Your secure session lasts up to 30 days on this device and browser. Signing out or clearing browser cookies ends it sooner.
+              </div>
+
+              {challengeId && (
+                <div className="mt-5 border-t border-border pt-5 text-center text-xs leading-relaxed text-muted-foreground">
+                  No code? Check spam, confirm that you used an approved email, or <button type="button" onClick={changeEmail} className="text-primary underline">try another email</button>.
+                </div>
+              )}
+            </>
           ) : (
             <>
               <Button
@@ -352,12 +510,12 @@ const PortalSignIn = ({
               <div className="mt-4 space-y-2 border-l-2 border-primary/20 pl-3 text-xs leading-relaxed text-muted-foreground">
                 <p><span className="font-medium text-slate-700">Previous Google Group users:</span> use the Gmail address registered with the group.</p>
                 <p><span className="font-medium text-slate-700">Newly approved users:</span> use the email where you received the User Portal invitation—usually your institutional email.</p>
-                <p>Cloudflare verifies the email with a one-time code. Email verification alone does not grant software access.</p>
+                <p>The secure User Portal verifies the email with a one-time code. Email verification alone does not grant software access.</p>
               </div>
 
               <div className="mt-6 flex items-start gap-2 bg-slate-50 p-3 text-xs leading-relaxed text-slate-600">
                 <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
-                Your secure session lasts up to 24 hours on the same device and browser. Signing out or clearing browser cookies ends it sooner.
+                Your secure session lasts up to 30 days on the same device and browser. Signing out or clearing browser cookies ends it sooner.
               </div>
 
               <div className="mt-7 border-t border-border pt-6">
@@ -383,6 +541,14 @@ const PortalSignIn = ({
                 </Link>
               )}
             </>
+          )}
+
+          {selfHostedAuth && !demoMode && (
+            <div className="mt-7 border-t border-border pt-6">
+              <div className="font-mono text-xs uppercase tracking-wider text-primary">New user</div>
+              <p className="mt-2 text-sm leading-relaxed text-muted-foreground">Need access? Check eligibility, prepare the STA request, and follow the approval steps.</p>
+              <a href={`${publicSiteUrl}#/portal/request-access`} className="mt-5 flex items-center justify-center gap-2 border border-primary px-4 py-3 text-sm font-medium text-primary transition-colors hover:bg-primary hover:text-white">Prepare and submit an STA <ChevronRight className="h-4 w-4" /></a>
+            </div>
           )}
 
           {demoMode && (

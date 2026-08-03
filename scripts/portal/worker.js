@@ -1,10 +1,14 @@
 const allowedPrefixes = ["NCICT/", "NCINM/", "NCIRF/", "PHANTOM/", "DCC/"];
+const portalSessionCookie = "__Host-ncidose_session";
+const loginCodeLifetimeMinutes = 10;
+const portalSessionLifetimeDays = 30;
 let cachedKeys;
 
-const json = (body, status = 200, headers = {}) => Response.json(body, {
-  status,
-  headers: { "cache-control": "no-store", ...headers },
-});
+const json = (body, status = 200, headers = {}) => {
+  const responseHeaders = new Headers(headers);
+  responseHeaders.set("cache-control", "no-store");
+  return Response.json(body, { status, headers: responseHeaders });
+};
 
 const base64UrlBytes = (value) => {
   const base64 = value.replaceAll("-", "+").replaceAll("_", "/").padEnd(Math.ceil(value.length / 4) * 4, "=");
@@ -12,6 +16,55 @@ const base64UrlBytes = (value) => {
 };
 
 const decodeJwtPart = (value) => JSON.parse(new TextDecoder().decode(base64UrlBytes(value)));
+
+const bytesToBase64Url = (bytes) => {
+  let binary = "";
+  for (const byte of bytes) binary += String.fromCharCode(byte);
+  return btoa(binary).replaceAll("+", "-").replaceAll("/", "_").replaceAll("=", "");
+};
+
+const randomToken = (length = 32) => {
+  const bytes = new Uint8Array(length);
+  crypto.getRandomValues(bytes);
+  return bytesToBase64Url(bytes);
+};
+
+export const generateLoginCode = () => {
+  const value = new Uint32Array(1);
+  crypto.getRandomValues(value);
+  return String(value[0] % 1_000_000).padStart(6, "0");
+};
+
+async function keyedHash(value, secret) {
+  if (!secret) throw new Error("Portal authentication secret is not configured.");
+  const key = await crypto.subtle.importKey(
+    "raw",
+    new TextEncoder().encode(secret),
+    { name: "HMAC", hash: "SHA-256" },
+    false,
+    ["sign"],
+  );
+  return bytesToBase64Url(new Uint8Array(await crypto.subtle.sign("HMAC", key, new TextEncoder().encode(value))));
+}
+
+const constantTimeEqual = (left, right) => {
+  if (typeof left !== "string" || typeof right !== "string" || left.length !== right.length) return false;
+  let difference = 0;
+  for (let index = 0; index < left.length; index += 1) difference |= left.charCodeAt(index) ^ right.charCodeAt(index);
+  return difference === 0;
+};
+
+const cookieValue = (request, name) => {
+  const cookies = request.headers.get("cookie") || "";
+  for (const part of cookies.split(";")) {
+    const [key, ...value] = part.trim().split("=");
+    if (key === name) return decodeURIComponent(value.join("="));
+  }
+  return "";
+};
+
+export const portalSessionCookieHeader = (token, maximumAge = portalSessionLifetimeDays * 24 * 60 * 60) =>
+  `${portalSessionCookie}=${encodeURIComponent(token)}; Path=/; Max-Age=${maximumAge}; HttpOnly; Secure; SameSite=Lax`;
 
 async function accessKeys(teamDomain) {
   if (cachedKeys?.teamDomain === teamDomain && cachedKeys.expiresAt > Date.now()) return cachedKeys.keys;
@@ -47,7 +100,26 @@ async function verifyAccessToken(token, env) {
   return payload.email.trim().toLowerCase();
 }
 
+async function sessionEmail(request, env) {
+  const token = cookieValue(request, portalSessionCookie);
+  if (!token || !env.AUTH_SECRET) return "";
+  const tokenHash = await keyedHash(`session:${token}`, env.AUTH_SECRET);
+  const session = await env.DB.prepare(`
+    SELECT identities.normalized_email AS email, sessions.id
+    FROM portal_sessions sessions
+    JOIN users ON users.id=sessions.user_id
+    JOIN user_identities identities ON identities.id=sessions.identity_id
+    WHERE sessions.token_hash=? AND sessions.revoked_at IS NULL
+      AND sessions.expires_at > CURRENT_TIMESTAMP AND users.access_status='active'
+  `).bind(tokenHash).first();
+  if (!session) return "";
+  await env.DB.prepare("UPDATE portal_sessions SET last_seen_at=CURRENT_TIMESTAMP WHERE id=?").bind(session.id).run();
+  return session.email;
+}
+
 async function authenticatedEmail(request, env) {
+  const portalEmail = await sessionEmail(request, env);
+  if (portalEmail) return portalEmail;
   const developmentEmail = request.headers.get("x-portal-dev-email")?.trim().toLowerCase();
   const developmentToken = request.headers.get("x-portal-dev-token");
   if (env.ENVIRONMENT === "development" && env.DEV_AUTH_TOKEN && developmentToken === env.DEV_AUTH_TOKEN && developmentEmail) {
@@ -266,8 +338,14 @@ export const welcomeEmailHtml = (displayName, email) => announcementEmailHtml({
 export const secondaryEmailAddedHtml = (displayName, email) => announcementEmailHtml({
   title: "Secondary email added to your NCI Dose Tools account",
   category: "Account update",
-  body: `Hello ${displayName || "NCI Dose Tools user"},\n\n${email} has been successfully linked to your approved NCI Dose Tools User Portal account.\n\nTo verify this address, sign out of the portal and sign in again using ${email}. Cloudflare Access will send a one-time verification code to this address. After verification, you can sign in with either email.\n\nIf you did not make this change, please contact the NCI Dose Team.`,
+  body: `Hello ${displayName || "NCI Dose Tools user"},\n\n${email} has been successfully linked to your approved NCI Dose Tools User Portal account.\n\nTo verify this address, sign out of the portal and sign in again using ${email}. The NCI Dose Tools User Portal will send a one-time verification code to this address. After verification, you can sign in with either email.\n\nIf you did not make this change, please contact the NCI Dose Team.`,
 }, { includeUnsubscribe: false, headerLabel: "Account Confirmation" });
+
+export const loginCodeEmailHtml = (code) => announcementEmailHtml({
+  title: "Your NCI Dose Tools sign-in code",
+  category: "Secure sign-in",
+  body: `Enter this one-time code in the NCI Dose Tools User Portal:\n\n${code}\n\nThis code expires in ${loginCodeLifetimeMinutes} minutes and can be used only once. If you did not request this code, you can ignore this message.`,
+}, { includeUnsubscribe: false, headerLabel: "Secure User Portal" });
 
 async function sendPortalAccountEmail(env, { to, subject, html, text }) {
   const result = await resendRequest(env, "/emails", {
@@ -280,6 +358,140 @@ async function sendPortalAccountEmail(env, { to, subject, html, text }) {
 const welcomeEmailText = (displayName, email) => `Hello ${displayName || "NCI Dose Tools user"},\n\nYour approved access to the NCI Dose Tools User Portal is ready.\n\nSign in using ${email}. A one-time verification code will be sent to that address.\n\nOpen User Portal: https://portal.ncidosetools.com\n\nSincerely,\nNCI Dose Team\nNCI Dose Tools portal: https://ncidose.github.io/\nNational Cancer Institute`;
 
 const secondaryEmailAddedText = (displayName, email) => `Hello ${displayName || "NCI Dose Tools user"},\n\n${email} has been successfully linked to your approved NCI Dose Tools User Portal account.\n\nTo verify this address, sign out and sign in again using ${email}. After verification, you can sign in with either email.\n\nIf you did not make this change, please contact the NCI Dose Team.\n\nOpen User Portal: https://portal.ncidosetools.com\n\nSincerely,\nNCI Dose Team\nNCI Dose Tools portal: https://ncidose.github.io/\nNational Cancer Institute`;
+
+const loginCodeEmailText = (code) => `Your NCI Dose Tools sign-in code is ${code}.\n\nThis code expires in ${loginCodeLifetimeMinutes} minutes and can be used only once. If you did not request this code, you can ignore this message.\n\nOpen User Portal: https://portal.ncidosetools.com\n\nNCI Dose Team\nNational Cancer Institute`;
+
+async function requestLoginCode(request, env, context, cors) {
+  const url = new URL(request.url);
+  const originError = requireSameOrigin(request, url, cors);
+  if (originError) return originError;
+  if (!env.AUTH_SECRET || !env.RESEND_API_KEY || !env.RESEND_FROM) return json({ error: "email_authentication_unavailable" }, 503, cors);
+  const input = await request.json().catch(() => ({}));
+  const email = normalizePortalEmail(input.email);
+  if (!email) return json({ error: "valid_email_required" }, 400, cors);
+
+  const requestIp = request.headers.get("cf-connecting-ip") || "unknown";
+  const requestIpHash = await keyedHash(`ip:${requestIp}`, env.AUTH_SECRET);
+  const [emailCount, ipCount] = await Promise.all([
+    env.DB.prepare("SELECT COUNT(*) AS total FROM login_challenges WHERE normalized_email=? AND created_at >= datetime('now', '-1 hour')").bind(email).first(),
+    env.DB.prepare("SELECT COUNT(*) AS total FROM login_challenges WHERE request_ip_hash=? AND created_at >= datetime('now', '-1 hour')").bind(requestIpHash).first(),
+  ]);
+  if (Number(emailCount.total) >= 5 || Number(ipCount.total) >= 20) {
+    return json({ error: "too_many_code_requests", retryAfter: 3600 }, 429, { ...cors, "retry-after": "3600" });
+  }
+
+  const identity = await env.DB.prepare(`
+    SELECT identities.id AS identity_id, identities.user_id, users.display_name
+    FROM user_identities identities
+    JOIN users ON users.id=identities.user_id
+    WHERE identities.normalized_email=? AND users.access_status='active'
+  `).bind(email).first();
+  const challengeId = crypto.randomUUID();
+  const code = identity ? generateLoginCode() : "";
+  const codeHash = identity ? await keyedHash(`code:${challengeId}:${email}:${code}`, env.AUTH_SECRET) : null;
+  await env.DB.batch([
+    env.DB.prepare("UPDATE login_challenges SET consumed_at=CURRENT_TIMESTAMP WHERE normalized_email=? AND consumed_at IS NULL").bind(email),
+    env.DB.prepare(`
+      INSERT INTO login_challenges (
+        id, normalized_email, user_id, identity_id, code_hash, request_ip_hash, expires_at
+      ) VALUES (?, ?, ?, ?, ?, ?, datetime('now', '+${loginCodeLifetimeMinutes} minutes'))
+    `).bind(challengeId, email, identity?.user_id || null, identity?.identity_id || null, codeHash, requestIpHash),
+  ]);
+
+  if (identity) {
+    try {
+      await sendPortalAccountEmail(env, {
+        to: email,
+        subject: `${code} is your NCI Dose Tools sign-in code`,
+        html: loginCodeEmailHtml(code),
+        text: loginCodeEmailText(code),
+      });
+      context.waitUntil(env.DB.prepare("INSERT INTO access_events (id, user_id, event_type, metadata_json) VALUES (?, ?, 'login_code_sent', ?)").bind(
+        crypto.randomUUID(), identity.user_id, JSON.stringify({ email }),
+      ).run());
+    } catch (error) {
+      await env.DB.prepare("UPDATE login_challenges SET consumed_at=CURRENT_TIMESTAMP WHERE id=?").bind(challengeId).run();
+      return json({ error: "login_code_delivery_failed" }, 502, cors);
+    }
+  }
+
+  context.waitUntil(env.DB.prepare("DELETE FROM login_challenges WHERE created_at < datetime('now', '-1 day')").run());
+  return json({ challengeId, expiresIn: loginCodeLifetimeMinutes * 60 }, 200, cors);
+}
+
+async function verifyLoginCode(request, env, context, cors) {
+  const url = new URL(request.url);
+  const originError = requireSameOrigin(request, url, cors);
+  if (originError) return originError;
+  if (!env.AUTH_SECRET) return json({ error: "email_authentication_unavailable" }, 503, cors);
+  const input = await request.json().catch(() => ({}));
+  const challengeId = cleanText(input.challengeId, 80);
+  const code = cleanText(input.code, 12);
+  if (!/^[0-9]{6}$/.test(code) || !challengeId) return json({ error: "six_digit_code_required" }, 400, cors);
+
+  const challenge = await env.DB.prepare(`
+    SELECT challenges.*, users.access_status
+    FROM login_challenges challenges
+    LEFT JOIN users ON users.id=challenges.user_id
+    WHERE challenges.id=?
+  `).bind(challengeId).first();
+  if (!challenge || !challenge.code_hash || !challenge.user_id || !challenge.identity_id) {
+    return json({ error: "invalid_or_expired_code" }, 400, cors);
+  }
+  if (challenge.consumed_at || challenge.attempts_remaining <= 0 || challenge.expires_at <= new Date().toISOString().replace("T", " ").slice(0, 19)) {
+    return json({ error: "invalid_or_expired_code" }, 410, cors);
+  }
+  if (challenge.access_status !== "active") return json({ error: "portal_access_denied" }, 403, cors);
+
+  const submittedHash = await keyedHash(`code:${challenge.id}:${challenge.normalized_email}:${code}`, env.AUTH_SECRET);
+  if (!constantTimeEqual(submittedHash, challenge.code_hash)) {
+    await env.DB.prepare(`
+      UPDATE login_challenges
+      SET attempts_remaining=attempts_remaining-1,
+        consumed_at=CASE WHEN attempts_remaining <= 1 THEN CURRENT_TIMESTAMP ELSE consumed_at END
+      WHERE id=? AND consumed_at IS NULL
+    `).bind(challenge.id).run();
+    return json({ error: "invalid_or_expired_code" }, 400, cors);
+  }
+
+  const sessionId = crypto.randomUUID();
+  const sessionToken = randomToken();
+  const tokenHash = await keyedHash(`session:${sessionToken}`, env.AUTH_SECRET);
+  await env.DB.batch([
+    env.DB.prepare("UPDATE login_challenges SET consumed_at=CURRENT_TIMESTAMP WHERE id=? AND consumed_at IS NULL").bind(challenge.id),
+    env.DB.prepare("UPDATE user_identities SET email_verified=1, updated_at=CURRENT_TIMESTAMP WHERE id=?").bind(challenge.identity_id),
+    env.DB.prepare(`
+      INSERT INTO portal_sessions (id, user_id, identity_id, token_hash, expires_at)
+      VALUES (?, ?, ?, ?, datetime('now', '+${portalSessionLifetimeDays} days'))
+    `).bind(sessionId, challenge.user_id, challenge.identity_id, tokenHash),
+  ]);
+  const user = await userForEmail(challenge.normalized_email, env);
+  const identities = await identitiesForUser(user.id, env);
+  const primaryEmail = identities.find((identity) => identity.primary)?.email || challenge.normalized_email;
+  context.waitUntil(Promise.all([
+    env.DB.prepare("INSERT INTO access_events (id, user_id, event_type, metadata_json) VALUES (?, ?, 'login', ?)").bind(
+      crypto.randomUUID(), user.id, JSON.stringify({ email: challenge.normalized_email, method: "email_otp" }),
+    ).run(),
+    env.DB.prepare("DELETE FROM portal_sessions WHERE expires_at <= CURRENT_TIMESTAMP OR revoked_at < datetime('now', '-1 day')").run(),
+  ]));
+  const headers = new Headers(cors);
+  headers.append("set-cookie", portalSessionCookieHeader(sessionToken));
+  return json({ user: { ...user, primary_email: primaryEmail, identities } }, 200, headers);
+}
+
+async function logoutPortalSession(request, env, cors) {
+  const url = new URL(request.url);
+  const originError = requireSameOrigin(request, url, cors);
+  if (originError) return originError;
+  const token = cookieValue(request, portalSessionCookie);
+  if (token && env.AUTH_SECRET) {
+    const tokenHash = await keyedHash(`session:${token}`, env.AUTH_SECRET);
+    await env.DB.prepare("UPDATE portal_sessions SET revoked_at=CURRENT_TIMESTAMP WHERE token_hash=?").bind(tokenHash).run();
+  }
+  const headers = new Headers(cors);
+  headers.append("set-cookie", portalSessionCookieHeader("", 0));
+  return new Response(null, { status: 204, headers });
+}
 
 async function sendAnnouncementBroadcast(env, announcement, requestedByUserId, recipientCount) {
   const existing = await env.DB.prepare("SELECT status FROM announcement_email_deliveries WHERE announcement_id=?").bind(announcement.id).first();
@@ -336,9 +548,17 @@ export default {
     const cors = corsHeaders(request, env);
     if (request.method === "OPTIONS") return new Response(null, { status: 204, headers: cors });
     if (request.method === "GET" && url.pathname === "/health") return json({ ok: true, service: "ncidose-portal-api" }, 200, cors);
-    // Cloudflare Access verifies control of the email address. Serve the portal
-    // shell after that check so the app can explain an unapproved D1 identity;
-    // every API and download route remains protected by the authorization check below.
+    if (request.method === "POST" && url.pathname === "/api/auth/request-code") {
+      return requestLoginCode(request, env, context, cors);
+    }
+    if (request.method === "POST" && url.pathname === "/api/auth/verify-code") {
+      return verifyLoginCode(request, env, context, cors);
+    }
+    if (request.method === "POST" && url.pathname === "/api/auth/logout") {
+      return logoutPortalSession(request, env, cors);
+    }
+    // The public shell contains only the sign-in UI. Every API and download route
+    // below requires either a portal session or (during migration) Cloudflare Access.
     if (request.method === "GET" && !url.pathname.startsWith("/api/") && env.ASSETS) {
       return env.ASSETS.fetch(request);
     }
@@ -449,7 +669,11 @@ export default {
         const identity = await env.DB.prepare("SELECT id, normalized_email, is_primary FROM user_identities WHERE id=? AND user_id=?").bind(accountEmailMatch[1], user.id).first();
         if (!identity) return json({ error: "email_not_found" }, 404, cors);
         if (identity.is_primary) return json({ error: "primary_email_cannot_be_removed" }, 409, cors);
-        await env.DB.prepare("DELETE FROM user_identities WHERE id=? AND user_id=?").bind(identity.id, user.id).run();
+        await env.DB.batch([
+          env.DB.prepare("DELETE FROM portal_sessions WHERE identity_id=? AND user_id=?").bind(identity.id, user.id),
+          env.DB.prepare("DELETE FROM login_challenges WHERE identity_id=? AND user_id=?").bind(identity.id, user.id),
+          env.DB.prepare("DELETE FROM user_identities WHERE id=? AND user_id=?").bind(identity.id, user.id),
+        ]);
         context.waitUntil(env.DB.prepare("INSERT INTO access_events (id, user_id, event_type, metadata_json) VALUES (?, ?, 'email_removed', ?)").bind(crypto.randomUUID(), user.id, JSON.stringify({ email: identity.normalized_email })).run());
         return new Response(null, { status: 204, headers: cors });
       }
@@ -649,7 +873,13 @@ export default {
           WHERE users.id=?
         `).bind(adminUserMatch[1]).first();
         if (!existing) return json({ error: "user_not_found" }, 404, cors);
-        await env.DB.prepare("UPDATE users SET access_status=?, updated_at=CURRENT_TIMESTAMP WHERE id=?").bind(accessStatus, adminUserMatch[1]).run();
+        const statements = [
+          env.DB.prepare("UPDATE users SET access_status=?, updated_at=CURRENT_TIMESTAMP WHERE id=?").bind(accessStatus, adminUserMatch[1]),
+        ];
+        if (accessStatus === "suspended") {
+          statements.push(env.DB.prepare("UPDATE portal_sessions SET revoked_at=CURRENT_TIMESTAMP WHERE user_id=? AND revoked_at IS NULL").bind(adminUserMatch[1]));
+        }
+        await env.DB.batch(statements);
         context.waitUntil(env.DB.prepare("INSERT INTO access_events (id, user_id, event_type, metadata_json) VALUES (?, ?, 'access_status_changed', ?)").bind(crypto.randomUUID(), adminUserMatch[1], JSON.stringify({ accessStatus, changedBy: user.id })).run());
         if (existing.primary_email && env.RESEND_API_KEY && env.RESEND_SEGMENT_ID) {
           const syncContact = accessStatus === "active"
@@ -687,6 +917,8 @@ export default {
           env.DB.prepare("UPDATE announcement_email_deliveries SET requested_by_user_id=NULL, updated_at=CURRENT_TIMESTAMP WHERE requested_by_user_id=?").bind(existing.id),
           env.DB.prepare("DELETE FROM announcement_reads WHERE user_id=?").bind(existing.id),
           env.DB.prepare("UPDATE access_events SET user_id=NULL, metadata_json=NULL WHERE user_id=?").bind(existing.id),
+          env.DB.prepare("DELETE FROM portal_sessions WHERE user_id=?").bind(existing.id),
+          env.DB.prepare("DELETE FROM login_challenges WHERE user_id=?").bind(existing.id),
           env.DB.prepare("DELETE FROM user_identities WHERE user_id=?").bind(existing.id),
         ];
         if (emails.length > 0) {

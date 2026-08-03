@@ -39,7 +39,7 @@ describe("portal migration experience", () => {
 
     expect(screen.getByText(/Previous Google Group users/i)).toBeInTheDocument();
     expect(screen.getByText(/Newly approved users/i)).toBeInTheDocument();
-    expect(screen.getByText(/Cloudflare verifies the email with a one-time code/i)).toBeInTheDocument();
+    expect(screen.getByText(/secure User Portal verifies the email with a one-time code/i)).toBeInTheDocument();
     expect(screen.getByText(/Email verification alone does not grant software access/i)).toBeInTheDocument();
   });
 
@@ -65,7 +65,7 @@ describe("portal migration experience", () => {
 
     expect(screen.getByRole("heading", { name: /your approved tools, in one place/i })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /sign in with approved email/i })).toBeEnabled();
-    expect(screen.getByText(/Cloudflare verifies the email with a one-time code/i)).toBeInTheDocument();
+    expect(screen.getByText(/secure User Portal verifies the email with a one-time code/i)).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /prepare and submit an STA/i })).toBeInTheDocument();
   });
 
