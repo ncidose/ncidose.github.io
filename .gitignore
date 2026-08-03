@@ -14,6 +14,7 @@ dist-ssr
 .ssh/
 .private/
 .dev.vars*
+.wrangler/
 
 # Editor directories and files
 .vscode/*
