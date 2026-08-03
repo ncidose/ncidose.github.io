@@ -1,11 +1,33 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { beforeEach, describe, expect, it } from "vitest";
+import { getPortalHeaderEmail, selectPrimaryPortalIdentity } from "@/lib/portalUser";
 import { Portal } from "@/pages/Portal";
 
 describe("portal migration experience", () => {
   beforeEach(() => {
     window.sessionStorage.clear();
+  });
+
+  it("shows the email used for the current sign-in in the portal header", () => {
+    expect(getPortalHeaderEmail({
+      primaryEmail: "approved.user@gmail.com",
+      signedInEmail: "researcher@university.edu",
+    })).toBe("researcher@university.edu");
+    expect(getPortalHeaderEmail({ primaryEmail: "approved.user@gmail.com" })).toBe("approved.user@gmail.com");
+  });
+
+  it("lets either linked email become primary without removing the other", () => {
+    const result = selectPrimaryPortalIdentity([
+      { id: "gmail", email: "approved.user@gmail.com", primary: true },
+      { id: "work", email: "researcher@university.edu", primary: false },
+    ], "work");
+
+    expect(result?.primaryEmail).toBe("researcher@university.edu");
+    expect(result?.identities).toEqual([
+      { id: "gmail", email: "approved.user@gmail.com", primary: false },
+      { id: "work", email: "researcher@university.edu", primary: true },
+    ]);
   });
 
   it("tells existing users they can keep their Gmail and approval", () => {

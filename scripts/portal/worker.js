@@ -406,6 +406,42 @@ export default {
         return json({ profile: { name: displayName, institution, country } }, 200, cors);
       }
 
+      const primaryEmailMatch = url.pathname.match(/^\/api\/account\/emails\/([0-9a-f-]+)\/primary$/i);
+      if (request.method === "PATCH" && primaryEmailMatch) {
+        const originError = requireSameOrigin(request, url, cors);
+        if (originError) return originError;
+        const identity = await env.DB.prepare(`
+          SELECT id, normalized_email, email_verified, is_primary
+          FROM user_identities
+          WHERE id=? AND user_id=?
+        `).bind(primaryEmailMatch[1], user.id).first();
+        if (!identity) return json({ error: "email_not_found" }, 404, cors);
+        if (!identity.email_verified) return json({ error: "email_verification_required" }, 409, cors);
+
+        const previousPrimary = await env.DB.prepare(`
+          SELECT normalized_email FROM user_identities WHERE user_id=? AND is_primary=1
+        `).bind(user.id).first();
+        if (!identity.is_primary) {
+          await env.DB.batch([
+            env.DB.prepare("UPDATE user_identities SET is_primary=0, updated_at=CURRENT_TIMESTAMP WHERE user_id=?").bind(user.id),
+            env.DB.prepare("UPDATE user_identities SET is_primary=1, updated_at=CURRENT_TIMESTAMP WHERE id=? AND user_id=?").bind(identity.id, user.id),
+          ]);
+          context.waitUntil(env.DB.prepare("INSERT INTO access_events (id, user_id, event_type, metadata_json) VALUES (?, ?, 'primary_email_changed', ?)").bind(
+            crypto.randomUUID(), user.id, JSON.stringify({ from: previousPrimary?.normalized_email || null, to: identity.normalized_email }),
+          ).run());
+          if (env.RESEND_API_KEY && env.RESEND_SEGMENT_ID) {
+            context.waitUntil(Promise.allSettled([
+              addResendContactToAudience(env, identity.normalized_email),
+              previousPrimary?.normalized_email && previousPrimary.normalized_email !== identity.normalized_email
+                ? removeResendContactFromAudience(env, previousPrimary.normalized_email)
+                : Promise.resolve(),
+            ]));
+          }
+        }
+        const identities = await identitiesForUser(user.id, env);
+        return json({ primaryEmail: identity.normalized_email, identities }, 200, cors);
+      }
+
       const accountEmailMatch = url.pathname.match(/^\/api\/account\/emails\/([0-9a-f-]+)$/i);
       if (request.method === "DELETE" && accountEmailMatch) {
         const originError = requireSameOrigin(request, url, cors);

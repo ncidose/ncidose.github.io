@@ -40,6 +40,7 @@ import {
 } from "@/data/portalDemo";
 import { portalLinks } from "@/data/portalLinks";
 import { cn } from "@/lib/utils";
+import { getPortalHeaderEmail, selectPrimaryPortalIdentity } from "@/lib/portalUser";
 
 type PortalIdentity = {
   id: string;
@@ -53,6 +54,7 @@ type PortalUser = {
   id: string;
   name: string;
   primaryEmail: string;
+  signedInEmail?: string;
   institution: string;
   country?: string;
   role: "user" | "admin";
@@ -60,6 +62,7 @@ type PortalUser = {
   staApprovedOn: string;
   identities: PortalIdentity[];
 };
+
 type PortalSection = "overview" | "downloads" | "announcements" | "account" | "admin";
 const standalonePortalBuild = import.meta.env.VITE_PORTAL_STANDALONE === "true";
 
@@ -114,6 +117,7 @@ export const Portal = ({ publicLanding = false }: { publicLanding?: boolean }) =
           id: apiUser.id,
           name: displayName,
           primaryEmail: apiUser.primary_email || email,
+          signedInEmail: email,
           institution: apiUser.institution || "",
           country: apiUser.country || "",
           role: apiUser.role,
@@ -632,7 +636,7 @@ const PortalTopbar = ({ user, onSignOut }: { user: PortalUser; onSignOut: () => 
       <div className="flex items-center gap-3">
         <div className="hidden text-right sm:block">
           <div className="text-sm font-medium text-slate-800">{user.name}</div>
-          <div className="text-xs text-muted-foreground">{user.primaryEmail}</div>
+          <div className="text-xs text-muted-foreground">{getPortalHeaderEmail(user)}</div>
         </div>
         <button type="button" onClick={onSignOut} className="flex h-9 w-9 items-center justify-center border border-border text-muted-foreground hover:border-primary hover:text-primary" aria-label="Sign out">
           <LogOut className="h-4 w-4" />
@@ -1048,6 +1052,7 @@ const Account = ({
   const [savingProfile, setSavingProfile] = useState(false);
   const [savingEmail, setSavingEmail] = useState(false);
   const [removingEmailId, setRemovingEmailId] = useState<string | null>(null);
+  const [changingPrimaryEmailId, setChangingPrimaryEmailId] = useState<string | null>(null);
   const additionalIdentity = user.identities.find((identity) => !identity.primary);
 
   const saveProfile = async () => {
@@ -1132,6 +1137,37 @@ const Account = ({
     }
   };
 
+  const makePrimaryEmail = async (identity: PortalIdentity) => {
+    if (!identity.verified || identity.primary) return;
+    if (demoMode) {
+      const next = selectPrimaryPortalIdentity(user.identities, identity.id);
+      if (next) setUser({ ...user, ...next });
+      toast({ title: "Primary email updated", description: `${identity.email} is now your primary email.` });
+      return;
+    }
+    setChangingPrimaryEmailId(identity.id);
+    try {
+      const response = await fetch(`/api/account/emails/${identity.id}/primary`, {
+        method: "PATCH",
+        credentials: "include",
+        headers: { "content-type": "application/json" },
+      });
+      const body = await response.json();
+      if (!response.ok) {
+        const message = body.error === "email_verification_required"
+          ? "Verify this email by signing in with it before making it primary."
+          : "The primary email could not be changed.";
+        throw new Error(message);
+      }
+      setUser({ ...user, primaryEmail: body.primaryEmail, identities: body.identities });
+      toast({ title: "Primary email updated", description: `${body.primaryEmail} is now your primary email. Both linked emails can still be used to sign in.` });
+    } catch (error) {
+      toast({ title: "Unable to change primary email", description: error instanceof Error ? error.message : undefined, variant: "destructive" });
+    } finally {
+      setChangingPrimaryEmailId(null);
+    }
+  };
+
   return (
     <div className="grid gap-6 xl:grid-cols-[1fr_0.8fr]">
       <section className="border border-border bg-white p-6 sm:p-8">
@@ -1152,14 +1188,21 @@ const Account = ({
               <div className="flex items-start justify-between gap-3">
                 <div>
                   <div className="text-sm font-medium text-slate-800">{identity.email}</div>
-                  <div className="mt-1 text-xs text-muted-foreground">{identity.primary ? "Original approved email" : "Additional email"} · {identity.verified ? "Verified" : "Verification required"}</div>
+                  <div className="mt-1 text-xs text-muted-foreground">{identity.primary ? "Primary email" : "Secondary email"} · {identity.verified ? "Verified" : "Verification required"}</div>
                 </div>
-                <span className={cn("px-2 py-1 font-mono text-xs", identity.verified ? "bg-emerald-50 text-emerald-700" : "bg-amber-50 text-amber-800")}>{identity.verified ? "Verified" : "Pending"}</span>
+                <span className={cn("px-2 py-1 font-mono text-xs", identity.primary ? "bg-primary/10 text-primary" : identity.verified ? "bg-emerald-50 text-emerald-700" : "bg-amber-50 text-amber-800")}>{identity.primary ? "Primary" : identity.verified ? "Verified" : "Pending"}</span>
               </div>
               {!identity.primary && (
-                <button type="button" disabled={removingEmailId === identity.id} onClick={() => void removeEmail(identity)} className="mt-3 text-xs text-slate-500 hover:text-destructive disabled:opacity-50">
-                  {removingEmailId === identity.id ? "Removing…" : "Remove additional email"}
-                </button>
+                <div className="mt-3 flex flex-wrap gap-x-4 gap-y-2 text-xs">
+                  {identity.verified && (
+                    <button type="button" disabled={changingPrimaryEmailId === identity.id} onClick={() => void makePrimaryEmail(identity)} className="font-medium text-primary hover:underline disabled:opacity-50">
+                      {changingPrimaryEmailId === identity.id ? "Updating…" : "Make primary"}
+                    </button>
+                  )}
+                  <button type="button" disabled={removingEmailId === identity.id || changingPrimaryEmailId === identity.id} onClick={() => void removeEmail(identity)} className="text-slate-500 hover:text-destructive disabled:opacity-50">
+                    {removingEmailId === identity.id ? "Removing…" : "Remove secondary email"}
+                  </button>
+                </div>
               )}
             </div>
           ))}
