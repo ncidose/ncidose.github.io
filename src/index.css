@@ -278,3 +278,232 @@
     );
   }
 }
+
+/* Public manuals */
+.manual-reader,
+.manual-reader * {
+  user-select: text;
+}
+
+.manual-article {
+  color: #334155;
+  font-size: 1rem;
+  line-height: 1.82;
+  overflow-wrap: anywhere;
+}
+
+.manual-article > :first-child {
+  margin-top: 0;
+}
+
+.manual-article h2,
+.manual-article h3,
+.manual-article h4 {
+  color: #0f172a;
+  font-weight: 400;
+  letter-spacing: -0.02em;
+  scroll-margin-top: 6.5rem;
+}
+
+.manual-article h2 {
+  margin: 3.25rem 0 1.25rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid hsl(var(--border));
+  font-size: 1.85rem;
+  line-height: 1.3;
+}
+
+.manual-article h3 {
+  margin: 2.25rem 0 0.9rem;
+  font-size: 1.35rem;
+  line-height: 1.4;
+}
+
+.manual-article h4 {
+  margin: 1.75rem 0 0.7rem;
+  font-size: 1.08rem;
+  font-weight: 500;
+}
+
+.manual-article p,
+.manual-article ul,
+.manual-article ol,
+.manual-article blockquote,
+.manual-article pre,
+.manual-article .manual-table-wrap,
+.manual-article > img {
+  margin: 1.15rem 0;
+}
+
+.manual-article ul,
+.manual-article ol {
+  padding-left: 1.5rem;
+}
+
+.manual-article ul {
+  list-style: square;
+}
+
+.manual-article ol {
+  list-style: decimal;
+}
+
+.manual-article li {
+  margin: 0.35rem 0;
+  padding-left: 0.25rem;
+}
+
+.manual-article li::marker {
+  color: hsl(var(--primary));
+}
+
+.manual-article strong {
+  color: #1e293b;
+  font-weight: 600;
+}
+
+.manual-article a {
+  color: hsl(var(--primary));
+  text-decoration: underline;
+  text-decoration-color: hsl(var(--primary) / 0.35);
+  text-underline-offset: 3px;
+}
+
+.manual-article a:hover {
+  text-decoration-color: hsl(var(--primary));
+}
+
+.manual-article blockquote {
+  border-left: 4px solid hsl(var(--primary));
+  background: hsl(var(--primary) / 0.05);
+  padding: 1rem 1.25rem;
+  color: #475569;
+}
+
+.manual-article blockquote > :first-child {
+  margin-top: 0;
+}
+
+.manual-article blockquote > :last-child {
+  margin-bottom: 0;
+}
+
+.manual-article hr {
+  margin: 2.5rem 0;
+  border: 0;
+  border-top: 1px solid hsl(var(--border));
+}
+
+.manual-article code {
+  border: 1px solid #dbe4ef;
+  background: #f1f5f9;
+  padding: 0.12rem 0.35rem;
+  font-family: "JetBrains Mono", ui-monospace, monospace;
+  font-size: 0.86em;
+  color: #0f4c81;
+}
+
+.manual-article pre {
+  max-width: 100%;
+  overflow-x: auto;
+  border: 1px solid #1e293b;
+  background: #0f172a;
+  padding: 1.15rem 1.25rem;
+  color: #e2e8f0;
+  line-height: 1.65;
+}
+
+.manual-article pre code {
+  border: 0;
+  background: transparent;
+  padding: 0;
+  color: inherit;
+  font-size: 0.82rem;
+}
+
+.manual-table-wrap {
+  max-width: 100%;
+  overflow-x: auto;
+  border: 1px solid hsl(var(--border));
+}
+
+.manual-article table {
+  width: 100%;
+  min-width: 560px;
+  border-collapse: collapse;
+  font-size: 0.88rem;
+  line-height: 1.55;
+}
+
+.manual-article th,
+.manual-article td {
+  border-right: 1px solid hsl(var(--border));
+  border-bottom: 1px solid hsl(var(--border));
+  padding: 0.75rem 0.9rem;
+  text-align: left;
+  vertical-align: top;
+}
+
+.manual-article th:last-child,
+.manual-article td:last-child {
+  border-right: 0;
+}
+
+.manual-article tr:last-child td {
+  border-bottom: 0;
+}
+
+.manual-article th {
+  background: #f1f5f9;
+  color: #1e293b;
+  font-weight: 600;
+}
+
+.manual-article img {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  margin: 1.75rem auto;
+  border: 1px solid hsl(var(--border));
+  background: white;
+  padding: 0.35rem;
+  box-shadow: 0 12px 32px -20px rgba(15, 23, 42, 0.4);
+}
+
+.manual-article img[width="760"] {
+  width: 100%;
+  max-width: 760px;
+}
+
+.manual-article img[width="600"] {
+  width: 100%;
+  max-width: 700px;
+}
+
+@media print {
+  .manual-no-print,
+  .manual-reader + footer {
+    display: none !important;
+  }
+
+  .manual-reader {
+    padding-top: 0 !important;
+  }
+
+  .manual-reader .container {
+    max-width: none;
+    padding: 0;
+  }
+
+  .manual-reader .grid {
+    display: block;
+  }
+
+  .manual-article a {
+    color: inherit;
+  }
+
+  .manual-article pre {
+    white-space: pre-wrap;
+  }
+}

@@ -2,13 +2,13 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { HashRouter, Routes, Route } from "react-router-dom";
+import { HashRouter, Navigate, Routes, Route } from "react-router-dom";
 import { ScrollToTop } from "@/components/ScrollToTop";
 import { Analytics } from "@/components/Analytics";
 import Index from "./pages/Index";
 import Engine from "./pages/Engine";
 import Protocols from "./pages/Protocols";
-import Documentation from "./pages/Documentation";
+import Manuals from "./pages/Manuals";
 import Research from "./pages/Research";
 import Researchers from "./pages/Researchers";
 import Literature from "./pages/Literature";
@@ -31,7 +31,9 @@ const App = () => (
             <Route path="/" element={<Index />} />
             <Route path="/vendors" element={<Engine />} />
             <Route path="/tools" element={<Protocols />} />
-            <Route path="/documentation" element={<Documentation />} />
+            <Route path="/manuals" element={<Manuals />} />
+            <Route path="/manuals/:manualId" element={<Manuals />} />
+            <Route path="/documentation" element={<Navigate to="/manuals" replace />} />
             <Route path="/researchers" element={<Researchers />} />
             <Route path="/literature" element={<Literature />} />
             <Route path="/literature/:toolId" element={<Literature />} />

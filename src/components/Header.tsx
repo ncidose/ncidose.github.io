@@ -19,6 +19,7 @@ const navItems = [
   { label: "Our Tools", href: "/tools" },
   { label: "For Vendors", href: "/vendors" },
   { label: "For Researchers", href: "/researchers" },
+  { label: "Manuals", href: "/manuals" },
   { label: "Literature Registry", href: "/literature" },
   // { label: "Documentation", href: "/documentation" },
   { label: "Links & Resources", href: "/resources" },
@@ -55,7 +56,7 @@ export const Header = () => {
           </Link>
 
           {/* Desktop Navigation */}
-          <nav className="hidden lg:flex items-center gap-7">
+          <nav className="hidden lg:flex items-center gap-5 xl:gap-7">
             {navItems.map((item, index) => (
               <motion.div
                 key={item.label}

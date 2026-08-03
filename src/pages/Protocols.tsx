@@ -196,19 +196,17 @@ const ToolContent = ({
           Review research applications and methods.
         </p>
       </Link>
-      <a
-        href={tool.manualHref}
-        target="_blank"
-        rel="noopener noreferrer"
+      <Link
+        to={tool.manualHref}
         className="group border border-slate-200 p-4 transition-colors hover:border-primary"
       >
         <div className="font-mono text-xs uppercase tracking-widest text-primary">
           User manual
         </div>
         <p className="mt-2 text-sm text-muted-foreground group-hover:text-slate-700">
-          Open the {tool.name} GitHub wiki manual.
+          Read the current {tool.name} manual on this site.
         </p>
-      </a>
+      </Link>
       <a
         href={tool.versionHistoryHref}
         target="_blank"
@@ -313,8 +311,12 @@ const Protocols = () => {
                 computational human phantom libraries.
               </p>
               <p className="mt-4 max-w-3xl text-muted-foreground leading-relaxed">
-                This page is intentionally high level. Detailed manuals, release notes,
-                and support discussions live in the GitHub technical site.
+                This page is intentionally high level. Continue to the{" "}
+                <Link to="/manuals" className="text-primary hover:underline">
+                  public manual library
+                </Link>{" "}
+                for detailed workflows, screenshots, and technical guidance; version
+                history and support discussions remain in GitHub.
               </p>
             </motion.div>
           </div>

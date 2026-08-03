@@ -38,8 +38,7 @@ export const tools = [
     ],
     output:
       "Organ absorbed dose, effective dose, and CT-related metrics such as DLP and SSDE for epidemiologic studies, outcomes research, benchmarking, and sensitivity analysis.",
-    manualHref:
-      "https://github.com/ncidose/ncidosetools/wiki/NCICT-User-Manual",
+    manualHref: "/manuals/ncict",
     versionHistoryHref:
       "https://github.com/ncidose/ncidosetools/tree/main/NCICT",
   },
@@ -77,8 +76,7 @@ export const tools = [
     ],
     output:
       "Organ absorbed dose, Monte Carlo statistical error, peak skin dose, and effective dose for projection imaging studies and modality-specific dose estimation workflows.",
-    manualHref:
-      "https://github.com/ncidose/ncidosetools/wiki/NCIRF-User-Manual",
+    manualHref: "/manuals/ncirf",
     versionHistoryHref:
       "https://github.com/ncidose/ncidosetools/tree/main/NCIRF",
   },
@@ -118,8 +116,7 @@ export const tools = [
     ],
     output:
       "Target-organ absorbed dose, dose per administered activity, and effective dose for supported adult and pediatric workflows, study documentation, and reproducible analysis.",
-    manualHref:
-      "https://github.com/ncidose/ncidosetools/wiki/NCINM-User-Manual",
+    manualHref: "/manuals/ncinm",
     versionHistoryHref:
       "https://github.com/ncidose/ncidosetools/tree/main/NCINM",
   },
@@ -157,8 +154,7 @@ export const tools = [
     ],
     output:
       "The phantom libraries make cross-modality dose estimates more consistent by anchoring CT, NM, and RF tools to the same reference-grade anatomical foundation.",
-    manualHref:
-      "https://github.com/ncidose/ncidosetools/wiki/PHANTOM-User-Manual",
+    manualHref: "/manuals/phantom",
     versionHistoryHref:
       "https://github.com/ncidose/ncidosetools/tree/main/PHANTOM",
   },

@@ -61,7 +61,7 @@ const strengths = [
     icon: ScrollText,
     title: "Research-validated and documented",
     description:
-      "A maintained GitHub technical site and a growing publication registry provide technical and scientific context.",
+      "A maintained public technical site and a growing publication registry provide technical and scientific context.",
   },
 ];
 
@@ -84,9 +84,9 @@ const vendorComponentIcons: Record<string, typeof Code2> = {
 };
 
 const apiManualLinks: Partial<Record<string, string>> = {
-  ncict: "https://github.com/ncidose/ncidosetools/wiki/NCICTAPI-User-Manual",
-  ncirf: "https://github.com/ncidose/ncidosetools/wiki/NCIRFAPI-User-Manual",
-  ncinm: "https://github.com/ncidose/ncidosetools/wiki/NCINMAPI-User-Manual",
+  ncict: "/manuals/ncict-api",
+  ncirf: "/manuals/ncirf-api",
+  ncinm: "/manuals/ncinm-api",
 };
 
 const apiExamples = [
@@ -370,17 +370,15 @@ const Engine = () => {
                           {vendorComponentSummaries[tool.id] ?? tool.suiteSummary}
                         </p>
                         <div className="mt-4 flex flex-wrap gap-x-5 gap-y-2">
-                          <a
-                            href={apiManualLinks[tool.id] ?? tool.manualHref}
-                            target="_blank"
-                            rel="noopener noreferrer"
+                          <Link
+                            to={apiManualLinks[tool.id] ?? tool.manualHref}
                             className="inline-flex items-center gap-2 font-mono text-sm text-primary hover:underline"
                           >
                             {apiManualLinks[tool.id]
                               ? "View REST API technical manual"
                               : "View user manual"}
                             <ExternalLink className="h-3.5 w-3.5" />
-                          </a>
+                          </Link>
                         </div>
                       </div>
                     </div>
