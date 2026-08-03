@@ -46,16 +46,6 @@ const ManualCard = ({ manual }: { manual: ManualDefinition }) => {
       to={`/manuals/${manual.id}`}
       className="group flex h-full flex-col overflow-hidden border border-border bg-white transition-all duration-300 hover:-translate-y-1 hover:border-primary/60 hover:shadow-lg"
     >
-      {manual.coverImage && (
-        <div className="aspect-[16/8.5] overflow-hidden border-b border-border bg-slate-50">
-          <img
-            src={manual.coverImage}
-            alt={`${manual.product} interface overview`}
-            className="h-full w-full object-cover object-top transition-transform duration-500 group-hover:scale-[1.02]"
-            loading="lazy"
-          />
-        </div>
-      )}
       <div className="flex flex-1 flex-col p-6">
         <div className="flex items-start justify-between gap-4">
           <span className="flex h-11 w-11 items-center justify-center border border-primary/30 bg-primary/5 text-primary">
@@ -159,7 +149,7 @@ const ManualsIndex = () => {
                       </p>
                     </div>
                   )}
-                  <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
+                  <div className="grid gap-5 md:grid-cols-2">
                     {categoryManuals.map((manual) => (
                       <ManualCard key={manual.id} manual={manual} />
                     ))}

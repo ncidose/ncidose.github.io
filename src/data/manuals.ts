@@ -15,7 +15,6 @@ export type ManualDefinition = {
   category: ManualCategory;
   eyebrow: string;
   description: string;
-  coverImage?: string;
   markdown: string;
 };
 
@@ -28,7 +27,6 @@ export const manuals: ManualDefinition[] = [
     eyebrow: "Computed Tomography",
     description:
       "Installation, inputs, phantom selection, calculation workflow, batch processing, and result interpretation for NCICT 4.",
-    coverImage: "/manuals/images/ncict4-main-window.png",
     markdown: ncictMarkdown,
   },
   {
@@ -39,7 +37,6 @@ export const manuals: ManualDefinition[] = [
     eyebrow: "Nuclear Medicine",
     description:
       "Reference documentation for radionuclide and radiopharmaceutical organ-dose calculations with NCINM 3.",
-    coverImage: "/manuals/images/ncinm3-main-window.png",
     markdown: ncinmMarkdown,
   },
   {
@@ -50,7 +47,6 @@ export const manuals: ManualDefinition[] = [
     eyebrow: "Radiography & Fluoroscopy",
     description:
       "Exposure geometry, phantom configuration, Monte Carlo calculation, batch processing, and output guidance for NCIRF 4.",
-    coverImage: "/manuals/images/ncirf4-main-window.png",
     markdown: ncirfMarkdown,
   },
   {
@@ -61,7 +57,6 @@ export const manuals: ManualDefinition[] = [
     eyebrow: "Computational Anatomy",
     description:
       "A guide to the NCI reference, size-dependent, pediatric, adult, and pregnant computational human phantom libraries.",
-    coverImage: "/manuals/images/phantom-family.png",
     markdown: phantomMarkdown,
   },
   {
