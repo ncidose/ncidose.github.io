@@ -117,7 +117,7 @@ Parameter | Required | Definition
 `SID` | yes | Source-to-isocenter distance in cm
 `FW` | yes | Field width in cm
 `FH` | yes | Field height in cm
-`DAP` | yes | Dose-area product in Gy-cm<sup>2</sup>
+`DAP` | yes | Dose-area product in Gy-cm²
 `PPA` | yes | Practitioner primary angle in degrees
 `PSA` | yes | Practitioner secondary angle in degrees
 `ISOX` | yes | Isocenter x position in cm
@@ -287,8 +287,8 @@ More histories generally increase calculation time and reduce statistical uncert
 
 Recommended history | Organs of interest
 --|--
-10<sup>5</sup> | Peak skin dose
-10<sup>6</sup> | Organs within the beam field
-10<sup>7</sup> | Organs outside the beam field
+10⁵ | Peak skin dose
+10⁶ | Organs within the beam field
+10⁷ | Organs outside the beam field
 
 More threads can reduce runtime. The maximum useful thread count depends on the server hardware and deployment configuration.

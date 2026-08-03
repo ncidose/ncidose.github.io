@@ -2,7 +2,6 @@ import { useMemo, useState } from "react";
 import { Link, Navigate, useParams } from "react-router-dom";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
-import rehypeRaw from "rehype-raw";
 import rehypeSlug from "rehype-slug";
 import {
   ArrowLeft,
@@ -300,7 +299,7 @@ const ManualReader = ({ manual }: { manual: ManualDefinition }) => {
               <div className="manual-article">
                 <ReactMarkdown
                   remarkPlugins={[remarkGfm]}
-                  rehypePlugins={[rehypeRaw, rehypeSlug]}
+                  rehypePlugins={[rehypeSlug]}
                   components={{
                     a: ({ href, children, ...props }) => {
                       const external = Boolean(href?.startsWith("http"));

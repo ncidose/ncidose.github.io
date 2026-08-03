@@ -3,7 +3,7 @@ _**NCI Dosimetry System for Nuclear Medicine**_
 
 Current documented release: **NCINM3.20260510**
 
-<img src="images/ncinm3-main-window.png" alt="NCINM 3 main window showing fetus phantom selection, source-region data, and target-organ dose output" width="760">
+![NCINM 3 main window showing fetus phantom selection, source-region data, and target-organ dose output](images/ncinm3-main-window.png)
 
 ---
 

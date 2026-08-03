@@ -170,7 +170,7 @@ If the scan range does not match one of the supported WED landmark ranges, NCICT
 
 `start` and `end` can be entered either as scan locations in cm or as anatomical landmark IDs, as shown below. If one value is a landmark ID, the other must also be a landmark ID.
 
-<img src="images/ncict4/landmark.png" alt="Anatomical landmark IDs" width="600">
+![Anatomical landmark IDs](images/ncict4/landmark.png)
 
 Common protocol ranges can be entered using the following landmark ID pairs:
 

@@ -470,16 +470,6 @@
   box-shadow: 0 12px 32px -20px rgba(15, 23, 42, 0.4);
 }
 
-.manual-article img[width="760"] {
-  width: 100%;
-  max-width: 760px;
-}
-
-.manual-article img[width="600"] {
-  width: 100%;
-  max-width: 700px;
-}
-
 @media print {
   .manual-no-print,
   .manual-reader + footer {

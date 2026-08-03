@@ -3,7 +3,7 @@ _**NCI Dosimetry System for Computed Tomography**_
 
 Current documented release: **4.20260502**
 
-<img src="images/ncict4-main-window.png" alt="NCICT 4 main window showing phantom selection, scan coverage, scanner inputs, and organ dose output" width="760">
+![NCICT 4 main window showing phantom selection, scan coverage, scanner inputs, and organ dose output](images/ncict4-main-window.png)
 
 ---
 
@@ -59,29 +59,29 @@ The ICRP reference height and weight pairs used by NCICT are:
 
 If a patient's age falls between reference groups, users may perform external dose interpolation or select the nearest reference age group.
 
-<img src="images/ncict4/ncict4-icrp.png" alt="ICRP reference phantom selection" width="760">
+![ICRP reference phantom selection](images/ncict4/ncict4-icrp.png)
 
 ### 1.2 Height- and weight-based selection: size-dependent phantom library
 
 When patient height and weight are available, users may specify body size directly within the pediatric or adult phantom libraries. This approach maps the patient's body size to the closest matching size-dependent phantom. Phantom height and weight can be adjusted using the up/down arrow keys.
 
-<img src="images/ncict4/ncict4-size.png" alt="Height and weight input fields" width="760">
+![Height and weight input fields](images/ncict4/ncict4-size.png)
 
 Alternatively, users can click the **"Phantom Height Weight Map"** button to access an interactive size map. Red cells represent available height/weight combinations, and the selected cell is highlighted; clicking a cell updates the selection in the main panel.
 
-<img src="images/ncict4/ncict4-phantommap.png" alt="Phantom height and weight map" width="600">
+![Phantom height and weight map](images/ncict4/ncict4-phantommap.png)
 
 ### 1.3 Fetus models
 
 When fetal organ doses are of interest, users can select the **"Fetus"** tab and specify fetal age (8–38 weeks). Fetal anatomy is shown in color, while maternal anatomy is grayed out in the phantom display. Because fetal age may not directly correspond to maternal abdominal diameter, the maximum **maternal abdominal diameter (cm)**, which is commonly measured during prenatal visits, is also displayed to help select the most appropriate pregnancy phantom.
 
-<img src="images/ncict4/ncict4-fetus.png" alt="Fetus phantom selection" width="760">
+![Fetus phantom selection](images/ncict4/ncict4-fetus.png)
 
 ### 1.4 Pregnant women phantoms
 
 When maternal organ doses are of interest, fetal age (or maternal abdominal diameter) can be selected under the **"Mother"** tab. Maternal anatomy is shown in color, while fetal anatomy is grayed out in the phantom display.
 
-<img src="images/ncict4/ncict4-mother.png" alt="Mother phantom selection" width="760">
+![Mother phantom selection](images/ncict4/ncict4-mother.png)
 
 ---
 
@@ -89,26 +89,26 @@ When maternal organ doses are of interest, fetal age (or maternal abdominal diam
 
 Two scanner parameter scenarios are supported.
 
-### 2.1 CTDI<sub>vol</sub> unavailable
+### 2.1 CTDIvol unavailable
 
-When CTDI<sub>vol</sub> is not available, it can be reconstructed from the scanner model, tube potential (kVp), tube current (mA), rotation time (sec), pitch, and total collimation (mm). CTDI<sub>vol</sub> (mGy) is automatically calculated using a built-in normalized CTDI<sub>w</sub> (mGy/mAs) library for over 160 scanner models. Additional scanner models are being added to the library through CTDI surveys.
+When CTDIvol is not available, it can be reconstructed from the scanner model, tube potential (kVp), tube current (mA), rotation time (sec), pitch, and total collimation (mm). CTDIvol (mGy) is automatically calculated using a built-in normalized CTDIw (mGy/mAs) library for over 160 scanner models. Additional scanner models are being added to the library through CTDI surveys.
 
-<img src="images/ncict4/gui_scanner_information.png" alt="Scanner information panel with calculated CTDIvol" width="300">
+![Scanner information panel with calculated CTDIvol](images/ncict4/gui_scanner_information.png)
 
 A generic longitudinal tube current modulation (TCM) model is implemented for illustrative purposes. It is not vendor-specific. TCM strength ranges from 0 (no modulation) to 1 (maximum modulation). The modulated current profile is displayed next to the phantom panel.
 
-### 2.2 CTDI<sub>vol</sub> available
+### 2.2 CTDIvol available
 
-Users may directly enter CTDI<sub>vol</sub> and select the CTDI phantom type (head CTDI phantom with 16 cm diameter or body CTDI phantom with 32 cm diameter). This value **overrides** all other scanner parameters. NCICT uses a scanner-independent organ dose calculation algorithm, so CTDI<sub>vol</sub> drives organ dose estimation even when a specific scanner model is not listed.
+Users may directly enter CTDIvol and select the CTDI phantom type (head CTDI phantom with 16 cm diameter or body CTDI phantom with 32 cm diameter). This value **overrides** all other scanner parameters. NCICT uses a scanner-independent organ dose calculation algorithm, so CTDIvol drives organ dose estimation even when a specific scanner model is not listed.
 
-<img src="images/ncict4/gui_scanner_ctdivol.png" alt="Scanner information panel with CTDIvol input" width="300">
+![Scanner information panel with CTDIvol input](images/ncict4/gui_scanner_ctdivol.png)
 
 ### 2.3 CT-related Dose Metrics
 
-- **DLP** is calculated from CTDI<sub>vol</sub> and scan length
+- **DLP** is calculated from CTDIvol and scan length
 - **SSDE** is calculated using regression equations based on WED
 
-<img src="images/ncict4/gui_dose_metrics.png" alt="CT dose metric outputs" width="300">
+![CT dose metric outputs](images/ncict4/gui_dose_metrics.png)
 
 ---
 
@@ -120,8 +120,8 @@ Scan coverage can be defined:
 - using the up/down arrow keys in the text fields
 - using predefined protocols
 
-<img src="images/ncict4/ncict4-size.png" alt="Phantom display with scan coverage box" width="600"><br>
-<img src="images/ncict4/gui_scan_coverage_controls.png" alt="Scan coverage controls" width="600">
+![Phantom display with scan coverage box](images/ncict4/ncict4-size.png)
+![Scan coverage controls](images/ncict4/gui_scan_coverage_controls.png)
 
 ---
 
@@ -131,7 +131,7 @@ NCICT reports organ absorbed dose (mGy) and effective dose (mSv). Results are in
 
 Detailed cardiac substructure doses are available when size-dependent phantoms are selected.
 
-<img src="images/ncict4/gui_organ_dose_output.png" alt="Organ dose output table" width="300"><br>
+![Organ dose output table](images/ncict4/gui_organ_dose_output.png)
 
 ### Cardiac Substructure Acronyms
 
@@ -180,7 +180,7 @@ The Batch parser reads column headers, so columns may be reordered as long as th
 |`kvp`|Tube potential in kVp; must be greater than `0`|
 |`tcm_strength`|TCM strength from `0` to `1`; use `-1` for custom mA values|
 |`head_body`|`1`=16 cm CTDI phantom, `2`=32 cm CTDI phantom|
-|`ctdivol`|CTDI<sub>vol</sub> in mGy; must be greater than or equal to `0`|
+|`ctdivol`|CTDIvol in mGy; must be greater than or equal to `0`|
 |`custom_ma`|Required when `tcm_strength = -1`; enter the first custom mA value here; all custom mA values must be greater than `0`|
 
 If a `patientID` column is included, NCICT uses it in the output. If `patientID` is omitted, rows are numbered automatically.
@@ -232,7 +232,7 @@ If the scan range does not match one of the supported WED landmark ranges, NCICT
 
 Scan start and end locations can be specified either as distances from the top of the head in cm or as anatomical landmark IDs. If a landmark ID is used for one boundary, a landmark ID should also be used for the other boundary.
 
-<img src="images/ncict4/landmark.png" alt="Anatomical landmark IDs" width="600">
+![Anatomical landmark IDs](images/ncict4/landmark.png)
 
 Common protocol ranges can be entered using the following landmark ID pairs:
 

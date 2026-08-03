@@ -3,7 +3,7 @@ _**NCI Dosimetry System for Radiography and Fluoroscopy**_
 
 Current documented release: **4.20260510**
 
-<img src="images/ncirf4-main-window.png" alt="NCIRF 4 main window overview" width="760">
+![NCIRF 4 main window overview](images/ncirf4-main-window.png)
 
 ---
 
@@ -66,7 +66,7 @@ Reference height and weight are displayed automatically and are not editable.
 For ages that fall between reference groups, users may select the nearest
 reference age group or perform external interpolation as needed.
 
-<img src="images/reference-phantom-selection.png" alt="Reference phantom selection panel" width="300">
+![Reference phantom selection panel](images/reference-phantom-selection.png)
 
 ### Size-Dependent Phantoms
 
@@ -98,9 +98,9 @@ Selection of the correct pediatric/adult and sex group is important for active
 and shallow marrow dose calculations, because those calculations use
 age-dependent dose response functions.
 
-<img src="images/size-phantom-selection.png" alt="Size-dependent phantom selection panel" width="300">
+![Size-dependent phantom selection panel](images/size-phantom-selection.png)
 
-<img src="images/height-weight-map.png" alt="Size-dependent height-weight phantom map" width="600">
+![Size-dependent height-weight phantom map](images/height-weight-map.png)
 
 ### Pregnant Phantoms
 
@@ -120,7 +120,7 @@ evaluation.
 
 When using pregnant phantoms, height and weight are not used.
 
-<img src="images/pregnant-phantom-selection.png" alt="Pregnant phantom selection panel" width="300">
+![Pregnant phantom selection panel](images/pregnant-phantom-selection.png)
 
 ---
 
@@ -139,7 +139,7 @@ Additional beam parameters include:
 DAP is required to scale Monte Carlo output to absolute absorbed organ dose.
 NCIRF 4 automatically selects the appropriate dose response function (DRF).
 
-<img src="images/xray-beam-data.png" alt="X-ray beam input panel" width="300">
+![X-ray beam input panel](images/xray-beam-data.png)
 
 ---
 
@@ -168,7 +168,7 @@ Users also define:
 - Isocenter X, Y, and Z
 - Table thickness
 
-<img src="images/beam-geometry-controls.png" alt="Beam geometry and angle control panel" width="300">
+![Beam geometry and angle control panel](images/beam-geometry-controls.png)
 
 ---
 
@@ -197,7 +197,7 @@ the displayed resize behavior accounts for the current PPA and PSA projection.
 Phantom picture resolution has been improved in NCIRF 4 for clearer visual
 feedback.
 
-<img src="images/phantom-beam-geometry-views.png" alt="Phantom views with draggable field box" width="600">
+![Phantom views with draggable field box](images/phantom-beam-geometry-views.png)
 
 ---
 
@@ -223,7 +223,7 @@ so on until the calculation reaches `100%`.
 Thread count should generally be selected based on available CPU cores and the
 desired balance between speed and system responsiveness.
 
-<img src="images/monte-carlo-progress.png" alt="Monte Carlo progress bar and stop button" width="600">
+![Monte Carlo progress bar and stop button](images/monte-carlo-progress.png)
 
 ---
 
@@ -242,7 +242,7 @@ scanning.
 Effective dose is calculated using tissue weighting factors defined in
 **ICRP Publication 103**.
 
-<img src="images/dose-output-table.png" alt="Main GUI dose and error output table" width="300">
+![Main GUI dose and error output table](images/dose-output-table.png)
 
 ---
 
@@ -251,7 +251,7 @@ Effective dose is calculated using tissue weighting factors defined in
 NCIRF 4 uses a single unified **Batch Manager** for reference, size-dependent,
 and pregnant phantom calculations.
 
-<img src="images/batch-manager.png" alt="Unified Batch Manager window" width="600">
+![Unified Batch Manager window](images/batch-manager.png)
 
 ### Batch Manager Columns
 
@@ -396,7 +396,7 @@ error result fields.
 completed results, NCIRF loads those results internally and displays them in the
 main GUI when the completed row is selected.
 
-<img src="images/saved-batch-csv.png" alt="Saved Batch CSV showing input and Progress columns" width="600">
+![Saved Batch CSV showing input and Progress columns](images/saved-batch-csv.png)
 
 ### MCNP Input Generation
 

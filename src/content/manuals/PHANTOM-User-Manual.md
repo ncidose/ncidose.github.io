@@ -17,7 +17,7 @@ simulations**, rather than patient-specific clinical modeling.
 > They are **not intended** for patient-specific clinical treatment planning or
 > site-customized anatomical modeling.
 
-<img src="images/phantom-family.png" alt="NCI computational human phantom family spanning pediatric, adult, and pregnant anatomies" width="760">
+![NCI computational human phantom family spanning pediatric, adult, and pregnant anatomies](images/phantom-family.png)
 
 ---
 
@@ -26,37 +26,37 @@ simulations**, rather than patient-specific clinical modeling.
 The PHANTOM libraries currently available are summarized below.
 A cross mark (×) indicates availability in the current release folder.
 
-| File format | UF/NCI reference size phantoms | UF/NCI body size-dependent phantoms<sup>1</sup> | ICRP reference phantoms | UF/NCI pregnant women phantoms |
+| File format | UF/NCI reference size phantoms | UF/NCI body size-dependent phantoms¹ | ICRP reference phantoms | UF/NCI pregnant women phantoms |
 |---|:---:|:---:|:---:|:---:|
 | Number of phantoms | 12 | 362 | 12 | 8 |
-| Arms<sup>2</sup> | w and w/o | w and w/o | w and w/o | w and w/o |
+| Arms² | w and w/o | w and w/o | w and w/o | w and w/o |
 | Binary voxel (legacy) | × | × (low res) | Available from ICRP 110 and 143 | |
 | NIfTI (`.nii.gz`) | × | × (incl. xy-low/z-high) |  | × |
-| DICOMRT<sup>3</sup> | × |  | × | × |
+| DICOMRT³ | × |  | × | × |
 | MC input available | MCNP (w arms) |  | Geant4 (w/o arms) |  |
 | Reference | [Lee 2010](https://pubmed.ncbi.nlm.nih.gov/20019401/) | [Geyer 2014](https://pubmed.ncbi.nlm.nih.gov/25144322/) | [ICRP 110](https://www.icrp.org/publication.asp?id=icrp%20publication%20110), [ICRP 143](https://pubmed.ncbi.nlm.nih.gov/33000625/) | [Maynard 2014](https://pubmed.ncbi.nlm.nih.gov/25030913/) |
 
-<sup>1</sup> The reference-size, body size–dependent, and pregnant woman phantom
+¹ The reference-size, body size–dependent, and pregnant woman phantom
 libraries are available in compressed NIfTI (`.nii.gz`) format, the recommended format
 for new downloads. Legacy binary voxel files are retained under each library's
 **bin/** folder for compatibility with existing Monte Carlo workflows.
 
-<sup>2</sup> Phantoms with the arms removed are intended for imaging geometries in which
+² Phantoms with the arms removed are intended for imaging geometries in which
 the patient’s arms are raised.
 
-<sup>3</sup> DICOMRT files are provided for selected supported libraries under each
+³ DICOMRT files are provided for selected supported libraries under each
 library's **dicomrt** folder, e.g.
 **nci_reference/armless_highres/dicomrt**, **icrp_reference/armless_highres/dicomrt**,
 and **nci_pregnant/arm_highres/dicomrt**. DICOM-CT and RT STRUCTURE files can be
 directly imported into Treatment Planning Systems (TPS).
 Recommended citation for DICOMRT files: [Griffin 2019](https://pubmed.ncbi.nlm.nih.gov/31158829/)
 
-<img src="images/phantoms-height-weight-map.png" alt="Height and weight distribution of the NCI body size-dependent computational phantom library" width="760">
+![Height and weight distribution of the NCI body size-dependent computational phantom library](images/phantoms-height-weight-map.png)
 
 Selected DICOM CT and RT Structure Set libraries can be imported into compatible
 treatment-planning systems for visualization and supported research workflows.
 
-<img src="images/phantoms-dicomrt-treatment-planning.png" alt="NCI computational phantom DICOM CT and RT Structure Set displayed in a treatment-planning system" width="760">
+![NCI computational phantom DICOM CT and RT Structure Set displayed in a treatment-planning system](images/phantoms-dicomrt-treatment-planning.png)
 
 ---
 
