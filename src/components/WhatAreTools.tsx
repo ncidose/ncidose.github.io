@@ -44,7 +44,7 @@ export const WhatAreTools = () => {
             </div>
             <div className="p-4 bg-slate-200/40">
               <p className="text-sm text-muted-foreground">
-                <span className="text-foreground font-medium">NCI Dose Tools GitHub Technical Site</span> complements the{" "}
+                <span className="text-foreground font-medium">NCI Dose Tools Technical Site</span> complements the{" "}
                 <a 
                   href={portalLinks.officialNci}
                   target="_blank" 
@@ -66,6 +66,12 @@ export const WhatAreTools = () => {
                 official NCI website remains the authoritative institutional source for official
                 context and access policy.
               </p>
+              <Link
+                to="/manuals"
+                className="mt-4 inline-flex font-mono text-sm text-primary hover:underline"
+              >
+                Browse user manuals and API documentation →
+              </Link>
             </div>
           </motion.div>
         </div>

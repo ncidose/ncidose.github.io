@@ -16,13 +16,14 @@ import {
 
 const portalCards = [
   {
-    icon: Globe2,
-    eyebrow: "GitHub Technical Site",
-    title: "NCI Dose Tools GitHub Technical Site",
+    icon: BookOpen,
+    eyebrow: "Public Documentation",
+    title: "Manuals & API Documentation",
     description:
-      "Technical documentation and user-support resources for NCI Dose Tools, including tool summaries, manuals, API resources, FAQs, and update-oriented materials.",
-    href: "https://ncidose.github.io/",
-    linkText: "Current site",
+      "Search current NCICT, NCINM, NCIRF, PHANTOM, and vendor REST API manuals without a GitHub account.",
+    href: "/manuals",
+    linkText: "Browse manuals",
+    external: false,
   },
   {
     icon: BadgeCheck,
@@ -32,15 +33,17 @@ const portalCards = [
       "The authoritative NCI website for institutional context and information about NCI radiation dosimetry tools.",
     href: portalLinks.officialNci,
     linkText: "Open official NCI website",
+    external: true,
   },
   {
     icon: BookOpen,
     eyebrow: "Repository",
     title: "GitHub: ncidose/ncidosetools",
     description:
-      "The source repository for documentation content, release information, version history, Q&A, REST API resources, and implementation-oriented materials.",
+      "The source repository for release information, version history, technical discussions, Q&A, and implementation-oriented materials.",
     href: portalLinks.github,
     linkText: "Open GitHub",
+    external: true,
   },
   {
     icon: LockKeyhole,
@@ -50,6 +53,7 @@ const portalCards = [
       "The secure portal for approved-user announcements and controlled software downloads.",
     href: portalLinks.userPortal,
     linkText: "Open User Portal",
+    external: true,
   },
 ];
 
@@ -77,12 +81,37 @@ const userPaths = [
   },
   {
     title: "Technical implementer",
-    text: "Use the GitHub technical site for manuals, release notes, technical questions, version history, and REST API-oriented details.",
-    href: portalLinks.github,
-    linkText: "Open GitHub technical site",
-    external: true,
+    text: "Read public user and REST API manuals here; use GitHub only when you need release history, source files, or technical discussion.",
+    href: "/manuals",
+    linkText: "Browse technical manuals",
+    external: false,
   },
 ];
+
+const PortalCardContent = ({ portal }: { portal: (typeof portalCards)[number] }) => (
+  <>
+    <div>
+      <div className="mb-6 flex h-10 w-10 items-center justify-center border border-primary text-primary">
+        <portal.icon className="h-5 w-5" />
+      </div>
+      <div className="font-mono text-xs uppercase tracking-widest text-primary">
+        {portal.eyebrow}
+      </div>
+      <h2 className="mt-3 text-xl font-medium text-slate-900">{portal.title}</h2>
+      <p className="mt-4 text-sm leading-relaxed text-muted-foreground">
+        {portal.description}
+      </p>
+    </div>
+    <div className="mt-8 flex items-center gap-2 font-mono text-sm text-primary">
+      {portal.linkText}
+      {portal.external ? (
+        <ExternalLink className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" />
+      ) : (
+        <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" />
+      )}
+    </div>
+  </>
+);
 
 const Research = () => {
   return (
@@ -102,11 +131,11 @@ const Research = () => {
                 Links & Resources
               </span>
               <h1 className="mt-4 text-hero-md lg:text-hero">
-                GitHub Technical Site,
+                Public Technical Site,
                 <span className="block text-muted-foreground">Official Website, Approved Access</span>
               </h1>
               <p className="mt-6 max-w-3xl text-lg text-muted-foreground">
-                The official NCI website, this GitHub Pages technical site,
+                The official NCI website, this public technical site,
                 and the approved-user file repository each serve a different purpose.
                 This site supports documentation and user support while keeping the
                 official NCI website as the authoritative institutional source.
@@ -119,36 +148,23 @@ const Research = () => {
           <div className="container mx-auto px-6">
             <div className="grid gap-4 lg:grid-cols-4">
               {portalCards.map((portal, index) => (
-                <motion.a
+                <motion.div
                   key={portal.title}
-                  href={portal.href}
-                  target="_blank"
-                  rel="noopener noreferrer"
                   initial={{ opacity: 0, y: 24 }}
                   whileInView={{ opacity: 1, y: 0 }}
                   viewport={{ once: true }}
                   transition={{ duration: 0.55, delay: index * 0.08, ease: [0.16, 1, 0.3, 1] }}
-                  className="group flex min-h-[320px] flex-col justify-between border border-border bg-white p-6 transition-colors hover:border-primary"
                 >
-                  <div>
-                    <div className="mb-6 flex h-10 w-10 items-center justify-center border border-primary text-primary">
-                      <portal.icon className="h-5 w-5" />
-                    </div>
-                    <div className="font-mono text-xs uppercase tracking-widest text-primary">
-                      {portal.eyebrow}
-                    </div>
-                    <h2 className="mt-3 text-xl font-medium text-slate-900">
-                      {portal.title}
-                    </h2>
-                    <p className="mt-4 text-sm leading-relaxed text-muted-foreground">
-                      {portal.description}
-                    </p>
-                  </div>
-                  <div className="mt-8 flex items-center gap-2 font-mono text-sm text-primary">
-                    {portal.linkText}
-                    <ExternalLink className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" />
-                  </div>
-                </motion.a>
+                  {portal.external ? (
+                    <a href={portal.href} target="_blank" rel="noopener noreferrer" className="group flex min-h-[320px] flex-col justify-between border border-border bg-white p-6 transition-colors hover:border-primary">
+                      <PortalCardContent portal={portal} />
+                    </a>
+                  ) : (
+                    <Link to={portal.href} className="group flex min-h-[320px] flex-col justify-between border border-border bg-white p-6 transition-colors hover:border-primary">
+                      <PortalCardContent portal={portal} />
+                    </Link>
+                  )}
+                </motion.div>
               ))}
             </div>
           </div>
@@ -225,7 +241,7 @@ const Research = () => {
                   What this site should do
                 </h2>
                 <p className="mt-5 text-muted-foreground leading-relaxed">
-                  This GitHub technical site should be easier to update than the
+                  This public technical site should be easier to update than the
                   official NCI website and more user-oriented than repository issue
                   threads. Its role is to explain, orient, announce, and route
                   visitors to the correct official, technical, or approved-access
@@ -244,7 +260,7 @@ const Research = () => {
                   "Keep public summaries current when tool capabilities, access routes, or documentation locations change.",
                   "Keep the official NCI website as the authoritative institutional source for official context and access policy.",
                   "Avoid burying new visitors in issue threads, release tags, or implementation details.",
-                  "Send approved users to the controlled group when they need restricted files, and to GitHub for documentation and technical support.",
+                  "Send approved users to the User Portal for restricted files, to the public manual library for documentation, and to GitHub for release history or technical discussion.",
                 ].map((item) => (
                   <div key={item} className="flex gap-4 border border-border bg-white p-4">
                     <ArrowRight className="mt-0.5 h-4 w-4 flex-shrink-0 text-primary" />

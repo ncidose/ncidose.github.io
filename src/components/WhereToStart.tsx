@@ -1,6 +1,6 @@
 import { motion } from "framer-motion";
 import { Link } from "react-router-dom";
-import { Compass, Building2, FlaskConical, ExternalLink, ArrowRight, LogIn } from "lucide-react";
+import { Compass, Building2, FlaskConical, ExternalLink, ArrowRight, BookOpen, LogIn } from "lucide-react";
 import { portalLinks } from "@/data/nciDoseTools";
 
 const startingPoints = [
@@ -30,6 +30,15 @@ const startingPoints = [
     linkText: "Researcher Overview",
     external: false,
     color: "bg-primary/80",
+  },
+  {
+    icon: BookOpen,
+    title: "Read the Manuals",
+    description: "Search current user manuals and public REST API documentation in the NCI Dose Tools documentation library.",
+    link: "/manuals",
+    linkText: "Browse Manuals",
+    external: false,
+    color: "bg-primary/85",
   },
   {
     icon: LogIn,

@@ -7,6 +7,7 @@ export const Footer = () => {
   const links: Record<string, FooterLink[]> = {
     Product: [
       { label: "Our Tools", href: "/tools" },
+      { label: "Manuals & API Documentation", href: "/manuals" },
       { label: "For Vendors", href: "/vendors" },
       { label: "For Researchers", href: "/researchers" },
       { label: "Literature Registry", href: "/literature" },
@@ -14,7 +15,7 @@ export const Footer = () => {
     ],
     Resources: [
       { label: "Official NCI Resources", href: "https://dceg.cancer.gov/tools/radiation-dosimetry-tools", external: true },
-      { label: "GitHub Documentation", href: "https://github.com/ncidose/ncidosetools", external: true },
+      { label: "GitHub Technical Repository", href: "https://github.com/ncidose/ncidosetools", external: true },
       { label: "Approved User Portal", href: portalLinks.userPortal, external: true },
       { label: "Professional Updates", href: "https://www.linkedin.com/in/choonsiklee/", external: true },
     ],

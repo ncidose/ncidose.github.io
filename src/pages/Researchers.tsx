@@ -235,16 +235,14 @@ const Researchers = () => {
                   <div>
                     <h3 className="text-foreground font-medium mb-3">Technical documentation</h3>
                     <p className="text-sm text-muted-foreground mb-4">
-                      Public user manuals, release notes, and version history for researchers and vendors
+                      Current public user manuals and technical API documentation for researchers and vendors
                     </p>
-                    <a
-                      href="https://github.com/ncidose/ncidosetools"
-                      target="_blank"
-                      rel="noopener noreferrer"
+                    <Link
+                      to="/manuals"
                       className="text-primary hover:underline inline-flex items-center gap-1 font-mono text-sm"
                     >
-                      GitHub Repository <ExternalLink className="w-3 h-3" />
-                    </a>
+                      Browse public manuals
+                    </Link>
                   </div>
                 </div>
               </motion.div>
