@@ -18,6 +18,9 @@ describe("public manuals", () => {
     expect(screen.getByText("NCIRF API Manual")).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Release History" })).toBeInTheDocument();
     expect(screen.getByText("NCICT Release History")).toBeInTheDocument();
+    expect(screen.getByText("NCIRF Release History")).toBeInTheDocument();
+    expect(screen.getByText("NCINM Release History")).toBeInTheDocument();
+    expect(screen.getByText("PHANTOM Library History")).toBeInTheDocument();
   });
 
   it("renders a Markdown manual inside the website reader", () => {
@@ -51,6 +54,27 @@ describe("public manuals", () => {
     expect(screen.getByRole("link", { name: /Download approved releases/i })).toHaveAttribute(
       "href",
       "https://portal.ncidosetools.com",
+    );
+  });
+
+  it.each([
+    ["ncirf", "NCIRF Release History", "4.20260510"],
+    ["ncinm", "NCINM Release History", "3.20260510"],
+    ["phantom", "PHANTOM Library History", "December 10, 2025"],
+  ])("renders the %s release record", (toolId, title, latestRelease) => {
+    render(
+      <MemoryRouter initialEntries={[`/versions/${toolId}`]}>
+        <Routes>
+          <Route path="/versions/:toolId" element={<Versions />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    expect(screen.getByRole("heading", { name: title })).toBeInTheDocument();
+    expect(screen.getByText(latestRelease)).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /Read the current manual/i })).toHaveAttribute(
+      "href",
+      `/manuals/${toolId}`,
     );
   });
 });

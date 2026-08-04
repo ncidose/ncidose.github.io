@@ -17,5 +17,8 @@ The metadata is read directly by the website. No TypeScript edit is needed for a
 ## Current records
 
 - `NCICT-Version-History.md`
+- `NCIRF-Version-History.md`
+- `NCINM-Version-History.md`
+- `PHANTOM-Version-History.md`
 
 Additional products can be added as separate Markdown files and registered once in `src/data/releases.ts`.

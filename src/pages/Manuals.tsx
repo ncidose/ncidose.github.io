@@ -26,7 +26,7 @@ import {
   type ManualCategory,
   type ManualDefinition,
 } from "@/data/manuals";
-import { releaseHistories } from "@/data/releases";
+import { getReleaseHistory, releaseHistories } from "@/data/releases";
 
 const categoryLabels: Record<ManualCategory, string> = {
   software: "Research Software",
@@ -280,8 +280,8 @@ const ManualReader = ({ manual }: { manual: ManualDefinition }) => {
               <span className="text-slate-900">{manual.title}</span>
             </div>
             <div className="flex gap-3">
-              {manual.id === "ncict" && (
-                <Link to="/versions/ncict" className="btn-precision-outline inline-flex items-center gap-2 text-sm">
+              {getReleaseHistory(manual.id) && (
+                <Link to={`/versions/${manual.id}`} className="btn-precision-outline inline-flex items-center gap-2 text-sm">
                   <History className="h-4 w-4" /> Release history
                 </Link>
               )}

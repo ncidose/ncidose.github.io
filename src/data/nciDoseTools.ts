@@ -76,8 +76,7 @@ export const tools = [
     output:
       "Organ absorbed dose, Monte Carlo statistical error, peak skin dose, and effective dose for projection imaging studies and modality-specific dose estimation workflows.",
     manualHref: "/manuals/ncirf",
-    versionHistoryHref:
-      "https://github.com/ncidose/ncidosetools/tree/main/NCIRF",
+    versionHistoryHref: "/versions/ncirf",
   },
   {
     id: "ncinm",
@@ -116,8 +115,7 @@ export const tools = [
     output:
       "Target-organ absorbed dose, dose per administered activity, and effective dose for supported adult and pediatric workflows, study documentation, and reproducible analysis.",
     manualHref: "/manuals/ncinm",
-    versionHistoryHref:
-      "https://github.com/ncidose/ncidosetools/tree/main/NCINM",
+    versionHistoryHref: "/versions/ncinm",
   },
   {
     id: "phantom",
@@ -154,8 +152,7 @@ export const tools = [
     output:
       "The phantom libraries make cross-modality dose estimates more consistent by anchoring CT, NM, and RF tools to the same reference-grade anatomical foundation.",
     manualHref: "/manuals/phantom",
-    versionHistoryHref:
-      "https://github.com/ncidose/ncidosetools/tree/main/PHANTOM",
+    versionHistoryHref: "/versions/phantom",
   },
 ];
 
