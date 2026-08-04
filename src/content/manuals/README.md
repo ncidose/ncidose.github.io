@@ -1,20 +1,26 @@
 # Editing the public manuals
 
-The Markdown files in this folder are the single source for the public Manuals
-section of the NCI Dose Tools website. The former GitHub Wiki does not need to
-be updated after the migration is complete.
+The working source files are stored in `ncidose_frontend/_manuals`, where
+Synology Drive can synchronize them with NCI Dose Tools development computers.
+The files in `src/content/manuals` are the tracked website copies used by
+GitHub Pages.
 
-## Edit from GitHub
+## Editing workflow
 
-1. Open `src/content/manuals` in the `ncidose/ncidose.github.io` repository.
-2. Select a manual and use the pencil icon to edit it.
-3. Commit the change to `main` (or submit a pull request for review).
-4. The existing GitHub Pages workflow automatically builds and publishes the
-   updated Markdown using the website's documentation design.
+1. Edit the Markdown in `ncidose_frontend/_manuals` while developing a tool.
+2. Allow Synology Drive to synchronize the source files to the website server.
+3. Run `npm run docs:sync`, `npm run dev`, or `npm run build` in the website
+   repository. Development and build commands run the documentation sync
+   automatically.
+4. Review and commit the updated files under `src/content/manuals` when the
+   website is ready to publish.
+
+Set `NCIDOSE_DOCUMENTATION_ROOT` if `ncidose_frontend` is stored somewhere
+other than the current user's home directory.
 
 ## Images
 
-Manual images live in `public/manuals/images`. In Markdown, refer to them with a
+Manual images live in the website repository under `public/manuals/images`. In Markdown, refer to them with a
 path such as:
 
 ```markdown
@@ -27,7 +33,7 @@ not need to change.
 
 ## Local preview
 
-Run `npm run dev`, then open:
+From the website repository, run `npm run dev`, then open:
 
 `http://127.0.0.1:8084/src/index.html#/manuals`
 

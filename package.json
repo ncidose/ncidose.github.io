@@ -4,7 +4,10 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
+    "docs:sync": "node scripts/sync-documentation.mjs",
+    "predev": "npm run docs:sync",
     "dev": "vite --host 127.0.0.1 --port 8084",
+    "prebuild": "npm run docs:sync",
     "build": "vite build && cp dist/src/index.html dist/index.html",
     "build:portal": "VITE_PORTAL_STANDALONE=true VITE_PORTAL_DEMO_MODE=false vite build && cp dist/src/portal.html dist/index.html",
     "build:pages": "VITE_PUBLIC_SITE=true VITE_PORTAL_DEMO_MODE=false npm run build && cp dist/index.html dist/404.html && touch dist/.nojekyll",
