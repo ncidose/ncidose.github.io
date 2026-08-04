@@ -141,6 +141,8 @@ CREATE TABLE IF NOT EXISTS qa_questions (
   body TEXT NOT NULL,
   status TEXT NOT NULL DEFAULT 'submitted' CHECK (status IN ('submitted', 'draft', 'published', 'archived')),
   source TEXT NOT NULL DEFAULT 'portal' CHECK (source IN ('portal', 'github_discussions', 'admin')),
+  request_type TEXT NOT NULL DEFAULT 'technical_question' CHECK (request_type IN ('technical_question', 'bug_report', 'feature_request')),
+  is_pinned INTEGER NOT NULL DEFAULT 0 CHECK (is_pinned IN (0, 1)),
   source_ref TEXT UNIQUE,
   submitted_by_user_id TEXT REFERENCES users(id),
   created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -160,6 +162,18 @@ CREATE TABLE IF NOT EXISTS qa_answers (
   updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
+CREATE TABLE IF NOT EXISTS qa_attachments (
+  id TEXT PRIMARY KEY,
+  question_id TEXT NOT NULL REFERENCES qa_questions(id) ON DELETE CASCADE,
+  answer_id TEXT REFERENCES qa_answers(id) ON DELETE CASCADE,
+  uploaded_by_user_id TEXT REFERENCES users(id) ON DELETE SET NULL,
+  object_key TEXT NOT NULL UNIQUE,
+  file_name TEXT NOT NULL,
+  content_type TEXT NOT NULL,
+  size_bytes INTEGER NOT NULL CHECK (size_bytes > 0 AND size_bytes <= 10485760),
+  created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
 CREATE INDEX IF NOT EXISTS idx_user_identities_email ON user_identities(normalized_email);
 CREATE INDEX IF NOT EXISTS idx_login_challenges_email_created ON login_challenges(normalized_email, created_at);
 CREATE INDEX IF NOT EXISTS idx_login_challenges_ip_created ON login_challenges(request_ip_hash, created_at);
@@ -174,3 +188,5 @@ CREATE INDEX IF NOT EXISTS idx_announcement_email_deliveries_announcement ON ann
 CREATE INDEX IF NOT EXISTS idx_qa_questions_public ON qa_questions(status, published_at, created_at);
 CREATE INDEX IF NOT EXISTS idx_qa_questions_user ON qa_questions(submitted_by_user_id, created_at);
 CREATE INDEX IF NOT EXISTS idx_qa_answers_question ON qa_answers(question_id, sort_order, created_at);
+CREATE INDEX IF NOT EXISTS idx_qa_attachments_question ON qa_attachments(question_id, created_at);
+CREATE INDEX IF NOT EXISTS idx_qa_attachments_answer ON qa_attachments(answer_id, created_at);

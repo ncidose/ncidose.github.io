@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { announcementEmailHtml, generateLoginCode, loginCodeEmailHtml, normalizePortalEmail, portalSessionCookieHeader, secondaryEmailAddedHtml, welcomeEmailHtml } from "../../scripts/portal/worker.js";
+import { announcementEmailHtml, generateLoginCode, loginCodeEmailHtml, normalizePortalEmail, portalSessionCookieHeader, qaAttachmentValidationError, secondaryEmailAddedHtml, welcomeEmailHtml } from "../../scripts/portal/worker.js";
 
 describe("portal email normalization", () => {
   it("normalizes a valid approved email", () => {
@@ -24,6 +24,18 @@ describe("portal email normalization", () => {
   it("rejects malformed email values", () => {
     expect(normalizePortalEmail("not-an-email")).toBe("");
     expect(normalizePortalEmail("person@example")).toBe("");
+  });
+});
+
+describe("Q&A attachment validation", () => {
+  it("accepts supported technical files within 10 MB", () => {
+    expect(qaAttachmentValidationError({ name: "dose-report.pdf", type: "application/pdf", size: 1024 })).toBe("");
+    expect(qaAttachmentValidationError({ name: "error.log", type: "text/plain", size: 2048 })).toBe("");
+  });
+
+  it("rejects oversized or unsupported files", () => {
+    expect(qaAttachmentValidationError({ name: "large.pdf", type: "application/pdf", size: 10 * 1024 * 1024 + 1 })).toBe("attachment_too_large");
+    expect(qaAttachmentValidationError({ name: "script.html", type: "text/html", size: 100 })).toBe("attachment_type_not_allowed");
   });
 });
 

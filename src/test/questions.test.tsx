@@ -6,12 +6,15 @@ import Questions from "@/pages/Questions";
 const sample = {
   id: "github-12",
   tool: "NCICT",
+  requestType: "technical_question",
+  pinned: false,
   title: "How should scan coverage be entered?",
   body: "Use the anatomical landmarks described in the manual.",
   createdAt: "2025-01-01T00:00:00Z",
   updatedAt: "2025-01-02T00:00:00Z",
   publishedAt: "2025-01-02T00:00:00Z",
-  answers: [{ id: "a1", body: "Confirm the start and end landmarks before calculation.", responseType: "team", createdAt: "2025-01-02T00:00:00Z", updatedAt: "2025-01-02T00:00:00Z" }],
+  attachments: [],
+  answers: [{ id: "a1", body: "Confirm the start and end landmarks before calculation.", responseType: "team", createdAt: "2025-01-02T00:00:00Z", updatedAt: "2025-01-02T00:00:00Z", attachments: [] }],
 };
 
 describe("public Q&A", () => {

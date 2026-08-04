@@ -21,6 +21,8 @@ import {
   Mail,
   MessageCircleQuestion,
   Megaphone,
+  Paperclip,
+  Pin,
   Plus,
   Search,
   Send,
@@ -42,7 +44,7 @@ import {
 import { portalLinks } from "@/data/portalLinks";
 import { cn } from "@/lib/utils";
 import { getPortalHeaderEmail, selectPrimaryPortalIdentity } from "@/lib/portalUser";
-import { questionTools, type ManagedQuestion, type QuestionTool } from "@/lib/questions";
+import { questionRequestTypeLabels, questionRequestTypes, questionTools, type ManagedQuestion, type QuestionRequestType, type QuestionTool } from "@/lib/questions";
 
 type PortalIdentity = {
   id: string;
@@ -77,6 +79,15 @@ const portalNav = [
 ] satisfies Array<{ id: PortalSection; label: string; icon: typeof LayoutDashboard }>;
 
 const publicSiteUrl = "https://ncidose.github.io/";
+const qaAttachmentMaximumBytes = 10 * 1024 * 1024;
+const qaAttachmentMaximumCount = 3;
+const qaAttachmentAccept = ".pdf,.png,.jpg,.jpeg,.txt,.log,.csv,.zip";
+const qaAttachmentError = (files: File[]) => {
+  if (files.length > qaAttachmentMaximumCount) return "Attach no more than 3 files.";
+  if (files.some((file) => file.size > qaAttachmentMaximumBytes)) return "Each attachment must be 10 MB or smaller.";
+  return "";
+};
+const attachmentSize = (bytes: number) => bytes >= 1024 * 1024 ? `${(bytes / (1024 * 1024)).toFixed(1)} MB` : `${Math.max(1, Math.round(bytes / 1024))} KB`;
 
 const portalUserFromApi = (apiUser: Record<string, unknown>): PortalUser => {
   const signedInEmail = String(apiUser.signed_in_email || apiUser.primary_email || "");
@@ -1209,9 +1220,12 @@ const PortalQuestions = ({ demoMode }: { demoMode: boolean }) => {
   const [questions, setQuestions] = useState<ManagedQuestion[]>([]);
   const [loading, setLoading] = useState(!demoMode);
   const [submitting, setSubmitting] = useState(false);
+  const [requestType, setRequestType] = useState<QuestionRequestType>("technical_question");
   const [tool, setTool] = useState<QuestionTool>("General");
   const [title, setTitle] = useState("");
   const [body, setBody] = useState("");
+  const [files, setFiles] = useState<File[]>([]);
+  const [expandedQuestionId, setExpandedQuestionId] = useState<string | null>(null);
 
   useEffect(() => {
     if (demoMode) return;
@@ -1228,6 +1242,11 @@ const PortalQuestions = ({ demoMode }: { demoMode: boolean }) => {
   const submitQuestion = async (event: FormEvent) => {
     event.preventDefault();
     if (!title.trim() || !body.trim()) return;
+    const fileError = qaAttachmentError(files);
+    if (fileError) {
+      toast({ title: "Check attachments", description: fileError, variant: "destructive" });
+      return;
+    }
     if (demoMode) {
       toast({ title: "Local preview", description: "The question would be sent privately to the NCI Dose Team." });
       return;
@@ -1238,14 +1257,25 @@ const PortalQuestions = ({ demoMode }: { demoMode: boolean }) => {
         method: "POST",
         credentials: "include",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ tool, title, body }),
+        body: JSON.stringify({ requestType, tool: requestType === "feature_request" ? "General" : tool, title, body }),
       });
       const payload = await response.json();
       if (!response.ok) throw new Error("The question could not be submitted.");
+      const uploaded = [];
+      for (const file of files) {
+        const form = new FormData();
+        form.append("file", file);
+        const attachmentResponse = await fetch(`/api/questions/${payload.question.id}/attachments`, { method: "POST", credentials: "include", body: form });
+        if (!attachmentResponse.ok) throw new Error(`The question was saved, but ${file.name} could not be attached.`);
+        uploaded.push((await attachmentResponse.json()).attachment);
+      }
+      payload.question.attachments = uploaded;
       setQuestions((current) => [payload.question, ...current]);
       setTitle("");
       setBody("");
       setTool("General");
+      setRequestType("technical_question");
+      setFiles([]);
       toast({ title: "Question submitted", description: "The NCI Dose Team can now review and answer it. It is not public unless the team publishes it." });
     } catch (error) {
       toast({ title: "Unable to submit question", description: error instanceof Error ? error.message : undefined, variant: "destructive" });
@@ -1259,12 +1289,16 @@ const PortalQuestions = ({ demoMode }: { demoMode: boolean }) => {
       <section className="border border-border bg-white p-6 sm:p-8">
         <div className="flex items-start gap-4">
           <div className="flex h-10 w-10 shrink-0 items-center justify-center border border-primary text-primary"><MessageCircleQuestion className="h-5 w-5" /></div>
-          <div><div className="font-mono text-xs uppercase tracking-widest text-primary">Ask the NCI Dose Team</div><h2 className="mt-2 text-xl font-light">Submit a technical question</h2><p className="mt-2 text-sm leading-relaxed text-muted-foreground">Your question is private while it is reviewed. If it will help other users, the team may remove identifying details and publish the question and answer in the public knowledge base.</p></div>
+          <div><div className="font-mono text-xs uppercase tracking-widest text-primary">Contact the NCI Dose Team</div><h2 className="mt-2 text-xl font-light">Submit a question or request</h2><p className="mt-2 text-sm leading-relaxed text-muted-foreground">Technical questions, bug reports, and feature requests remain private while they are reviewed. The team may remove identifying details before publishing material that will help other users.</p></div>
         </div>
         <form onSubmit={submitQuestion} className="mt-7 space-y-4">
-          <label className="block max-w-xs"><span className="font-mono text-xs uppercase tracking-wider text-muted-foreground">Tool</span><select value={tool} onChange={(event) => setTool(event.target.value as QuestionTool)} className="mt-2 h-11 w-full rounded-none border border-input bg-white px-3 text-sm">{questionTools.filter((item) => item !== "All").map((item) => <option key={item}>{item}</option>)}</select></label>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <label className="block"><span className="font-mono text-xs uppercase tracking-wider text-muted-foreground">Request type</span><select value={requestType} onChange={(event) => setRequestType(event.target.value as QuestionRequestType)} className="mt-2 h-11 w-full rounded-none border border-input bg-white px-3 text-sm">{questionRequestTypes.map((item) => <option key={item} value={item}>{questionRequestTypeLabels[item]}</option>)}</select></label>
+            {requestType !== "feature_request" && <label className="block"><span className="font-mono text-xs uppercase tracking-wider text-muted-foreground">Tool</span><select value={tool} onChange={(event) => setTool(event.target.value as QuestionTool)} className="mt-2 h-11 w-full rounded-none border border-input bg-white px-3 text-sm">{questionTools.filter((item) => item !== "All").map((item) => <option key={item}>{item}</option>)}</select></label>}
+          </div>
           <Input value={title} onChange={(event) => setTitle(event.target.value)} maxLength={240} placeholder="Question title" className="h-11 rounded-none" required />
-          <textarea value={body} onChange={(event) => setBody(event.target.value)} maxLength={12000} placeholder="Describe the question, relevant inputs, software version, and any error message." className="min-h-44 w-full border border-input bg-background p-3 text-sm outline-none focus:border-primary" required />
+          <textarea value={body} onChange={(event) => setBody(event.target.value)} maxLength={12000} placeholder={requestType === "bug_report" ? "Describe the problem, software version, steps to reproduce it, and any error message." : requestType === "feature_request" ? "Describe the proposed feature, use case, and how it would improve your work." : "Describe the question, relevant inputs, software version, and any error message."} className="min-h-44 w-full border border-input bg-background p-3 text-sm outline-none focus:border-primary" required />
+          <div className="border border-dashed border-sky-200 bg-sky-50/50 p-4"><label className="inline-flex cursor-pointer items-center gap-2 text-sm text-primary"><Paperclip className="h-4 w-4" /> Attach files<input type="file" multiple accept={qaAttachmentAccept} className="sr-only" onChange={(event) => setFiles(Array.from(event.target.files || []).slice(0, qaAttachmentMaximumCount))} /></label><p className="mt-2 text-xs leading-relaxed text-muted-foreground">Optional: up to 3 files, 10 MB each. PDF, PNG/JPEG, TXT/LOG, CSV, or ZIP. Do not include patient information, confidential data, or other personally identifiable information.</p>{files.length > 0 && <div className="mt-3 flex flex-wrap gap-2">{files.map((file) => <span key={`${file.name}-${file.size}`} className="border border-sky-200 bg-white px-2 py-1 text-xs text-slate-600">{file.name} · {attachmentSize(file.size)}</span>)}</div>}</div>
           <div className="flex justify-end"><Button type="submit" disabled={submitting || !title.trim() || !body.trim()} className="rounded-none">{submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />} Submit question</Button></div>
         </form>
       </section>
@@ -1273,7 +1307,7 @@ const PortalQuestions = ({ demoMode }: { demoMode: boolean }) => {
         <div className="flex items-center justify-between border-b border-border px-6 py-5"><div><div className="font-mono text-xs uppercase tracking-widest text-primary">Your requests</div><h2 className="mt-2 text-xl font-light">Submitted questions</h2></div><a href={`${publicSiteUrl}#/questions`} className="text-sm text-primary hover:underline">View public Q&amp;A</a></div>
         {loading ? <div className="flex items-center justify-center gap-3 p-10 text-sm text-muted-foreground"><Loader2 className="h-5 w-5 animate-spin text-primary" /> Loading questions…</div>
           : questions.length === 0 ? <div className="p-10 text-center text-sm text-muted-foreground">You have not submitted a question through the portal.</div>
-            : <div className="divide-y divide-border">{questions.map((question) => <div key={question.id} className="grid gap-3 px-6 py-5 sm:grid-cols-[100px_1fr_auto] sm:items-center"><span className="font-mono text-xs uppercase text-primary">{question.tool}</span><div><div className="text-sm font-medium text-slate-800">{question.title}</div><p className="mt-1 line-clamp-2 text-xs leading-relaxed text-muted-foreground">{question.body}</p></div><span className={cn("inline-flex w-fit px-2 py-1 font-mono text-[11px] uppercase", question.status === "published" ? "bg-emerald-50 text-emerald-700" : question.status === "archived" ? "bg-slate-100 text-slate-500" : "bg-sky-50 text-sky-700")}>{question.status === "published" ? "Published" : question.status === "archived" ? "Closed" : "Under review"}</span></div>)}</div>}
+            : <div className="divide-y divide-border">{questions.map((question) => <div key={question.id}><button type="button" onClick={() => setExpandedQuestionId((current) => current === question.id ? null : question.id)} className="grid w-full gap-3 px-6 py-5 text-left hover:bg-sky-50/40 sm:grid-cols-[150px_1fr_auto] sm:items-center"><span className="font-mono text-[11px] uppercase text-primary">{questionRequestTypeLabels[question.requestType]}{question.requestType !== "feature_request" && <span className="mt-1 block text-[10px] text-muted-foreground">{question.tool}</span>}</span><div><div className="text-sm font-medium text-slate-800">{question.title}</div><p className="mt-1 line-clamp-2 text-xs leading-relaxed text-muted-foreground">{question.body}</p></div><span className={cn("inline-flex w-fit px-2 py-1 font-mono text-[11px] uppercase", question.status === "published" ? "bg-emerald-50 text-emerald-700" : question.status === "archived" ? "bg-slate-100 text-slate-500" : "bg-sky-50 text-sky-700")}>{question.status === "published" ? "Published" : question.status === "archived" ? "Closed" : "Under review"}</span></button>{expandedQuestionId === question.id && <div className="border-t border-sky-100 bg-slate-50 px-6 py-5"><p className="whitespace-pre-wrap text-sm leading-relaxed text-slate-700">{question.body}</p>{question.attachments.length > 0 && <div className="mt-4 flex flex-wrap gap-2">{question.attachments.map((attachment) => <a key={attachment.id} href={`/api/attachments/${attachment.id}`} className="inline-flex items-center gap-2 border border-border bg-white px-3 py-2 text-xs text-primary"><Paperclip className="h-3.5 w-3.5" /> {attachment.fileName}</a>)}</div>}{question.answers.map((answer) => <div key={answer.id} className="mt-5 border-l-4 border-primary bg-white p-4"><div className="font-mono text-[11px] uppercase tracking-wider text-primary">{answer.responseType === "team" ? "NCI Dose Team response" : "Community response"}</div><p className="mt-3 whitespace-pre-wrap text-sm leading-relaxed text-slate-700">{answer.body}</p>{answer.attachments.length > 0 && <div className="mt-3 flex flex-wrap gap-2">{answer.attachments.map((attachment) => <a key={attachment.id} href={`/api/attachments/${attachment.id}`} className="inline-flex items-center gap-2 border border-border px-3 py-2 text-xs text-primary"><Paperclip className="h-3.5 w-3.5" /> {attachment.fileName}</a>)}</div>}</div>)}{question.status === "published" && <a href={`${publicSiteUrl}#/questions/${question.id}`} className="mt-5 inline-flex text-xs text-primary hover:underline">Open published Q&amp;A</a>}</div>}</div>)}</div>}
       </section>
     </div>
   );
@@ -1534,10 +1568,13 @@ const AdminQuestions = ({ demoMode }: { demoMode: boolean }) => {
   const [questions, setQuestions] = useState<ManagedQuestion[]>([]);
   const [loading, setLoading] = useState(!demoMode);
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [requestType, setRequestType] = useState<QuestionRequestType>("technical_question");
+  const [pinned, setPinned] = useState(false);
   const [tool, setTool] = useState<QuestionTool>("General");
   const [title, setTitle] = useState("");
   const [body, setBody] = useState("");
   const [answer, setAnswer] = useState("");
+  const [answerFiles, setAnswerFiles] = useState<File[]>([]);
   const [saving, setSaving] = useState(false);
   const [filter, setFilter] = useState<"all" | "submitted" | "published" | "archived">("submitted");
 
@@ -1564,14 +1601,22 @@ const AdminQuestions = ({ demoMode }: { demoMode: boolean }) => {
 
   const selectQuestion = (question: ManagedQuestion) => {
     setSelectedId(question.id);
+    setRequestType(question.requestType);
+    setPinned(question.pinned);
     setTool(question.tool);
     setTitle(question.title);
     setBody(question.body);
     setAnswer(question.answers.find((item) => item.responseType === "team" && item.editable)?.body || "");
+    setAnswerFiles([]);
   };
 
   const save = async (status: ManagedQuestion["status"]) => {
     if (!selectedId || !title.trim() || !body.trim()) return;
+    const fileError = qaAttachmentError(answerFiles);
+    if (fileError) {
+      toast({ title: "Check attachments", description: fileError, variant: "destructive" });
+      return;
+    }
     if (status === "published" && !answer.trim() && !questions.find((item) => item.id === selectedId)?.answers.length) {
       toast({ title: "Add an answer before publishing", variant: "destructive" });
       return;
@@ -1587,9 +1632,15 @@ const AdminQuestions = ({ demoMode }: { demoMode: boolean }) => {
           method: "PUT", credentials: "include", headers: { "content-type": "application/json" }, body: JSON.stringify({ body: answer }),
         });
         if (!answerResponse.ok) throw new Error("The answer could not be saved.");
+        for (const file of answerFiles) {
+          const form = new FormData();
+          form.append("file", file);
+          const attachmentResponse = await fetch(`/api/admin/questions/${selectedId}/answer-attachments`, { method: "POST", credentials: "include", body: form });
+          if (!attachmentResponse.ok) throw new Error(`The answer was saved, but ${file.name} could not be attached.`);
+        }
       }
       const response = await fetch(`/api/admin/questions/${selectedId}`, {
-        method: "PATCH", credentials: "include", headers: { "content-type": "application/json" }, body: JSON.stringify({ tool, title, body, status }),
+        method: "PATCH", credentials: "include", headers: { "content-type": "application/json" }, body: JSON.stringify({ requestType, pinned, tool: requestType === "feature_request" ? "General" : tool, title, body, status }),
       });
       const payload = await response.json();
       if (!response.ok) throw new Error(payload.error === "answer_required_before_publishing" ? "Add an answer before publishing." : "The question could not be saved.");
@@ -1609,20 +1660,24 @@ const AdminQuestions = ({ demoMode }: { demoMode: boolean }) => {
   return (
     <div className="grid gap-6 xl:grid-cols-[360px_1fr]">
       <section className="border border-border bg-white">
-        <div className="border-b border-border p-5"><div className="font-mono text-xs uppercase tracking-widest text-primary">Question queue</div><h2 className="mt-2 text-xl font-light">Technical questions</h2><select value={filter} onChange={(event) => setFilter(event.target.value as typeof filter)} className="mt-4 h-10 w-full rounded-none border border-input bg-white px-3 text-sm"><option value="submitted">Needs review</option><option value="published">Published</option><option value="archived">Archived</option><option value="all">All questions</option></select></div>
+        <div className="border-b border-border p-5"><div className="font-mono text-xs uppercase tracking-widest text-primary">Review queue</div><h2 className="mt-2 text-xl font-light">Questions and requests</h2><select value={filter} onChange={(event) => setFilter(event.target.value as typeof filter)} className="mt-4 h-10 w-full rounded-none border border-input bg-white px-3 text-sm"><option value="submitted">Needs review</option><option value="published">Published</option><option value="archived">Archived</option><option value="all">All questions</option></select></div>
         {loading ? <div className="flex items-center justify-center gap-2 p-10 text-sm text-muted-foreground"><Loader2 className="h-4 w-4 animate-spin" /> Loading…</div>
           : visible.length === 0 ? <div className="p-8 text-center text-sm text-muted-foreground">No questions in this view.</div>
-            : <div className="max-h-[720px] divide-y divide-border overflow-y-auto">{visible.map((question) => <button key={question.id} type="button" onClick={() => selectQuestion(question)} className={cn("block w-full p-5 text-left transition-colors hover:bg-sky-50", selectedId === question.id && "bg-sky-50")}><div className="flex items-center justify-between gap-3"><span className="font-mono text-[11px] uppercase text-primary">{question.tool}</span><span className="font-mono text-[10px] uppercase text-muted-foreground">{question.status}</span></div><div className="mt-2 text-sm font-medium text-slate-800">{question.title}</div>{question.submitter && <div className="mt-2 truncate text-xs text-muted-foreground">{question.submitter.name || question.submitter.email}{question.submitter.institution ? ` · ${question.submitter.institution}` : ""}</div>}</button>)}</div>}
+            : <div className="max-h-[720px] divide-y divide-border overflow-y-auto">{visible.map((question) => <button key={question.id} type="button" onClick={() => selectQuestion(question)} className={cn("block w-full p-5 text-left transition-colors hover:bg-sky-50", selectedId === question.id && "bg-sky-50")}><div className="flex items-center justify-between gap-3"><span className="font-mono text-[11px] uppercase text-primary">{question.pinned && <Pin className="mr-1 inline h-3 w-3" />}{questionRequestTypeLabels[question.requestType]}{question.requestType !== "feature_request" && ` · ${question.tool}`}</span><span className="font-mono text-[10px] uppercase text-muted-foreground">{question.status}</span></div><div className="mt-2 text-sm font-medium text-slate-800">{question.title}</div>{question.submitter && <div className="mt-2 truncate text-xs text-muted-foreground">{question.submitter.name || question.submitter.email}{question.submitter.institution ? ` · ${question.submitter.institution}` : ""}</div>}</button>)}</div>}
       </section>
 
       <section className="border border-border bg-white p-6 sm:p-8">
         {!selected ? <div className="flex min-h-[360px] flex-col items-center justify-center text-center"><MessageCircleQuestion className="h-8 w-8 text-slate-300" /><h2 className="mt-4 text-xl font-light">Select a question</h2><p className="mt-2 max-w-sm text-sm text-muted-foreground">Review a submission, write the team response, and publish only material suitable for the public knowledge base.</p></div>
           : <div className="space-y-5"><div><div className="font-mono text-xs uppercase tracking-widest text-primary">Q&A editor</div><h2 className="mt-2 text-xl font-light">Review and publish</h2>{selected.submitter && <p className="mt-2 text-xs text-muted-foreground">Submitted by {selected.submitter.name || selected.submitter.email} · contact information remains private.</p>}</div>
-            <label className="block max-w-xs"><span className="font-mono text-xs uppercase tracking-wider text-muted-foreground">Tool</span><select value={tool} onChange={(event) => setTool(event.target.value as QuestionTool)} className="mt-2 h-10 w-full rounded-none border border-input bg-white px-3 text-sm">{questionTools.filter((item) => item !== "All").map((item) => <option key={item}>{item}</option>)}</select></label>
+            <div className="grid gap-4 sm:grid-cols-2"><label className="block"><span className="font-mono text-xs uppercase tracking-wider text-muted-foreground">Request type</span><select value={requestType} onChange={(event) => setRequestType(event.target.value as QuestionRequestType)} className="mt-2 h-10 w-full rounded-none border border-input bg-white px-3 text-sm">{questionRequestTypes.map((item) => <option key={item} value={item}>{questionRequestTypeLabels[item]}</option>)}</select></label>{requestType !== "feature_request" && <label className="block"><span className="font-mono text-xs uppercase tracking-wider text-muted-foreground">Tool</span><select value={tool} onChange={(event) => setTool(event.target.value as QuestionTool)} className="mt-2 h-10 w-full rounded-none border border-input bg-white px-3 text-sm">{questionTools.filter((item) => item !== "All").map((item) => <option key={item}>{item}</option>)}</select></label>}</div>
+            {requestType === "feature_request" && <label className="flex items-center gap-3 border border-sky-100 bg-sky-50 p-3 text-sm text-slate-700"><input type="checkbox" checked={pinned} onChange={(event) => setPinned(event.target.checked)} className="h-4 w-4 accent-sky-600" /><Pin className="h-4 w-4 text-primary" /> Pin this feature request at the top of the public list</label>}
             <label className="block"><span className="font-mono text-xs uppercase tracking-wider text-muted-foreground">Public title</span><Input value={title} onChange={(event) => setTitle(event.target.value)} className="mt-2 rounded-none" /></label>
             <label className="block"><span className="font-mono text-xs uppercase tracking-wider text-muted-foreground">Public question</span><textarea value={body} onChange={(event) => setBody(event.target.value)} className="mt-2 min-h-36 w-full border border-input p-3 text-sm outline-none focus:border-primary" /></label>
+            {selected.attachments.length > 0 && <div className="border border-border bg-slate-50 p-4"><div className="font-mono text-[11px] uppercase tracking-widest text-muted-foreground">Submitted attachments</div><div className="mt-3 flex flex-wrap gap-2">{selected.attachments.map((attachment) => <a key={attachment.id} href={`/api/attachments/${attachment.id}`} className="inline-flex items-center gap-2 border border-border bg-white px-3 py-2 text-xs text-primary"><Paperclip className="h-3.5 w-3.5" /> {attachment.fileName} · {attachmentSize(attachment.sizeBytes)}</a>)}</div></div>}
             {selected.answers.filter((item) => !item.editable).length > 0 && <div className="border border-border bg-slate-50 p-4"><div className="font-mono text-[11px] uppercase tracking-widest text-muted-foreground">Migrated responses retained</div><p className="mt-2 text-xs leading-relaxed text-muted-foreground">{selected.answers.filter((item) => !item.editable).length} historical response(s) will remain in the published record alongside any updated team response.</p></div>}
             <label className="block"><span className="font-mono text-xs uppercase tracking-wider text-muted-foreground">NCI Dose Team response</span><textarea value={answer} onChange={(event) => setAnswer(event.target.value)} placeholder="Write a concise answer suitable for public viewing. Remove names, email addresses, and sensitive research details." className="mt-2 min-h-52 w-full border border-input p-3 text-sm outline-none focus:border-primary" /></label>
+            {selected.answers.find((item) => item.responseType === "team" && item.editable)?.attachments.length ? <div className="flex flex-wrap gap-2">{selected.answers.find((item) => item.responseType === "team" && item.editable)?.attachments.map((attachment) => <a key={attachment.id} href={`/api/attachments/${attachment.id}`} className="inline-flex items-center gap-2 border border-border px-3 py-2 text-xs text-primary"><Paperclip className="h-3.5 w-3.5" /> {attachment.fileName}</a>)}</div> : null}
+            <div className="border border-dashed border-sky-200 bg-sky-50/50 p-4"><label className="inline-flex cursor-pointer items-center gap-2 text-sm text-primary"><Paperclip className="h-4 w-4" /> Attach files to the team response<input type="file" multiple accept={qaAttachmentAccept} className="sr-only" onChange={(event) => setAnswerFiles(Array.from(event.target.files || []).slice(0, qaAttachmentMaximumCount))} /></label><p className="mt-2 text-xs text-muted-foreground">Up to 3 files, 10 MB each. Attachments become public only when the Q&amp;A is published.</p>{answerFiles.length > 0 && <div className="mt-3 flex flex-wrap gap-2">{answerFiles.map((file) => <span key={`${file.name}-${file.size}`} className="border border-sky-200 bg-white px-2 py-1 text-xs text-slate-600">{file.name} · {attachmentSize(file.size)}</span>)}</div>}</div>
             <div className="flex flex-wrap justify-end gap-2"><Button type="button" variant="outline" disabled={saving} onClick={() => void save("archived")} className="rounded-none">Archive</Button><Button type="button" variant="outline" disabled={saving} onClick={() => void save("draft")} className="rounded-none">Save draft</Button><Button type="button" disabled={saving} onClick={() => void save("published")} className="rounded-none">{saving && <Loader2 className="h-4 w-4 animate-spin" />} Publish Q&amp;A</Button></div>
           </div>}
       </section>

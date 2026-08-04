@@ -2,7 +2,42 @@ const allowedPrefixes = ["NCICT/", "NCINM/", "NCIRF/", "PHANTOM/", "DCC/"];
 const portalSessionCookie = "__Host-ncidose_session";
 const loginCodeLifetimeMinutes = 10;
 const portalSessionLifetimeDays = 30;
+const qaAttachmentMaximumBytes = 10 * 1024 * 1024;
+const qaAttachmentMaximumCount = 3;
+const qaRequestTypes = new Set(["technical_question", "bug_report", "feature_request"]);
+const qaRequestTypeLabel = (value) => ({
+  technical_question: "Technical question",
+  bug_report: "Bug report",
+  feature_request: "Feature request",
+}[value] || "Technical question");
+const qaAttachmentTypes = new Map([
+  ["application/pdf", ["pdf"]],
+  ["image/png", ["png"]],
+  ["image/jpeg", ["jpg", "jpeg"]],
+  ["text/plain", ["txt", "log"]],
+  ["text/csv", ["csv"]],
+  ["application/zip", ["zip"]],
+  ["application/x-zip-compressed", ["zip"]],
+]);
 let cachedKeys;
+
+export const qaAttachmentValidationError = (file) => {
+  if (!file || typeof file.name !== "string" || !Number(file.size)) return "attachment_required";
+  if (file.size > qaAttachmentMaximumBytes) return "attachment_too_large";
+  const extension = file.name.toLowerCase().match(/\.([a-z0-9]+)$/)?.[1] || "";
+  const extensions = qaAttachmentTypes.get(String(file.type || "").toLowerCase());
+  return extensions?.includes(extension) ? "" : "attachment_type_not_allowed";
+};
+
+const safeAttachmentName = (value) => String(value || "attachment")
+  .normalize("NFKC")
+  .replace(/[\\/\0-\x1f\x7f]/g, "_")
+  .slice(0, 180) || "attachment";
+
+const attachmentDisposition = (fileName) => {
+  const ascii = fileName.replace(/[^\x20-\x7e]/g, "_").replace(/["\\]/g, "_");
+  return `attachment; filename="${ascii}"; filename*=UTF-8''${encodeURIComponent(fileName)}`;
+};
 
 const json = (body, status = 200, headers = {}) => {
   const responseHeaders = new Headers(headers);
@@ -184,6 +219,8 @@ const questionStatuses = new Set(["submitted", "draft", "published", "archived"]
 const questionFromRow = (row) => ({
   id: row.id,
   tool: row.tool,
+  requestType: row.request_type || "technical_question",
+  pinned: Boolean(row.is_pinned),
   title: row.title,
   body: row.body,
   status: row.status,
@@ -196,7 +233,16 @@ const questionFromRow = (row) => ({
     email: row.submitter_email || null,
     institution: row.submitter_institution || null,
   } : undefined,
+  attachments: [],
   answers: [],
+});
+
+const attachmentFromRow = (row) => ({
+  id: row.id,
+  fileName: row.file_name,
+  contentType: row.content_type,
+  sizeBytes: Number(row.size_bytes),
+  createdAt: row.created_at,
 });
 
 async function loadQuestions(env, { publicOnly = false, userId = null } = {}) {
@@ -209,7 +255,8 @@ async function loadQuestions(env, { publicOnly = false, userId = null } = {}) {
   }
   const where = conditions.length ? `WHERE ${conditions.join(" AND ")}` : "";
   const questionResult = await env.DB.prepare(`
-    SELECT questions.id, questions.tool, questions.title, questions.body, questions.status,
+    SELECT questions.id, questions.tool, questions.request_type, questions.is_pinned,
+      questions.title, questions.body, questions.status,
       questions.source, questions.created_at, questions.updated_at, questions.published_at,
       users.display_name AS submitter_name, users.institution AS submitter_institution,
       identities.normalized_email AS submitter_email
@@ -217,7 +264,7 @@ async function loadQuestions(env, { publicOnly = false, userId = null } = {}) {
     LEFT JOIN users ON users.id=questions.submitted_by_user_id
     LEFT JOIN user_identities identities ON identities.user_id=users.id AND identities.is_primary=1
     ${where}
-    ORDER BY COALESCE(questions.published_at, questions.created_at) DESC
+    ORDER BY questions.is_pinned DESC, COALESCE(questions.published_at, questions.created_at) DESC
     LIMIT 500
   `).bind(...bindings).all();
   const questions = questionResult.results.map(questionFromRow);
@@ -237,7 +284,23 @@ async function loadQuestions(env, { publicOnly = false, userId = null } = {}) {
       editable: !answer.source_ref,
       createdAt: answer.created_at,
       updatedAt: answer.updated_at,
+      attachments: [],
     });
+  }
+  const attachmentResult = await env.DB.prepare(`
+    SELECT id, question_id, answer_id, file_name, content_type, size_bytes, created_at
+    FROM qa_attachments WHERE question_id IN (${placeholders})
+    ORDER BY created_at ASC
+  `).bind(...questions.map((question) => question.id)).all();
+  for (const attachment of attachmentResult.results) {
+    const question = byId.get(attachment.question_id);
+    if (!question) continue;
+    const publicAttachment = attachmentFromRow(attachment);
+    if (attachment.answer_id) {
+      question.answers.find((answer) => answer.id === attachment.answer_id)?.attachments.push(publicAttachment);
+    } else {
+      question.attachments.push(publicAttachment);
+    }
   }
   return questions;
 }
@@ -605,6 +668,58 @@ function corsHeaders(request, env) {
   } : {};
 }
 
+async function attachmentRecord(env, id) {
+  return env.DB.prepare(`
+    SELECT attachments.*, questions.status, questions.submitted_by_user_id
+    FROM qa_attachments attachments
+    JOIN qa_questions questions ON questions.id=attachments.question_id
+    WHERE attachments.id=?
+  `).bind(id).first();
+}
+
+async function attachmentResponse(env, attachment) {
+  const object = await env.BUCKET.get(attachment.object_key);
+  if (!object) return new Response("Attachment not found", { status: 404 });
+  return new Response(object.body, {
+    headers: {
+      "content-type": attachment.content_type || "application/octet-stream",
+      "content-length": String(attachment.size_bytes),
+      "content-disposition": attachmentDisposition(attachment.file_name),
+      "x-content-type-options": "nosniff",
+      "cache-control": attachment.status === "published" ? "public, max-age=3600" : "private, no-store",
+    },
+  });
+}
+
+async function storeQaAttachment(request, env, { question, answerId = null, userId }) {
+  const form = await request.formData();
+  const file = form.get("file");
+  const validationError = qaAttachmentValidationError(file);
+  if (validationError) return { error: validationError };
+  const count = await env.DB.prepare(`
+    SELECT COUNT(*) AS total FROM qa_attachments
+    WHERE question_id=? AND ${answerId ? "answer_id=?" : "answer_id IS NULL"}
+  `).bind(...(answerId ? [question.id, answerId] : [question.id])).first();
+  if (Number(count.total) >= qaAttachmentMaximumCount) return { error: "attachment_limit_reached" };
+  const id = crypto.randomUUID();
+  const fileName = safeAttachmentName(file.name);
+  const objectKey = `qa-attachments/${question.id}/${id}-${fileName}`;
+  await env.BUCKET.put(objectKey, file.stream(), {
+    httpMetadata: { contentType: file.type },
+    customMetadata: { questionId: question.id, answerId: answerId || "", uploadedBy: userId },
+  });
+  try {
+    await env.DB.prepare(`
+      INSERT INTO qa_attachments (id, question_id, answer_id, uploaded_by_user_id, object_key, file_name, content_type, size_bytes)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    `).bind(id, question.id, answerId, userId, objectKey, fileName, file.type, file.size).run();
+  } catch (error) {
+    await env.BUCKET.delete(objectKey);
+    throw error;
+  }
+  return { attachment: { id, fileName, contentType: file.type, sizeBytes: file.size, createdAt: new Date().toISOString() } };
+}
+
 export default {
   async fetch(request, env, context) {
     const url = new URL(request.url);
@@ -632,6 +747,12 @@ export default {
         },
       });
     }
+    const publicAttachmentMatch = url.pathname.match(/^\/api\/public\/attachments\/([0-9a-f-]+)$/i);
+    if (request.method === "GET" && publicAttachmentMatch) {
+      const attachment = await attachmentRecord(env, publicAttachmentMatch[1]);
+      if (!attachment || attachment.status !== "published") return new Response("Attachment not found", { status: 404 });
+      return attachmentResponse(env, attachment);
+    }
     // The public shell contains only the sign-in UI. Every API and download route
     // below requires either a portal session or (during migration) Cloudflare Access.
     if (request.method === "GET" && !url.pathname.startsWith("/api/") && env.ASSETS) {
@@ -651,6 +772,26 @@ export default {
         return json({ user: { ...user, primary_email: primaryEmail, identities } }, 200, cors);
       }
 
+      const attachmentMatch = url.pathname.match(/^\/api\/attachments\/([0-9a-f-]+)$/i);
+      if (request.method === "GET" && attachmentMatch) {
+        const attachment = await attachmentRecord(env, attachmentMatch[1]);
+        if (!attachment || (attachment.status !== "published" && attachment.submitted_by_user_id !== user.id && user.role !== "admin")) {
+          return new Response("Attachment not found", { status: 404, headers: cors });
+        }
+        return attachmentResponse(env, attachment);
+      }
+      if (request.method === "DELETE" && attachmentMatch) {
+        const originError = requireSameOrigin(request, url, cors);
+        if (originError) return originError;
+        const attachment = await attachmentRecord(env, attachmentMatch[1]);
+        if (!attachment || (user.role !== "admin" && (attachment.submitted_by_user_id !== user.id || attachment.status === "published"))) {
+          return json({ error: "attachment_not_found" }, 404, cors);
+        }
+        await env.BUCKET.delete(attachment.object_key);
+        await env.DB.prepare("DELETE FROM qa_attachments WHERE id=?").bind(attachment.id).run();
+        return new Response(null, { status: 204, headers: cors });
+      }
+
       if (request.method === "GET" && url.pathname === "/api/questions") {
         return json({ questions: await loadQuestions(env, { userId: user.id }) }, 200, cors);
       }
@@ -659,16 +800,17 @@ export default {
         const originError = requireSameOrigin(request, url, cors);
         if (originError) return originError;
         const input = await request.json();
-        const tool = questionTools.has(input.tool) ? input.tool : "General";
+        const requestType = qaRequestTypes.has(input.requestType) ? input.requestType : "technical_question";
+        const tool = requestType === "feature_request" ? "General" : (questionTools.has(input.tool) ? input.tool : "General");
         const title = cleanText(input.title, 240);
         const body = cleanText(input.body, 12000);
         if (!title || !body) return json({ error: "title_and_question_required" }, 400, cors);
         const id = crypto.randomUUID();
         await env.DB.batch([
           env.DB.prepare(`
-            INSERT INTO qa_questions (id, tool, title, body, status, source, submitted_by_user_id)
-            VALUES (?, ?, ?, ?, 'submitted', 'portal', ?)
-          `).bind(id, tool, title, body, user.id),
+            INSERT INTO qa_questions (id, tool, request_type, title, body, status, source, submitted_by_user_id)
+            VALUES (?, ?, ?, ?, ?, 'submitted', 'portal', ?)
+          `).bind(id, tool, requestType, title, body, user.id),
           env.DB.prepare("INSERT INTO access_events (id, user_id, event_type, metadata_json) VALUES (?, ?, 'question_submitted', ?)")
             .bind(crypto.randomUUID(), user.id, JSON.stringify({ questionId: id, tool })),
         ]);
@@ -681,14 +823,26 @@ export default {
           for (const administrator of administrators.results) {
             context.waitUntil(sendPortalAccountEmail(env, {
               to: administrator.email,
-              subject: `New NCI Dose Tools question: ${title}`,
-              html: announcementEmailHtml({ title: "A new technical question was submitted", category: tool, body: `${title}\n\nReview and respond in Portal administration > Q&A.` }, { includeUnsubscribe: false, headerLabel: "User Portal Q&A" }),
-              text: `A new ${tool} question was submitted:\n\n${title}\n\nReview it in Portal administration > Q&A:\nhttps://portal.ncidosetools.com/#/portal/admin`,
+              subject: `New NCI Dose Tools ${qaRequestTypeLabel(requestType).toLowerCase()}: ${title}`,
+              html: announcementEmailHtml({ title: `A new ${qaRequestTypeLabel(requestType).toLowerCase()} was submitted`, category: requestType === "feature_request" ? "Feature request" : tool, body: `${title}\n\nReview and respond in Portal administration > Q&A.` }, { includeUnsubscribe: false, headerLabel: "User Portal Q&A" }),
+              text: `A new ${qaRequestTypeLabel(requestType).toLowerCase()} was submitted:\n\n${title}\n\nReview it in Portal administration > Q&A:\nhttps://portal.ncidosetools.com/#/portal/admin`,
             }).catch(() => undefined));
           }
         }
         const created = await env.DB.prepare("SELECT * FROM qa_questions WHERE id=?").bind(id).first();
         return json({ question: questionFromRow(created) }, 201, cors);
+      }
+
+      const questionAttachmentMatch = url.pathname.match(/^\/api\/questions\/([0-9a-f-]+)\/attachments$/i);
+      if (request.method === "POST" && questionAttachmentMatch) {
+        const originError = requireSameOrigin(request, url, cors);
+        if (originError) return originError;
+        const question = await env.DB.prepare("SELECT id, submitted_by_user_id, status FROM qa_questions WHERE id=?").bind(questionAttachmentMatch[1]).first();
+        if (!question || question.submitted_by_user_id !== user.id || !["submitted", "draft"].includes(question.status)) {
+          return json({ error: "question_not_available_for_attachment" }, 404, cors);
+        }
+        const result = await storeQaAttachment(request, env, { question, userId: user.id });
+        return result.error ? json({ error: result.error }, result.error === "attachment_limit_reached" ? 409 : 400, cors) : json(result, 201, cors);
       }
 
       if (request.method === "POST" && url.pathname === "/api/account/emails") {
@@ -1067,20 +1221,22 @@ export default {
         const existing = await env.DB.prepare("SELECT * FROM qa_questions WHERE id=?").bind(adminQuestionMatch[1]).first();
         if (!existing) return json({ error: "question_not_found" }, 404, cors);
         const input = await request.json();
-        const tool = input.tool === undefined ? existing.tool : (questionTools.has(input.tool) ? input.tool : "");
+        const requestType = input.requestType === undefined ? existing.request_type : (qaRequestTypes.has(input.requestType) ? input.requestType : "");
+        const tool = requestType === "feature_request" ? "General" : (input.tool === undefined ? existing.tool : (questionTools.has(input.tool) ? input.tool : ""));
         const title = input.title === undefined ? existing.title : cleanText(input.title, 240);
         const body = input.body === undefined ? existing.body : cleanText(input.body, 12000);
         const status = input.status === undefined ? existing.status : (questionStatuses.has(input.status) ? input.status : "");
-        if (!tool || !title || !body || !status) return json({ error: "valid_question_fields_required" }, 400, cors);
+        const pinned = requestType === "feature_request" && (input.pinned === undefined ? Boolean(existing.is_pinned) : Boolean(input.pinned));
+        if (!requestType || !tool || !title || !body || !status) return json({ error: "valid_question_fields_required" }, 400, cors);
         if (status === "published") {
           const answerCount = await env.DB.prepare("SELECT COUNT(*) AS total FROM qa_answers WHERE question_id=?").bind(existing.id).first();
           if (!Number(answerCount.total)) return json({ error: "answer_required_before_publishing" }, 409, cors);
         }
         await env.DB.prepare(`
-          UPDATE qa_questions SET tool=?, title=?, body=?, status=?,
+          UPDATE qa_questions SET tool=?, request_type=?, is_pinned=?, title=?, body=?, status=?,
             published_at=CASE WHEN ?='published' THEN COALESCE(published_at, CURRENT_TIMESTAMP) ELSE published_at END,
             updated_at=CURRENT_TIMESTAMP WHERE id=?
-        `).bind(tool, title, body, status, status, existing.id).run();
+        `).bind(tool, requestType, pinned ? 1 : 0, title, body, status, status, existing.id).run();
         if (status === "published" && existing.status !== "published" && existing.submitted_by_user_id && env.RESEND_API_KEY && env.RESEND_FROM) {
           const submitter = await env.DB.prepare(`
             SELECT users.display_name AS name, identities.normalized_email AS email
@@ -1127,6 +1283,22 @@ export default {
         await env.DB.prepare("UPDATE qa_questions SET updated_at=CURRENT_TIMESTAMP WHERE id=?").bind(question.id).run();
         const questions = await loadQuestions(env);
         return json({ question: questions.find((entry) => entry.id === question.id) }, 200, cors);
+      }
+
+      const adminAnswerAttachmentMatch = url.pathname.match(/^\/api\/admin\/questions\/([0-9a-f-]+)\/answer-attachments$/i);
+      if (request.method === "POST" && adminAnswerAttachmentMatch) {
+        if (user.role !== "admin") return json({ error: "administrator_required" }, 403, cors);
+        const originError = requireSameOrigin(request, url, cors);
+        if (originError) return originError;
+        const question = await env.DB.prepare("SELECT id FROM qa_questions WHERE id=?").bind(adminAnswerAttachmentMatch[1]).first();
+        if (!question) return json({ error: "question_not_found" }, 404, cors);
+        const answer = await env.DB.prepare(`
+          SELECT id FROM qa_answers WHERE question_id=? AND response_type='team' AND source_ref IS NULL
+          ORDER BY created_at DESC LIMIT 1
+        `).bind(question.id).first();
+        if (!answer) return json({ error: "answer_required_before_attachment" }, 409, cors);
+        const result = await storeQaAttachment(request, env, { question, answerId: answer.id, userId: user.id });
+        return result.error ? json({ error: result.error }, result.error === "attachment_limit_reached" ? 409 : 400, cors) : json(result, 201, cors);
       }
 
       if (request.method === "GET" && url.pathname === "/api/admin/email-audience") {
