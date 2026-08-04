@@ -16,6 +16,16 @@ dist-ssr
 .dev.vars*
 .wrangler/
 
+# GitHub Pages is deployed from the Actions-built dist artifact.
+# Do not recreate the legacy branch-root deployment output.
+/assets/
+/index.html
+/404.html
+/.nojekyll
+/favicon.ico
+/literature.json
+/robots.txt
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

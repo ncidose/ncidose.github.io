@@ -11,7 +11,6 @@
     "build": "vite build && cp dist/src/index.html dist/index.html",
     "build:portal": "VITE_PORTAL_STANDALONE=true VITE_PORTAL_DEMO_MODE=false vite build && cp dist/src/portal.html dist/index.html",
     "build:pages": "VITE_PUBLIC_SITE=true VITE_PORTAL_DEMO_MODE=false npm run build && cp dist/index.html dist/404.html && touch dist/.nojekyll",
-    "publish:root": "npm run build:pages && cp -R dist/assets . && cp dist/index.html dist/404.html dist/literature.json dist/favicon.ico dist/robots.txt . && cp dist/.nojekyll .nojekyll",
     "build:dev": "vite build --mode development",
     "literature:update": "node scripts/generate-literature-data.mjs",
     "discussions:import": "node scripts/import-github-discussions.mjs",

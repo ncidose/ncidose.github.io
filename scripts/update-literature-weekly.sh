@@ -31,14 +31,13 @@ mkdir -p "$LOG_DIR"
 
   "$NPM" ci
   "$NPM" run literature:update
-  cp public/literature.json literature.json
 
-  if git diff --quiet -- public/literature.json literature.json; then
+  if git diff --quiet -- public/literature.json; then
     printf '[%s] No literature data changes to commit\n' "$(date '+%Y-%m-%d %H:%M:%S')"
     exit 0
   fi
 
-  git add public/literature.json literature.json
+  git add public/literature.json
   git commit -m "Update literature data"
   git push origin main
 
