@@ -1,0 +1,34 @@
+import { render, screen, waitFor } from "@testing-library/react";
+import { MemoryRouter, Route, Routes } from "react-router-dom";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import Questions from "@/pages/Questions";
+
+const sample = {
+  id: "github-12",
+  tool: "NCICT",
+  title: "How should scan coverage be entered?",
+  body: "Use the anatomical landmarks described in the manual.",
+  createdAt: "2025-01-01T00:00:00Z",
+  updatedAt: "2025-01-02T00:00:00Z",
+  publishedAt: "2025-01-02T00:00:00Z",
+  answers: [{ id: "a1", body: "Confirm the start and end landmarks before calculation.", responseType: "team", createdAt: "2025-01-02T00:00:00Z", updatedAt: "2025-01-02T00:00:00Z" }],
+};
+
+describe("public Q&A", () => {
+  afterEach(() => vi.restoreAllMocks());
+
+  it("loads published questions from the Cloudflare API without exposing GitHub controls", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: true, json: async () => ({ questions: [sample] }) }));
+    render(<MemoryRouter initialEntries={["/questions"]}><Routes><Route path="/questions" element={<Questions />} /></Routes></MemoryRouter>);
+    expect(await screen.findByText(sample.title)).toBeInTheDocument();
+    expect(screen.queryByText(/accepted answer/i)).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /like|accept/i })).not.toBeInTheDocument();
+  });
+
+  it("shows the selected question and team response", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: true, json: async () => ({ questions: [sample] }) }));
+    render(<MemoryRouter initialEntries={["/questions/github-12"]}><Routes><Route path="/questions/:questionId" element={<Questions />} /></Routes></MemoryRouter>);
+    await waitFor(() => expect(screen.getByText("NCI Dose Team")).toBeInTheDocument());
+    expect(screen.getByText(sample.answers[0].body)).toBeInTheDocument();
+  });
+});

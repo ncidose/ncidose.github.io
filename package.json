@@ -14,6 +14,7 @@
     "publish:root": "npm run build:pages && cp -R dist/assets . && cp dist/index.html dist/404.html dist/literature.json dist/favicon.ico dist/robots.txt . && cp dist/.nojekyll .nojekyll",
     "build:dev": "vite build --mode development",
     "literature:update": "node scripts/generate-literature-data.mjs",
+    "discussions:import": "node scripts/import-github-discussions.mjs",
     "portal:members:check": "node scripts/portal/import-google-group.mjs --check",
     "portal:members:prepare": "node scripts/portal/build-member-import.mjs",
     "portal:members:join-dates": "node scripts/portal/build-group-join-date-update.mjs",

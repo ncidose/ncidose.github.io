@@ -178,6 +178,69 @@ const safeFilename = (key) => (key.split("/").pop() || "download").replaceAll(/[
 const announcementCategories = new Set(["Release", "Maintenance", "Access"]);
 
 const cleanText = (value, maximum) => typeof value === "string" ? value.trim().slice(0, maximum) : "";
+const questionTools = new Set(["NCICT", "NCIRF", "NCINM", "PHANTOM", "General"]);
+const questionStatuses = new Set(["submitted", "draft", "published", "archived"]);
+
+const questionFromRow = (row) => ({
+  id: row.id,
+  tool: row.tool,
+  title: row.title,
+  body: row.body,
+  status: row.status,
+  source: row.source,
+  createdAt: row.created_at,
+  updatedAt: row.updated_at,
+  publishedAt: row.published_at,
+  submitter: row.submitter_name || row.submitter_email ? {
+    name: row.submitter_name || null,
+    email: row.submitter_email || null,
+    institution: row.submitter_institution || null,
+  } : undefined,
+  answers: [],
+});
+
+async function loadQuestions(env, { publicOnly = false, userId = null } = {}) {
+  const conditions = [];
+  const bindings = [];
+  if (publicOnly) conditions.push("questions.status='published'");
+  if (userId) {
+    conditions.push("questions.submitted_by_user_id=?");
+    bindings.push(userId);
+  }
+  const where = conditions.length ? `WHERE ${conditions.join(" AND ")}` : "";
+  const questionResult = await env.DB.prepare(`
+    SELECT questions.id, questions.tool, questions.title, questions.body, questions.status,
+      questions.source, questions.created_at, questions.updated_at, questions.published_at,
+      users.display_name AS submitter_name, users.institution AS submitter_institution,
+      identities.normalized_email AS submitter_email
+    FROM qa_questions questions
+    LEFT JOIN users ON users.id=questions.submitted_by_user_id
+    LEFT JOIN user_identities identities ON identities.user_id=users.id AND identities.is_primary=1
+    ${where}
+    ORDER BY COALESCE(questions.published_at, questions.created_at) DESC
+    LIMIT 500
+  `).bind(...bindings).all();
+  const questions = questionResult.results.map(questionFromRow);
+  if (!questions.length) return questions;
+  const placeholders = questions.map(() => "?").join(",");
+  const answerResult = await env.DB.prepare(`
+    SELECT id, question_id, body, response_type, sort_order, source_ref, created_at, updated_at
+    FROM qa_answers WHERE question_id IN (${placeholders})
+    ORDER BY sort_order ASC, created_at ASC
+  `).bind(...questions.map((question) => question.id)).all();
+  const byId = new Map(questions.map((question) => [question.id, question]));
+  for (const answer of answerResult.results) {
+    byId.get(answer.question_id)?.answers.push({
+      id: answer.id,
+      body: answer.body,
+      responseType: answer.response_type,
+      editable: !answer.source_ref,
+      createdAt: answer.created_at,
+      updatedAt: answer.updated_at,
+    });
+  }
+  return questions;
+}
 
 const announcementFromRow = (row) => ({
   id: row.id,
@@ -557,6 +620,18 @@ export default {
     if (request.method === "POST" && url.pathname === "/api/auth/logout") {
       return logoutPortalSession(request, env, cors);
     }
+    if (request.method === "GET" && url.pathname === "/api/public/questions") {
+      const questions = (await loadQuestions(env, { publicOnly: true })).map(({ status, source, submitter, ...question }) => ({
+        ...question,
+        answers: question.answers.map(({ editable, ...answer }) => answer),
+      }));
+      return Response.json({ questions }, {
+        headers: {
+          ...cors,
+          "cache-control": "public, max-age=300, s-maxage=300, stale-while-revalidate=3600",
+        },
+      });
+    }
     // The public shell contains only the sign-in UI. Every API and download route
     // below requires either a portal session or (during migration) Cloudflare Access.
     if (request.method === "GET" && !url.pathname.startsWith("/api/") && env.ASSETS) {
@@ -574,6 +649,46 @@ export default {
         const primaryEmail = identities.find((identity) => identity.primary)?.email || email;
         context.waitUntil(env.DB.prepare("INSERT INTO access_events (id, user_id, event_type, metadata_json) VALUES (?, ?, 'login', ?)").bind(crypto.randomUUID(), user.id, JSON.stringify({ email })).run());
         return json({ user: { ...user, primary_email: primaryEmail, identities } }, 200, cors);
+      }
+
+      if (request.method === "GET" && url.pathname === "/api/questions") {
+        return json({ questions: await loadQuestions(env, { userId: user.id }) }, 200, cors);
+      }
+
+      if (request.method === "POST" && url.pathname === "/api/questions") {
+        const originError = requireSameOrigin(request, url, cors);
+        if (originError) return originError;
+        const input = await request.json();
+        const tool = questionTools.has(input.tool) ? input.tool : "General";
+        const title = cleanText(input.title, 240);
+        const body = cleanText(input.body, 12000);
+        if (!title || !body) return json({ error: "title_and_question_required" }, 400, cors);
+        const id = crypto.randomUUID();
+        await env.DB.batch([
+          env.DB.prepare(`
+            INSERT INTO qa_questions (id, tool, title, body, status, source, submitted_by_user_id)
+            VALUES (?, ?, ?, ?, 'submitted', 'portal', ?)
+          `).bind(id, tool, title, body, user.id),
+          env.DB.prepare("INSERT INTO access_events (id, user_id, event_type, metadata_json) VALUES (?, ?, 'question_submitted', ?)")
+            .bind(crypto.randomUUID(), user.id, JSON.stringify({ questionId: id, tool })),
+        ]);
+        if (env.RESEND_API_KEY && env.RESEND_FROM) {
+          const administrators = await env.DB.prepare(`
+            SELECT identities.normalized_email AS email
+            FROM users JOIN user_identities identities ON identities.user_id=users.id AND identities.is_primary=1
+            WHERE users.role='admin' AND users.access_status='active'
+          `).all();
+          for (const administrator of administrators.results) {
+            context.waitUntil(sendPortalAccountEmail(env, {
+              to: administrator.email,
+              subject: `New NCI Dose Tools question: ${title}`,
+              html: announcementEmailHtml({ title: "A new technical question was submitted", category: tool, body: `${title}\n\nReview and respond in Portal administration > Q&A.` }, { includeUnsubscribe: false, headerLabel: "User Portal Q&A" }),
+              text: `A new ${tool} question was submitted:\n\n${title}\n\nReview it in Portal administration > Q&A:\nhttps://portal.ncidosetools.com/#/portal/admin`,
+            }).catch(() => undefined));
+          }
+        }
+        const created = await env.DB.prepare("SELECT * FROM qa_questions WHERE id=?").bind(id).first();
+        return json({ question: questionFromRow(created) }, 201, cors);
       }
 
       if (request.method === "POST" && url.pathname === "/api/account/emails") {
@@ -915,6 +1030,8 @@ export default {
           env.DB.prepare("UPDATE access_requests SET activated_user_id=NULL, updated_at=CURRENT_TIMESTAMP WHERE activated_user_id=?").bind(existing.id),
           env.DB.prepare("UPDATE announcements SET created_by_user_id=NULL, updated_at=CURRENT_TIMESTAMP WHERE created_by_user_id=?").bind(existing.id),
           env.DB.prepare("UPDATE announcement_email_deliveries SET requested_by_user_id=NULL, updated_at=CURRENT_TIMESTAMP WHERE requested_by_user_id=?").bind(existing.id),
+          env.DB.prepare("UPDATE qa_questions SET submitted_by_user_id=NULL, updated_at=CURRENT_TIMESTAMP WHERE submitted_by_user_id=?").bind(existing.id),
+          env.DB.prepare("UPDATE qa_answers SET created_by_user_id=NULL, updated_at=CURRENT_TIMESTAMP WHERE created_by_user_id=?").bind(existing.id),
           env.DB.prepare("DELETE FROM announcement_reads WHERE user_id=?").bind(existing.id),
           env.DB.prepare("UPDATE access_events SET user_id=NULL, metadata_json=NULL WHERE user_id=?").bind(existing.id),
           env.DB.prepare("DELETE FROM portal_sessions WHERE user_id=?").bind(existing.id),
@@ -935,6 +1052,81 @@ export default {
           context.waitUntil(removeResendContactFromAudience(env, primaryEmail).catch(() => undefined));
         }
         return new Response(null, { status: 204, headers: cors });
+      }
+
+      if (request.method === "GET" && url.pathname === "/api/admin/questions") {
+        if (user.role !== "admin") return json({ error: "administrator_required" }, 403, cors);
+        return json({ questions: await loadQuestions(env) }, 200, cors);
+      }
+
+      const adminQuestionMatch = url.pathname.match(/^\/api\/admin\/questions\/([0-9a-z-]+)$/i);
+      if (request.method === "PATCH" && adminQuestionMatch) {
+        if (user.role !== "admin") return json({ error: "administrator_required" }, 403, cors);
+        const originError = requireSameOrigin(request, url, cors);
+        if (originError) return originError;
+        const existing = await env.DB.prepare("SELECT * FROM qa_questions WHERE id=?").bind(adminQuestionMatch[1]).first();
+        if (!existing) return json({ error: "question_not_found" }, 404, cors);
+        const input = await request.json();
+        const tool = input.tool === undefined ? existing.tool : (questionTools.has(input.tool) ? input.tool : "");
+        const title = input.title === undefined ? existing.title : cleanText(input.title, 240);
+        const body = input.body === undefined ? existing.body : cleanText(input.body, 12000);
+        const status = input.status === undefined ? existing.status : (questionStatuses.has(input.status) ? input.status : "");
+        if (!tool || !title || !body || !status) return json({ error: "valid_question_fields_required" }, 400, cors);
+        if (status === "published") {
+          const answerCount = await env.DB.prepare("SELECT COUNT(*) AS total FROM qa_answers WHERE question_id=?").bind(existing.id).first();
+          if (!Number(answerCount.total)) return json({ error: "answer_required_before_publishing" }, 409, cors);
+        }
+        await env.DB.prepare(`
+          UPDATE qa_questions SET tool=?, title=?, body=?, status=?,
+            published_at=CASE WHEN ?='published' THEN COALESCE(published_at, CURRENT_TIMESTAMP) ELSE published_at END,
+            updated_at=CURRENT_TIMESTAMP WHERE id=?
+        `).bind(tool, title, body, status, status, existing.id).run();
+        if (status === "published" && existing.status !== "published" && existing.submitted_by_user_id && env.RESEND_API_KEY && env.RESEND_FROM) {
+          const submitter = await env.DB.prepare(`
+            SELECT users.display_name AS name, identities.normalized_email AS email
+            FROM users JOIN user_identities identities ON identities.user_id=users.id AND identities.is_primary=1
+            WHERE users.id=?
+          `).bind(existing.submitted_by_user_id).first();
+          if (submitter?.email) {
+            context.waitUntil(sendPortalAccountEmail(env, {
+              to: submitter.email,
+              subject: `NCI Dose Tools Q&A published: ${title}`,
+              html: announcementEmailHtml({ title: "Your technical question has been answered", category: tool, body: `Hello ${submitter.name || "NCI Dose Tools user"},\n\nThe NCI Dose Team has reviewed your question, “${title},” and published the answer in the public Q&A knowledge base.\n\nView the answer: https://ncidose.github.io/#/questions/${existing.id}` }, { includeUnsubscribe: false, headerLabel: "Technical Q&A" }),
+              text: `Your NCI Dose Tools question has been answered.\n\n${title}\n\nView the answer: https://ncidose.github.io/#/questions/${existing.id}\n\nNCI Dose Team\nNational Cancer Institute`,
+            }).catch(() => undefined));
+          }
+        }
+        const questions = await loadQuestions(env);
+        return json({ question: questions.find((question) => question.id === existing.id) }, 200, cors);
+      }
+
+      const adminAnswerMatch = url.pathname.match(/^\/api\/admin\/questions\/([0-9a-z-]+)\/answer$/i);
+      if (request.method === "PUT" && adminAnswerMatch) {
+        if (user.role !== "admin") return json({ error: "administrator_required" }, 403, cors);
+        const originError = requireSameOrigin(request, url, cors);
+        if (originError) return originError;
+        const question = await env.DB.prepare("SELECT id FROM qa_questions WHERE id=?").bind(adminAnswerMatch[1]).first();
+        if (!question) return json({ error: "question_not_found" }, 404, cors);
+        const input = await request.json();
+        const body = cleanText(input.body, 20000);
+        if (!body) return json({ error: "answer_required" }, 400, cors);
+        const existing = await env.DB.prepare(`
+          SELECT id FROM qa_answers
+          WHERE question_id=? AND response_type='team' AND source_ref IS NULL
+          ORDER BY created_at DESC LIMIT 1
+        `).bind(question.id).first();
+        if (existing) {
+          await env.DB.prepare("UPDATE qa_answers SET body=?, updated_at=CURRENT_TIMESTAMP WHERE id=?").bind(body, existing.id).run();
+        } else {
+          const order = await env.DB.prepare("SELECT COALESCE(MAX(sort_order), -1) + 1 AS next_order FROM qa_answers WHERE question_id=?").bind(question.id).first();
+          await env.DB.prepare(`
+            INSERT INTO qa_answers (id, question_id, body, response_type, sort_order, created_by_user_id)
+            VALUES (?, ?, ?, 'team', ?, ?)
+          `).bind(crypto.randomUUID(), question.id, body, Number(order.next_order || 0), user.id).run();
+        }
+        await env.DB.prepare("UPDATE qa_questions SET updated_at=CURRENT_TIMESTAMP WHERE id=?").bind(question.id).run();
+        const questions = await loadQuestions(env);
+        return json({ question: questions.find((entry) => entry.id === question.id) }, 200, cors);
       }
 
       if (request.method === "GET" && url.pathname === "/api/admin/email-audience") {

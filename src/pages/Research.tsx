@@ -36,14 +36,14 @@ const portalCards = [
     external: true,
   },
   {
-    icon: BookOpen,
-    eyebrow: "Repository",
-    title: "GitHub: ncidose/ncidosetools",
+    icon: MessageSquare,
+    eyebrow: "Public Knowledge Base",
+    title: "Technical Questions & Answers",
     description:
-      "The source repository for release information, version history, technical discussions, Q&A, and implementation-oriented materials.",
-    href: portalLinks.github,
-    linkText: "Open GitHub",
-    external: true,
+      "Search practical NCICT, NCINM, NCIRF, and PHANTOM guidance without a GitHub account.",
+    href: "/questions",
+    linkText: "Browse technical Q&A",
+    external: false,
   },
   {
     icon: LockKeyhole,
@@ -81,7 +81,7 @@ const userPaths = [
   },
   {
     title: "Technical implementer",
-    text: "Read public user and REST API manuals here; use GitHub only when you need release history, source files, or technical discussion.",
+    text: "Read public user and REST API manuals, release histories, and curated technical Q&A directly on this site.",
     href: "/manuals",
     linkText: "Browse technical manuals",
     external: false,
@@ -260,7 +260,7 @@ const Research = () => {
                   "Keep public summaries current when tool capabilities, access routes, or documentation locations change.",
                   "Keep the official NCI website as the authoritative institutional source for official context and access policy.",
                   "Avoid burying new visitors in issue threads, release tags, or implementation details.",
-                  "Send approved users to the User Portal for restricted files, to the public manual library for documentation, and to GitHub for release history or technical discussion.",
+                  "Send approved users to the User Portal for restricted files and questions, while manuals, release histories, and curated answers remain publicly readable here.",
                 ].map((item) => (
                   <div key={item} className="flex gap-4 border border-border bg-white p-4">
                     <ArrowRight className="mt-0.5 h-4 w-4 flex-shrink-0 text-primary" />

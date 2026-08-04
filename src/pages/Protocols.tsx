@@ -329,8 +329,8 @@ const Protocols = () => {
                 <Link to="/manuals" className="text-primary hover:underline">
                   public manual library
                 </Link>{" "}
-                for detailed workflows, screenshots, and technical guidance; version
-                history and support discussions remain in GitHub.
+                for detailed workflows, screenshots, and technical guidance. Release
+                histories and curated technical Q&amp;A are also available on this site.
               </p>
             </motion.div>
           </div>

@@ -15,6 +15,7 @@ import Researchers from "./pages/Researchers";
 import Literature from "./pages/Literature";
 import NotFound from "./pages/NotFound";
 import Portal from "./pages/Portal";
+import Questions from "./pages/Questions";
 
 const queryClient = new QueryClient();
 const publicSiteBuild = import.meta.env.VITE_PUBLIC_SITE === "true";
@@ -35,6 +36,8 @@ const App = () => (
             <Route path="/manuals" element={<Manuals />} />
             <Route path="/manuals/:manualId" element={<Manuals />} />
             <Route path="/versions/:toolId" element={<Versions />} />
+            <Route path="/questions" element={<Questions />} />
+            <Route path="/questions/:questionId" element={<Questions />} />
             <Route path="/documentation" element={<Navigate to="/manuals" replace />} />
             <Route path="/researchers" element={<Researchers />} />
             <Route path="/literature" element={<Literature />} />

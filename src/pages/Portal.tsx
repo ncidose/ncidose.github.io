@@ -19,6 +19,7 @@ import {
   Loader2,
   LogOut,
   Mail,
+  MessageCircleQuestion,
   Megaphone,
   Plus,
   Search,
@@ -41,6 +42,7 @@ import {
 import { portalLinks } from "@/data/portalLinks";
 import { cn } from "@/lib/utils";
 import { getPortalHeaderEmail, selectPrimaryPortalIdentity } from "@/lib/portalUser";
+import { questionTools, type ManagedQuestion, type QuestionTool } from "@/lib/questions";
 
 type PortalIdentity = {
   id: string;
@@ -63,13 +65,14 @@ type PortalUser = {
   identities: PortalIdentity[];
 };
 
-type PortalSection = "overview" | "downloads" | "announcements" | "account" | "admin";
+type PortalSection = "overview" | "downloads" | "announcements" | "questions" | "account" | "admin";
 const standalonePortalBuild = import.meta.env.VITE_PORTAL_STANDALONE === "true";
 
 const portalNav = [
   { id: "overview", label: "Overview", icon: LayoutDashboard },
   { id: "downloads", label: "Downloads", icon: Download },
   { id: "announcements", label: "Announcements", icon: Bell },
+  { id: "questions", label: "Q&A", icon: MessageCircleQuestion },
   { id: "account", label: "Account", icon: CircleUserRound },
 ] satisfies Array<{ id: PortalSection; label: string; icon: typeof LayoutDashboard }>;
 
@@ -108,7 +111,7 @@ export const Portal = ({ publicLanding = false }: { publicLanding?: boolean }) =
   const [authState, setAuthState] = useState<"loading" | "ready" | "signed-out" | "denied">(demoMode ? "ready" : "loading");
   const [deniedEmail, setDeniedEmail] = useState("");
   const pathSection = location.pathname.split("/")[2] as PortalSection | undefined;
-  const validSections: PortalSection[] = ["overview", "downloads", "announcements", "account", "admin"];
+  const validSections: PortalSection[] = ["overview", "downloads", "announcements", "questions", "account", "admin"];
   const section: PortalSection = pathSection && validSections.includes(pathSection) ? pathSection : "overview";
   const isAccessRequest = location.pathname === "/portal/request-access";
 
@@ -240,6 +243,7 @@ export const Portal = ({ publicLanding = false }: { publicLanding?: boolean }) =
                   {section === "overview" && `Welcome, ${user.name}`}
                   {section === "downloads" && "Software downloads"}
                   {section === "announcements" && "Announcements"}
+                  {section === "questions" && "Technical Q&A"}
                   {section === "account" && "Account and access"}
                   {section === "admin" && "Portal administration"}
                 </h1>
@@ -253,6 +257,7 @@ export const Portal = ({ publicLanding = false }: { publicLanding?: boolean }) =
             {section === "overview" && <Overview user={user} demoMode={demoMode} />}
             {section === "downloads" && <Downloads demoMode={demoMode} />}
             {section === "announcements" && <Announcements demoMode={demoMode} />}
+            {section === "questions" && <PortalQuestions demoMode={demoMode} />}
             {section === "account" && <Account user={user} setUser={setUser} demoMode={demoMode} onSignOut={signOut} />}
             {section === "admin" && <Admin demoMode={demoMode} />}
           </div>
@@ -1199,6 +1204,81 @@ const Announcements = ({ demoMode }: { demoMode: boolean }) => {
   );
 };
 
+const PortalQuestions = ({ demoMode }: { demoMode: boolean }) => {
+  const { toast } = useToast();
+  const [questions, setQuestions] = useState<ManagedQuestion[]>([]);
+  const [loading, setLoading] = useState(!demoMode);
+  const [submitting, setSubmitting] = useState(false);
+  const [tool, setTool] = useState<QuestionTool>("General");
+  const [title, setTitle] = useState("");
+  const [body, setBody] = useState("");
+
+  useEffect(() => {
+    if (demoMode) return;
+    fetch("/api/questions", { credentials: "include" })
+      .then(async (response) => {
+        if (!response.ok) throw new Error("Your questions could not be loaded.");
+        const payload = await response.json();
+        setQuestions(payload.questions || []);
+      })
+      .catch((error) => toast({ title: "Unable to load questions", description: error instanceof Error ? error.message : undefined, variant: "destructive" }))
+      .finally(() => setLoading(false));
+  }, [demoMode, toast]);
+
+  const submitQuestion = async (event: FormEvent) => {
+    event.preventDefault();
+    if (!title.trim() || !body.trim()) return;
+    if (demoMode) {
+      toast({ title: "Local preview", description: "The question would be sent privately to the NCI Dose Team." });
+      return;
+    }
+    setSubmitting(true);
+    try {
+      const response = await fetch("/api/questions", {
+        method: "POST",
+        credentials: "include",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ tool, title, body }),
+      });
+      const payload = await response.json();
+      if (!response.ok) throw new Error("The question could not be submitted.");
+      setQuestions((current) => [payload.question, ...current]);
+      setTitle("");
+      setBody("");
+      setTool("General");
+      toast({ title: "Question submitted", description: "The NCI Dose Team can now review and answer it. It is not public unless the team publishes it." });
+    } catch (error) {
+      toast({ title: "Unable to submit question", description: error instanceof Error ? error.message : undefined, variant: "destructive" });
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  return (
+    <div className="space-y-8">
+      <section className="border border-border bg-white p-6 sm:p-8">
+        <div className="flex items-start gap-4">
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center border border-primary text-primary"><MessageCircleQuestion className="h-5 w-5" /></div>
+          <div><div className="font-mono text-xs uppercase tracking-widest text-primary">Ask the NCI Dose Team</div><h2 className="mt-2 text-xl font-light">Submit a technical question</h2><p className="mt-2 text-sm leading-relaxed text-muted-foreground">Your question is private while it is reviewed. If it will help other users, the team may remove identifying details and publish the question and answer in the public knowledge base.</p></div>
+        </div>
+        <form onSubmit={submitQuestion} className="mt-7 space-y-4">
+          <label className="block max-w-xs"><span className="font-mono text-xs uppercase tracking-wider text-muted-foreground">Tool</span><select value={tool} onChange={(event) => setTool(event.target.value as QuestionTool)} className="mt-2 h-11 w-full rounded-none border border-input bg-white px-3 text-sm">{questionTools.filter((item) => item !== "All").map((item) => <option key={item}>{item}</option>)}</select></label>
+          <Input value={title} onChange={(event) => setTitle(event.target.value)} maxLength={240} placeholder="Question title" className="h-11 rounded-none" required />
+          <textarea value={body} onChange={(event) => setBody(event.target.value)} maxLength={12000} placeholder="Describe the question, relevant inputs, software version, and any error message." className="min-h-44 w-full border border-input bg-background p-3 text-sm outline-none focus:border-primary" required />
+          <div className="flex justify-end"><Button type="submit" disabled={submitting || !title.trim() || !body.trim()} className="rounded-none">{submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />} Submit question</Button></div>
+        </form>
+      </section>
+
+      <section className="border border-border bg-white">
+        <div className="flex items-center justify-between border-b border-border px-6 py-5"><div><div className="font-mono text-xs uppercase tracking-widest text-primary">Your requests</div><h2 className="mt-2 text-xl font-light">Submitted questions</h2></div><a href={`${publicSiteUrl}#/questions`} className="text-sm text-primary hover:underline">View public Q&amp;A</a></div>
+        {loading ? <div className="flex items-center justify-center gap-3 p-10 text-sm text-muted-foreground"><Loader2 className="h-5 w-5 animate-spin text-primary" /> Loading questions…</div>
+          : questions.length === 0 ? <div className="p-10 text-center text-sm text-muted-foreground">You have not submitted a question through the portal.</div>
+            : <div className="divide-y divide-border">{questions.map((question) => <div key={question.id} className="grid gap-3 px-6 py-5 sm:grid-cols-[100px_1fr_auto] sm:items-center"><span className="font-mono text-xs uppercase text-primary">{question.tool}</span><div><div className="text-sm font-medium text-slate-800">{question.title}</div><p className="mt-1 line-clamp-2 text-xs leading-relaxed text-muted-foreground">{question.body}</p></div><span className={cn("inline-flex w-fit px-2 py-1 font-mono text-[11px] uppercase", question.status === "published" ? "bg-emerald-50 text-emerald-700" : question.status === "archived" ? "bg-slate-100 text-slate-500" : "bg-sky-50 text-sky-700")}>{question.status === "published" ? "Published" : question.status === "archived" ? "Closed" : "Under review"}</span></div>)}</div>}
+      </section>
+    </div>
+  );
+};
+
 const Account = ({
   user,
   setUser,
@@ -1449,9 +1529,110 @@ const emptyAdminActivity: AdminActivityData = {
   recent: [],
 };
 
+const AdminQuestions = ({ demoMode }: { demoMode: boolean }) => {
+  const { toast } = useToast();
+  const [questions, setQuestions] = useState<ManagedQuestion[]>([]);
+  const [loading, setLoading] = useState(!demoMode);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [tool, setTool] = useState<QuestionTool>("General");
+  const [title, setTitle] = useState("");
+  const [body, setBody] = useState("");
+  const [answer, setAnswer] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [filter, setFilter] = useState<"all" | "submitted" | "published" | "archived">("submitted");
+
+  const load = async () => {
+    if (demoMode) {
+      setLoading(false);
+      return;
+    }
+    try {
+      const response = await fetch("/api/admin/questions", { credentials: "include" });
+      if (!response.ok) throw new Error("Questions could not be loaded.");
+      const payload = await response.json();
+      setQuestions(payload.questions || []);
+    } catch (error) {
+      toast({ title: "Unable to load Q&A", description: error instanceof Error ? error.message : undefined, variant: "destructive" });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // The admin queue is loaded once when this tab is mounted.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => { void load(); }, [demoMode]);
+
+  const selectQuestion = (question: ManagedQuestion) => {
+    setSelectedId(question.id);
+    setTool(question.tool);
+    setTitle(question.title);
+    setBody(question.body);
+    setAnswer(question.answers.find((item) => item.responseType === "team" && item.editable)?.body || "");
+  };
+
+  const save = async (status: ManagedQuestion["status"]) => {
+    if (!selectedId || !title.trim() || !body.trim()) return;
+    if (status === "published" && !answer.trim() && !questions.find((item) => item.id === selectedId)?.answers.length) {
+      toast({ title: "Add an answer before publishing", variant: "destructive" });
+      return;
+    }
+    if (demoMode) {
+      toast({ title: "Local preview", description: `The question would be saved as ${status}.` });
+      return;
+    }
+    setSaving(true);
+    try {
+      if (answer.trim()) {
+        const answerResponse = await fetch(`/api/admin/questions/${selectedId}/answer`, {
+          method: "PUT", credentials: "include", headers: { "content-type": "application/json" }, body: JSON.stringify({ body: answer }),
+        });
+        if (!answerResponse.ok) throw new Error("The answer could not be saved.");
+      }
+      const response = await fetch(`/api/admin/questions/${selectedId}`, {
+        method: "PATCH", credentials: "include", headers: { "content-type": "application/json" }, body: JSON.stringify({ tool, title, body, status }),
+      });
+      const payload = await response.json();
+      if (!response.ok) throw new Error(payload.error === "answer_required_before_publishing" ? "Add an answer before publishing." : "The question could not be saved.");
+      setQuestions((current) => current.map((item) => item.id === payload.question.id ? payload.question : item));
+      selectQuestion(payload.question);
+      toast({ title: status === "published" ? "Q&A published" : status === "archived" ? "Question archived" : "Q&A saved" });
+    } catch (error) {
+      toast({ title: "Unable to save Q&A", description: error instanceof Error ? error.message : undefined, variant: "destructive" });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const visible = questions.filter((question) => filter === "all" || question.status === filter || (filter === "submitted" && question.status === "draft"));
+  const selected = questions.find((question) => question.id === selectedId);
+
+  return (
+    <div className="grid gap-6 xl:grid-cols-[360px_1fr]">
+      <section className="border border-border bg-white">
+        <div className="border-b border-border p-5"><div className="font-mono text-xs uppercase tracking-widest text-primary">Question queue</div><h2 className="mt-2 text-xl font-light">Technical questions</h2><select value={filter} onChange={(event) => setFilter(event.target.value as typeof filter)} className="mt-4 h-10 w-full rounded-none border border-input bg-white px-3 text-sm"><option value="submitted">Needs review</option><option value="published">Published</option><option value="archived">Archived</option><option value="all">All questions</option></select></div>
+        {loading ? <div className="flex items-center justify-center gap-2 p-10 text-sm text-muted-foreground"><Loader2 className="h-4 w-4 animate-spin" /> Loading…</div>
+          : visible.length === 0 ? <div className="p-8 text-center text-sm text-muted-foreground">No questions in this view.</div>
+            : <div className="max-h-[720px] divide-y divide-border overflow-y-auto">{visible.map((question) => <button key={question.id} type="button" onClick={() => selectQuestion(question)} className={cn("block w-full p-5 text-left transition-colors hover:bg-sky-50", selectedId === question.id && "bg-sky-50")}><div className="flex items-center justify-between gap-3"><span className="font-mono text-[11px] uppercase text-primary">{question.tool}</span><span className="font-mono text-[10px] uppercase text-muted-foreground">{question.status}</span></div><div className="mt-2 text-sm font-medium text-slate-800">{question.title}</div>{question.submitter && <div className="mt-2 truncate text-xs text-muted-foreground">{question.submitter.name || question.submitter.email}{question.submitter.institution ? ` · ${question.submitter.institution}` : ""}</div>}</button>)}</div>}
+      </section>
+
+      <section className="border border-border bg-white p-6 sm:p-8">
+        {!selected ? <div className="flex min-h-[360px] flex-col items-center justify-center text-center"><MessageCircleQuestion className="h-8 w-8 text-slate-300" /><h2 className="mt-4 text-xl font-light">Select a question</h2><p className="mt-2 max-w-sm text-sm text-muted-foreground">Review a submission, write the team response, and publish only material suitable for the public knowledge base.</p></div>
+          : <div className="space-y-5"><div><div className="font-mono text-xs uppercase tracking-widest text-primary">Q&A editor</div><h2 className="mt-2 text-xl font-light">Review and publish</h2>{selected.submitter && <p className="mt-2 text-xs text-muted-foreground">Submitted by {selected.submitter.name || selected.submitter.email} · contact information remains private.</p>}</div>
+            <label className="block max-w-xs"><span className="font-mono text-xs uppercase tracking-wider text-muted-foreground">Tool</span><select value={tool} onChange={(event) => setTool(event.target.value as QuestionTool)} className="mt-2 h-10 w-full rounded-none border border-input bg-white px-3 text-sm">{questionTools.filter((item) => item !== "All").map((item) => <option key={item}>{item}</option>)}</select></label>
+            <label className="block"><span className="font-mono text-xs uppercase tracking-wider text-muted-foreground">Public title</span><Input value={title} onChange={(event) => setTitle(event.target.value)} className="mt-2 rounded-none" /></label>
+            <label className="block"><span className="font-mono text-xs uppercase tracking-wider text-muted-foreground">Public question</span><textarea value={body} onChange={(event) => setBody(event.target.value)} className="mt-2 min-h-36 w-full border border-input p-3 text-sm outline-none focus:border-primary" /></label>
+            {selected.answers.filter((item) => !item.editable).length > 0 && <div className="border border-border bg-slate-50 p-4"><div className="font-mono text-[11px] uppercase tracking-widest text-muted-foreground">Migrated responses retained</div><p className="mt-2 text-xs leading-relaxed text-muted-foreground">{selected.answers.filter((item) => !item.editable).length} historical response(s) will remain in the published record alongside any updated team response.</p></div>}
+            <label className="block"><span className="font-mono text-xs uppercase tracking-wider text-muted-foreground">NCI Dose Team response</span><textarea value={answer} onChange={(event) => setAnswer(event.target.value)} placeholder="Write a concise answer suitable for public viewing. Remove names, email addresses, and sensitive research details." className="mt-2 min-h-52 w-full border border-input p-3 text-sm outline-none focus:border-primary" /></label>
+            <div className="flex flex-wrap justify-end gap-2"><Button type="button" variant="outline" disabled={saving} onClick={() => void save("archived")} className="rounded-none">Archive</Button><Button type="button" variant="outline" disabled={saving} onClick={() => void save("draft")} className="rounded-none">Save draft</Button><Button type="button" disabled={saving} onClick={() => void save("published")} className="rounded-none">{saving && <Loader2 className="h-4 w-4 animate-spin" />} Publish Q&amp;A</Button></div>
+          </div>}
+      </section>
+    </div>
+  );
+};
+
 const Admin = ({ demoMode }: { demoMode: boolean }) => {
   const { toast } = useToast();
-  const [adminSection, setAdminSection] = useState<"users" | "announcements" | "activity">("users");
+  const [adminSection, setAdminSection] = useState<"users" | "announcements" | "questions" | "activity">("users");
   const [announcementTitle, setAnnouncementTitle] = useState("");
   const [announcementBody, setAnnouncementBody] = useState("");
   const [announcementCategory, setAnnouncementCategory] = useState<"Release" | "Maintenance" | "Access">("Release");
@@ -1824,8 +2005,11 @@ const Admin = ({ demoMode }: { demoMode: boolean }) => {
       <nav aria-label="Admin sections" className="flex overflow-x-auto border border-border bg-white p-1">
         <button type="button" onClick={() => setAdminSection("users")} className={cn("flex flex-1 items-center justify-center gap-2 whitespace-nowrap px-4 py-3 text-sm transition-colors sm:flex-none", adminSection === "users" ? "bg-primary text-primary-foreground" : "text-slate-600 hover:bg-slate-50 hover:text-primary")}><Users className="h-4 w-4" /> User Management</button>
         <button type="button" onClick={() => setAdminSection("announcements")} className={cn("flex flex-1 items-center justify-center gap-2 whitespace-nowrap px-4 py-3 text-sm transition-colors sm:flex-none", adminSection === "announcements" ? "bg-primary text-primary-foreground" : "text-slate-600 hover:bg-slate-50 hover:text-primary")}><Megaphone className="h-4 w-4" /> Announcements</button>
+        <button type="button" onClick={() => setAdminSection("questions")} className={cn("flex flex-1 items-center justify-center gap-2 whitespace-nowrap px-4 py-3 text-sm transition-colors sm:flex-none", adminSection === "questions" ? "bg-primary text-primary-foreground" : "text-slate-600 hover:bg-slate-50 hover:text-primary")}><MessageCircleQuestion className="h-4 w-4" /> Q&amp;A</button>
         <button type="button" onClick={() => setAdminSection("activity")} className={cn("flex flex-1 items-center justify-center gap-2 whitespace-nowrap px-4 py-3 text-sm transition-colors sm:flex-none", adminSection === "activity" ? "bg-primary text-primary-foreground" : "text-slate-600 hover:bg-slate-50 hover:text-primary")}><BarChart3 className="h-4 w-4" /> Activity</button>
       </nav>
+
+      {adminSection === "questions" && <AdminQuestions demoMode={demoMode} />}
 
       {adminSection === "users" && <div className="grid gap-4 md:grid-cols-3">
         <StatusCard icon={Users} label="Approved users" value={loadingUsers ? "—" : String(managedUsers.length)} note="All portal accounts" />

@@ -20,6 +20,7 @@ const navItems = [
   { label: "For Vendors", href: "/vendors" },
   { label: "For Researchers", href: "/researchers" },
   { label: "Manuals", href: "/manuals" },
+  { label: "Q&A", href: "/questions" },
   { label: "Literature Registry", href: "/literature" },
   // { label: "Documentation", href: "/documentation" },
   { label: "Links & Resources", href: "/resources" },
