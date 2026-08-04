@@ -6,6 +6,45 @@ const excludedTitle = /^(welcome|feature request|publication|peer-reviewed publi
 const teamLogins = new Set(["choonsiklee", "ncidoseteam"]);
 const technicalCategories = new Set(["NCICT", "NCIRF", "NCINM", "PHANTOM"]);
 
+const historicalAuthor = (value = "") => value.match(/^\s*\*\*([^*\n]{2,100})\*\*/)?.[1].trim() || null;
+
+const isTeamResponse = (response) => {
+  const author = historicalAuthor(response.body);
+  if (author) return /^(?:Dr\.?\s+)?Choonsik(?:\s+Lee)?$|^Dr\.?\s+Lee$|^NCI Dose Team$/i.test(author);
+  return teamLogins.has(response.author?.login);
+};
+
+const pluralizeTeamVoice = (value = "") => value
+  .replace(/\bI(?:'|’)m\b/g, "we're")
+  .replace(/\bI(?:'|’)ve\b/g, "we've")
+  .replace(/\bI(?:'|’)ll\b/g, "we'll")
+  .replace(/\bI(?:'|’)d\b/g, "we'd")
+  .replace(/\bI am\b/g, "we are")
+  .replace(/\bI was\b/g, "we were")
+  .replace(/\bMyself\b/g, "Ourselves")
+  .replace(/\bmyself\b/g, "ourselves")
+  .replace(/\bMine\b/g, "Ours")
+  .replace(/\bmine\b/g, "ours")
+  .replace(/\bMy\b/g, "Our")
+  .replace(/\bmy\b/g, "our")
+  .replace(/\bMe\b/g, "Us")
+  .replace(/\bme\b/g, "us")
+  .replace(/\bI\b/g, "we")
+  .replace(/(^|[.!?]\s+|\n)(we)\b/g, (_match, prefix) => `${prefix}We`);
+
+const teamVoice = (value = "") => {
+  const cleaned = value
+    .replace(/^Hi the user,\s*thanks for the comments\./i, "Thank you for the comments.")
+    .replace(/^Hi the user,\s*/i, "")
+    .replace(/^Thank you the user for\b/i, "Thank you for");
+  if (!cleaned.includes("**")) return pluralizeTeamVoice(cleaned);
+  const firstLineBreak = cleaned.indexOf("\n");
+  const introduction = firstLineBreak >= 0 ? pluralizeTeamVoice(cleaned.slice(0, firstLineBreak)) : "";
+  const questionAndAnswers = (firstLineBreak >= 0 ? cleaned.slice(firstLineBreak) : cleaned)
+    .replace(/\*\*([\s\S]*?)\*\*/g, (_match, answer) => `**${pluralizeTeamVoice(answer)}**`);
+  return introduction + questionAndAnswers;
+};
+
 const query = `
   query DiscussionArchive($owner: String!, $name: String!) {
     repository(owner: $owner, name: $name) {
@@ -40,6 +79,7 @@ const normalizeMarkdown = (value = "") => value
   .replace(/\n(?:best regards|kind regards|sincerely|thanks!?),?\s*\n[\s\S]*$/i, "")
   .replace(/\n(?:regards|thank you|thanks!?),?\s*\n[\s\S]*$/i, "")
   .replace(/\n[A-Z][A-Za-z .'-]{2,100}(?:Ph\.?D|M\.?D\.?|DABR)\s*$/i, "")
+  .replace(/\n\s*-?the user\s*(?=\n|$)/gi, "\n")
   .replace(/<img\b[^>]*>/gi, (tag) => {
     const src = tag.match(/\bsrc="([^"]+)"/i)?.[1];
     const alt = tag.match(/\balt="([^"]*)"/i)?.[1] || "Attached image";
@@ -70,7 +110,12 @@ for (const discussion of discussions) {
   const questionId = `github-${discussion.number}`;
   statements.push(`INSERT OR IGNORE INTO qa_questions (id, tool, title, body, status, source, source_ref, created_at, updated_at, published_at) VALUES (${sql(questionId)}, ${sql(discussion.category.name)}, ${sql(discussion.title)}, ${sql(normalizeMarkdown(discussion.body))}, 'published', 'github_discussions', ${sql(String(discussion.number))}, ${sql(discussion.createdAt)}, ${sql(discussion.createdAt)}, ${sql(discussion.createdAt)});`);
   discussion.responses.forEach((responseItem, index) => {
-    statements.push(`INSERT OR IGNORE INTO qa_answers (id, question_id, body, response_type, sort_order, source_ref, created_at, updated_at) VALUES (${sql(`github-${responseItem.id}`)}, ${sql(questionId)}, ${sql(normalizeMarkdown(responseItem.body))}, ${sql(teamLogins.has(responseItem.author?.login) ? "team" : "community")}, ${index}, ${sql(responseItem.id)}, ${sql(responseItem.createdAt)}, ${sql(responseItem.createdAt)});`);
+    const answerId = `github-${responseItem.id}`;
+    const responseType = isTeamResponse(responseItem) ? "team" : "community";
+    const normalizedBody = normalizeMarkdown(responseItem.body);
+    const body = responseType === "team" ? teamVoice(normalizedBody) : normalizedBody;
+    statements.push(`INSERT OR IGNORE INTO qa_answers (id, question_id, body, response_type, sort_order, source_ref, created_at, updated_at) VALUES (${sql(answerId)}, ${sql(questionId)}, ${sql(body)}, ${sql(responseType)}, ${index}, ${sql(responseItem.id)}, ${sql(responseItem.createdAt)}, ${sql(responseItem.createdAt)});`);
+    statements.push(`UPDATE qa_answers SET body=${sql(body)}, response_type=${sql(responseType)}, updated_at=CURRENT_TIMESTAMP WHERE id=${sql(answerId)} AND source_ref=${sql(responseItem.id)};`);
   });
 }
 await writeFile(outputPath, `${statements.join("\n")}\n`);
