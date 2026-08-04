@@ -9,6 +9,7 @@ import Index from "./pages/Index";
 import Engine from "./pages/Engine";
 import Protocols from "./pages/Protocols";
 import Manuals from "./pages/Manuals";
+import Versions from "./pages/Versions";
 import Research from "./pages/Research";
 import Researchers from "./pages/Researchers";
 import Literature from "./pages/Literature";
@@ -33,6 +34,7 @@ const App = () => (
             <Route path="/tools" element={<Protocols />} />
             <Route path="/manuals" element={<Manuals />} />
             <Route path="/manuals/:manualId" element={<Manuals />} />
+            <Route path="/versions/:toolId" element={<Versions />} />
             <Route path="/documentation" element={<Navigate to="/manuals" replace />} />
             <Route path="/researchers" element={<Researchers />} />
             <Route path="/literature" element={<Literature />} />

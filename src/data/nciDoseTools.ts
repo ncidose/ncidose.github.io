@@ -39,8 +39,7 @@ export const tools = [
     output:
       "Organ absorbed dose, effective dose, and CT-related metrics such as DLP and SSDE for epidemiologic studies, outcomes research, benchmarking, and sensitivity analysis.",
     manualHref: "/manuals/ncict",
-    versionHistoryHref:
-      "https://github.com/ncidose/ncidosetools/tree/main/NCICT",
+    versionHistoryHref: "/versions/ncict",
   },
   {
     id: "ncirf",

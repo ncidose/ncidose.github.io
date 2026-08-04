@@ -497,3 +497,107 @@
     white-space: pre-wrap;
   }
 }
+
+/* Public release histories */
+.release-history-article {
+  color: #334155;
+  font-size: 0.98rem;
+  line-height: 1.78;
+}
+
+.release-history-article .release-year {
+  margin: 4.5rem 0 2rem;
+  border-bottom: 1px solid hsl(var(--border));
+  padding-bottom: 0.8rem;
+  color: #0f172a;
+  font-size: 2.35rem;
+  font-weight: 300;
+  letter-spacing: -0.04em;
+  scroll-margin-top: 6.5rem;
+}
+
+.release-history-article .release-year:first-child {
+  margin-top: 0;
+}
+
+.release-history-article .release-entry-title {
+  position: relative;
+  margin: 2.5rem 0 1rem;
+  border-left: 3px solid hsl(var(--primary));
+  background: #f8fafc;
+  padding: 1rem 1.2rem;
+  color: #0f172a;
+  font-size: 1.12rem;
+  font-weight: 500;
+  line-height: 1.45;
+  scroll-margin-top: 6.5rem;
+}
+
+.release-history-article .release-badge {
+  display: inline-flex;
+  margin-left: 0.8rem;
+  border: 1px solid rgb(14 165 233 / 0.3);
+  background: rgb(14 165 233 / 0.08);
+  padding: 0.2rem 0.45rem;
+  vertical-align: middle;
+  font-family: "JetBrains Mono", ui-monospace, monospace;
+  font-size: 0.62rem;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #0369a1;
+}
+
+.release-history-article .release-subheading {
+  margin: 1.5rem 0 0.6rem;
+  color: #1e293b;
+  font-size: 0.95rem;
+  font-weight: 600;
+}
+
+.release-history-article p,
+.release-history-article ul {
+  margin: 0.9rem 0;
+}
+
+.release-history-article ul {
+  list-style: none;
+  padding-left: 0;
+}
+
+.release-history-article li {
+  position: relative;
+  margin: 0.55rem 0;
+  padding-left: 1.25rem;
+}
+
+.release-history-article li::before {
+  position: absolute;
+  left: 0;
+  top: 0.7em;
+  width: 0.35rem;
+  height: 0.35rem;
+  background: hsl(var(--primary));
+  content: "";
+}
+
+.release-history-article code {
+  border: 1px solid #dbe4ef;
+  background: #f1f5f9;
+  padding: 0.12rem 0.35rem;
+  font-family: "JetBrains Mono", ui-monospace, monospace;
+  font-size: 0.86em;
+  color: #0f4c81;
+}
+
+@media (max-width: 640px) {
+  .release-history-article .release-year {
+    font-size: 2rem;
+  }
+
+  .release-history-article .release-badge {
+    display: flex;
+    width: fit-content;
+    margin: 0.55rem 0 0;
+  }
+}

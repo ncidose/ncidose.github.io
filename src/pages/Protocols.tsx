@@ -207,19 +207,33 @@ const ToolContent = ({
           Read the current {tool.name} manual on this site.
         </p>
       </Link>
-      <a
-        href={tool.versionHistoryHref}
-        target="_blank"
-        rel="noopener noreferrer"
-        className="group border border-slate-200 p-4 transition-colors hover:border-primary"
-      >
-        <div className="font-mono text-xs uppercase tracking-widest text-primary">
-          Version history
-        </div>
-        <p className="mt-2 text-sm text-muted-foreground group-hover:text-slate-700">
-          Review {tool.name} releases and files.
-        </p>
-      </a>
+      {tool.versionHistoryHref.startsWith("http") ? (
+        <a
+          href={tool.versionHistoryHref}
+          target="_blank"
+          rel="noreferrer"
+          className="group border border-slate-200 p-4 transition-colors hover:border-primary"
+        >
+          <div className="font-mono text-xs uppercase tracking-widest text-primary">
+            Version history
+          </div>
+          <p className="mt-2 text-sm text-muted-foreground group-hover:text-slate-700">
+            Review {tool.name} releases and files.
+          </p>
+        </a>
+      ) : (
+        <Link
+          to={tool.versionHistoryHref}
+          className="group border border-slate-200 p-4 transition-colors hover:border-primary"
+        >
+          <div className="font-mono text-xs uppercase tracking-widest text-primary">
+            Version history
+          </div>
+          <p className="mt-2 text-sm text-muted-foreground group-hover:text-slate-700">
+            Review {tool.name} releases and files.
+          </p>
+        </Link>
+      )}
       <Link
         to="/resources"
         className="group border border-slate-200 p-4 transition-colors hover:border-primary"

@@ -10,6 +10,7 @@ import {
   Code2,
   ExternalLink,
   FileText,
+  History,
   Printer,
   Search,
   ShieldCheck,
@@ -25,6 +26,7 @@ import {
   type ManualCategory,
   type ManualDefinition,
 } from "@/data/manuals";
+import { releaseHistories } from "@/data/releases";
 
 const categoryLabels: Record<ManualCategory, string> = {
   software: "Research Software",
@@ -80,6 +82,15 @@ const ManualsIndex = () => {
     () =>
       manuals.filter((manual) =>
         `${manual.title} ${manual.product} ${manual.eyebrow} ${manual.description} ${manual.markdown}`
+          .toLowerCase()
+          .includes(normalizedQuery),
+      ),
+    [normalizedQuery],
+  );
+  const filteredReleaseHistories = useMemo(
+    () =>
+      releaseHistories.filter((history) =>
+        `${history.product} ${history.title} ${history.modality} ${history.description} ${history.markdown}`
           .toLowerCase()
           .includes(normalizedQuery),
       ),
@@ -158,7 +169,47 @@ const ManualsIndex = () => {
               );
             })}
 
-            {!filteredManuals.length && (
+            {filteredReleaseHistories.length > 0 && (
+              <div>
+                <div className="mb-8 grid gap-3 border-b border-border pb-6 md:grid-cols-[260px_1fr]">
+                  <h2 className="text-2xl font-light text-slate-900">Release History</h2>
+                  <p className="max-w-3xl text-sm leading-relaxed text-muted-foreground">
+                    Chronological technical records for official releases, calculation-library updates, maintenance changes, and compatibility notes.
+                  </p>
+                </div>
+                <div className="grid gap-5 md:grid-cols-2">
+                  {filteredReleaseHistories.map((history) => (
+                    <Link
+                      key={history.id}
+                      to={`/versions/${history.id}`}
+                      className="group flex min-h-[230px] flex-col border border-border bg-slate-950 p-6 text-white transition-all duration-300 hover:-translate-y-1 hover:border-primary hover:shadow-xl"
+                    >
+                      <div className="flex items-start justify-between gap-4">
+                        <span className="flex h-11 w-11 items-center justify-center border border-sky-400/30 bg-sky-400/10 text-sky-300">
+                          <History className="h-5 w-5" />
+                        </span>
+                        <span className="font-mono text-[11px] uppercase tracking-wider text-slate-400">
+                          Updated {history.latestUpdate}
+                        </span>
+                      </div>
+                      <div className="mt-6 font-mono text-xs uppercase tracking-widest text-sky-300">
+                        {history.modality}
+                      </div>
+                      <h3 className="mt-2 text-xl font-light">{history.title}</h3>
+                      <p className="mt-3 flex-1 text-sm leading-relaxed text-slate-400">
+                        {history.description}
+                      </p>
+                      <span className="mt-6 inline-flex items-center gap-2 font-mono text-xs uppercase tracking-wider text-sky-300">
+                        View release record
+                        <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
+                      </span>
+                    </Link>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {!filteredManuals.length && !filteredReleaseHistories.length && (
               <div className="border border-border bg-slate-50 py-16 text-center">
                 <BookOpen className="mx-auto h-8 w-8 text-muted-foreground" />
                 <h2 className="mt-4 text-xl font-light">No matching manuals</h2>
@@ -229,6 +280,11 @@ const ManualReader = ({ manual }: { manual: ManualDefinition }) => {
               <span className="text-slate-900">{manual.title}</span>
             </div>
             <div className="flex gap-3">
+              {manual.id === "ncict" && (
+                <Link to="/versions/ncict" className="btn-precision-outline inline-flex items-center gap-2 text-sm">
+                  <History className="h-4 w-4" /> Release history
+                </Link>
+              )}
               <Link to="/manuals" className="btn-precision-outline inline-flex items-center gap-2 text-sm">
                 <ArrowLeft className="h-4 w-4" /> All manuals
               </Link>
