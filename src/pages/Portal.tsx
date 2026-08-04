@@ -1392,7 +1392,7 @@ const Account = ({
             <div className="flex flex-col gap-2 sm:flex-row"><Input type="email" value={newEmail} onChange={(event) => setNewEmail(event.target.value)} placeholder="secondary@email.com" disabled={savingEmail} className="rounded-none" /><Button variant="outline" disabled={!newEmail.includes("@") || savingEmail} onClick={() => void addEmail()} className="shrink-0 rounded-none">{savingEmail ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />} Add email</Button></div>
           ) : !additionalIdentity.verified ? (
             <div className="border border-amber-200 bg-amber-50 p-4">
-              <div className="flex items-start gap-2 text-sm text-amber-900"><Mail className="mt-0.5 h-4 w-4 shrink-0" /><p>To verify <strong>{additionalIdentity.email}</strong>, sign out and return to the User Portal using that email. Cloudflare will send the one-time code.</p></div>
+              <div className="flex items-start gap-2 text-sm text-amber-900"><Mail className="mt-0.5 h-4 w-4 shrink-0" /><p>To verify <strong>{additionalIdentity.email}</strong>, sign out and return to the User Portal using that email. A one-time code will be sent to that address.</p></div>
               <Button type="button" variant="outline" onClick={() => void onSignOut()} className="mt-4 rounded-none border-amber-300 bg-white">Sign out to verify</Button>
             </div>
           ) : (

@@ -1,5 +1,5 @@
 export const portalLinks = {
-  userPortal: "https://ncidose.github.io/#/portal",
+  userPortal: "https://portal.ncidosetools.com",
   securePortal: "https://portal.ncidosetools.com",
   officialNci: "https://dceg.cancer.gov/tools/radiation-dosimetry-tools",
   github: "https://github.com/ncidose/ncidosetools",
