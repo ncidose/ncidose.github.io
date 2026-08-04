@@ -182,24 +182,24 @@ const ManualsIndex = () => {
                     <Link
                       key={history.id}
                       to={`/versions/${history.id}`}
-                      className="group flex min-h-[230px] flex-col border border-border bg-slate-950 p-6 text-white transition-all duration-300 hover:-translate-y-1 hover:border-primary hover:shadow-xl"
+                      className="group relative flex min-h-[230px] flex-col overflow-hidden border border-sky-100 bg-gradient-to-br from-white to-sky-50/70 p-6 text-slate-900 shadow-sm transition-all duration-300 before:absolute before:inset-x-0 before:top-0 before:h-1 before:bg-primary hover:-translate-y-1 hover:border-sky-300 hover:shadow-xl hover:shadow-sky-900/10"
                     >
                       <div className="flex items-start justify-between gap-4">
-                        <span className="flex h-11 w-11 items-center justify-center border border-sky-400/30 bg-sky-400/10 text-sky-300">
+                        <span className="flex h-11 w-11 items-center justify-center border border-sky-200 bg-white text-primary shadow-sm">
                           <History className="h-5 w-5" />
                         </span>
-                        <span className="font-mono text-[11px] uppercase tracking-wider text-slate-400">
+                        <span className="font-mono text-[11px] uppercase tracking-wider text-slate-500">
                           Updated {history.latestUpdate}
                         </span>
                       </div>
-                      <div className="mt-6 font-mono text-xs uppercase tracking-widest text-sky-300">
+                      <div className="mt-6 font-mono text-xs uppercase tracking-widest text-primary">
                         {history.modality}
                       </div>
                       <h3 className="mt-2 text-xl font-light">{history.title}</h3>
-                      <p className="mt-3 flex-1 text-sm leading-relaxed text-slate-400">
+                      <p className="mt-3 flex-1 text-sm leading-relaxed text-slate-600">
                         {history.description}
                       </p>
-                      <span className="mt-6 inline-flex items-center gap-2 font-mono text-xs uppercase tracking-wider text-sky-300">
+                      <span className="mt-6 inline-flex items-center gap-2 font-mono text-xs uppercase tracking-wider text-primary">
                         View release record
                         <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
                       </span>

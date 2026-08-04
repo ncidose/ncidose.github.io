@@ -31,44 +31,44 @@ const ReleaseHistoryPage = ({ history }: { history: ReleaseHistoryDefinition }) 
     <div className="min-h-screen bg-white">
       <Header />
       <main className="pt-16">
-        <section className="relative overflow-hidden border-b border-slate-800 bg-slate-950 text-white">
-          <div className="absolute inset-0 opacity-20 [background-image:linear-gradient(rgba(56,189,248,0.12)_1px,transparent_1px),linear-gradient(90deg,rgba(56,189,248,0.12)_1px,transparent_1px)] [background-size:48px_48px]" />
+        <section className="relative overflow-hidden border-b border-sky-100 bg-gradient-to-br from-white via-sky-50 to-blue-50 text-slate-950">
+          <div className="absolute inset-0 opacity-60 [background-image:linear-gradient(rgba(14,165,233,0.07)_1px,transparent_1px),linear-gradient(90deg,rgba(14,165,233,0.07)_1px,transparent_1px)] [background-size:48px_48px]" />
           <div className="container relative mx-auto px-6 py-16 lg:py-24">
-            <div className="flex flex-wrap items-center gap-2 text-sm text-slate-400">
-              <Link to="/manuals" className="transition-colors hover:text-sky-300">Documentation</Link>
+            <div className="flex flex-wrap items-center gap-2 text-sm text-slate-500">
+              <Link to="/manuals" className="transition-colors hover:text-primary">Documentation</Link>
               <span>/</span>
-              <span className="text-slate-200">Release history</span>
+              <span className="text-slate-700">Release history</span>
               <span>/</span>
-              <span className="text-white">{history.product}</span>
+              <span className="text-slate-950">{history.product}</span>
             </div>
 
             <div className="mt-12 grid gap-12 lg:grid-cols-[minmax(0,1fr)_360px] lg:items-end">
               <div className="max-w-4xl">
-                <div className="inline-flex items-center gap-2 border border-sky-400/30 bg-sky-400/10 px-3 py-1.5 font-mono text-xs uppercase tracking-[0.2em] text-sky-300">
+                <div className="inline-flex items-center gap-2 border border-sky-200 bg-white/80 px-3 py-1.5 font-mono text-xs uppercase tracking-[0.2em] text-primary shadow-sm">
                   <History className="h-4 w-4" /> {history.modality}
                 </div>
                 <h1 className="mt-6 text-5xl font-light tracking-tight md:text-6xl lg:text-7xl">
                   {history.title}
                 </h1>
-                <p className="mt-6 max-w-3xl text-lg leading-relaxed text-slate-300">
+                <p className="mt-6 max-w-3xl text-lg leading-relaxed text-slate-600">
                   {history.description}
                 </p>
               </div>
 
-              <div className="border border-white/15 bg-white/[0.06] p-6 backdrop-blur-sm">
-                <div className="font-mono text-[11px] uppercase tracking-[0.2em] text-sky-300">Current record</div>
+              <div className="border border-sky-100 bg-white/90 p-6 shadow-lg shadow-sky-900/5 backdrop-blur-sm">
+                <div className="font-mono text-[11px] uppercase tracking-[0.2em] text-primary">Current record</div>
                 <dl className="mt-5 space-y-4 text-sm">
-                  <div className="flex items-center justify-between gap-4 border-b border-white/10 pb-4">
-                    <dt className="flex items-center gap-2 text-slate-400"><Clock3 className="h-4 w-4" /> Latest update</dt>
-                    <dd className="text-right text-white">{history.latestUpdate}</dd>
+                  <div className="flex items-center justify-between gap-4 border-b border-slate-100 pb-4">
+                    <dt className="flex items-center gap-2 text-slate-500"><Clock3 className="h-4 w-4 text-primary" /> Latest update</dt>
+                    <dd className="text-right text-slate-900">{history.latestUpdate}</dd>
                   </div>
-                  <div className="flex items-center justify-between gap-4 border-b border-white/10 pb-4">
-                    <dt className="flex items-center gap-2 text-slate-400"><CheckCircle2 className="h-4 w-4" /> Official release</dt>
-                    <dd className="font-mono text-right text-white">{history.latestOfficialRelease}</dd>
+                  <div className="flex items-center justify-between gap-4 border-b border-slate-100 pb-4">
+                    <dt className="flex items-center gap-2 text-slate-500"><CheckCircle2 className="h-4 w-4 text-primary" /> Official release</dt>
+                    <dd className="font-mono text-right text-slate-900">{history.latestOfficialRelease}</dd>
                   </div>
                   <div className="flex items-center justify-between gap-4">
-                    <dt className="flex items-center gap-2 text-slate-400"><CalendarDays className="h-4 w-4" /> Record begins</dt>
-                    <dd className="text-right text-white">{history.firstReleaseYear}</dd>
+                    <dt className="flex items-center gap-2 text-slate-500"><CalendarDays className="h-4 w-4 text-primary" /> Record begins</dt>
+                    <dd className="text-right text-slate-900">{history.firstReleaseYear}</dd>
                   </div>
                 </dl>
               </div>
