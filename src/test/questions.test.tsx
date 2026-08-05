@@ -31,7 +31,7 @@ const featureRequestSample = {
   body: "Community requests and NCI Dose Team status updates are identified below.",
   answers: [
     { ...sample.answers[0], id: "request-1", body: "Please add a new scanner model.", responseType: "community", authorName: "@requester", messageType: "request" },
-    { ...sample.answers[0], id: "update-1", body: "Included in the current release.", responseType: "team", messageType: "status_update" },
+    { ...sample.answers[0], id: "update-1", body: "Included in the current release.", responseType: "team", authorName: "@ncidoseteam", messageType: "status_update" },
   ],
 };
 
@@ -59,7 +59,7 @@ describe("public Q&A", () => {
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: true, json: async () => ({ questions: [featureRequestSample] }) }));
     render(<MemoryRouter initialEntries={["/questions/github-31"]}><Routes><Route path="/questions/:questionId" element={<Questions />} /></Routes></MemoryRouter>);
     expect(await screen.findByText("User Community · @requester · Request")).toBeInTheDocument();
-    expect(screen.getByText("NCI Dose Team · @haeginh · Status update")).toBeInTheDocument();
+    expect(screen.getByText("NCI Dose Team · @choonsiklee · Status update")).toBeInTheDocument();
     expect(screen.getByText("Included in the current release.")).toBeInTheDocument();
   });
 });

@@ -61,9 +61,12 @@ const questionMessageTypeLabels: Record<QuestionMessageType, string> = {
 };
 
 export const questionAnswerLabel = (answer: QuestionAnswer) => {
+  const authorName = answer.authorName?.toLowerCase() === "@ncidoseteam"
+    ? "@choonsiklee"
+    : answer.authorName;
   const participant = answer.responseType === "team"
-    ? `NCI Dose Team${answer.authorName ? ` · ${answer.authorName}` : ""}`
-    : `User Community${answer.authorName ? ` · ${answer.authorName}` : ""}`;
+    ? `NCI Dose Team${authorName ? ` · ${authorName}` : ""}`
+    : `User Community${authorName ? ` · ${authorName}` : ""}`;
   return `${participant} · ${questionMessageTypeLabels[answer.messageType]}`;
 };
 

@@ -33,7 +33,7 @@ const isTeamResponse = (response) => {
 const publicAuthorName = (entry, responseType = "community") => {
   const login = entry.author?.login;
   if (!login) return null;
-  if (responseType === "team") return `@${login}`;
+  if (responseType === "team") return `@${login === "ncidoseteam" ? "choonsiklee" : login}`;
   return !teamLogins.has(login) ? `@${login}` : null;
 };
 
