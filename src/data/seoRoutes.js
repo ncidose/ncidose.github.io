@@ -139,7 +139,7 @@ export const seoRoutes = [
     title: "User Manuals and API Documentation | NCI Dose Tools",
     heading: "Manuals and API Documentation",
     description:
-      "Search NCICT, NCIRF, NCINM, computational phantom, and REST API manuals without a GitHub account.",
+      "Search current NCICT, NCIRF, NCINM, computational phantom, and REST API manuals in the public NCI Dose Tools documentation library.",
     schemaType: "CollectionPage",
   },
   ...manualPages.map((manual) => ({

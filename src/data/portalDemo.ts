@@ -48,7 +48,7 @@ export const portalAnnouncements: PortalAnnouncement[] = [
     id: "portal-preview",
     title: "NCI Dose Tools user portal preview",
     summary:
-      "The portal will gradually replace Google Drive for controlled downloads and Google Groups for release announcements.",
+      "The User Portal now provides controlled downloads, release announcements, account management, and approved-user discussions in one place.",
     date: "August 1, 2026",
     category: "Access",
     audience: "Public",

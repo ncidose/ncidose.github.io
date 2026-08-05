@@ -20,7 +20,7 @@ const portalCards = [
     eyebrow: "Public Documentation",
     title: "Manuals & API Documentation",
     description:
-      "Search current NCICT, NCINM, NCIRF, PHANTOM, and vendor REST API manuals without a GitHub account.",
+      "Search current NCICT, NCINM, NCIRF, PHANTOM, and vendor REST API manuals in one public documentation library.",
     href: "/manuals",
     linkText: "Browse manuals",
     external: false,
@@ -40,7 +40,7 @@ const portalCards = [
     eyebrow: "Public Knowledge Base",
     title: "Community Discussions",
     description:
-      "Search practical NCICT, NCINM, NCIRF, and PHANTOM guidance without a GitHub account.",
+      "Read technical questions, bug reports, feature requests, and NCI Dose Team responses. Approved users can participate through the User Portal.",
     href: "/discussions",
     linkText: "Browse discussions",
     external: false,
@@ -50,7 +50,7 @@ const portalCards = [
     eyebrow: "Approved Users",
     title: "NCI Dose Tools User Portal",
     description:
-      "The secure portal for approved-user announcements and controlled software downloads.",
+      "The secure portal for approved-user downloads, announcements, account management, and discussion participation.",
     href: portalLinks.userPortal,
     linkText: "Open User Portal",
     external: true,
@@ -135,10 +135,10 @@ const Research = () => {
                 <span className="block text-muted-foreground">Official Website, Approved Access</span>
               </h1>
               <p className="mt-6 max-w-3xl text-lg text-muted-foreground">
-                The official NCI website, this public technical site,
-                and the approved-user file repository each serve a different purpose.
-                This site supports documentation and user support while keeping the
-                official NCI website as the authoritative institutional source.
+                The official NCI website, this public technical site, and the secure
+                User Portal each serve a distinct purpose. This site is the central
+                public location for technical documentation and user support, while the
+                official NCI website remains the authoritative institutional source.
               </p>
             </motion.div>
           </div>
@@ -235,17 +235,16 @@ const Research = () => {
                 transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
               >
                 <span className="font-mono text-xs uppercase tracking-widest text-primary">
-                  Positioning
+                  How the sites work together
                 </span>
                 <h2 className="mt-4 text-section-md lg:text-section">
-                  What this site should do
+                  A clear path from information to access
                 </h2>
                 <p className="mt-5 text-muted-foreground leading-relaxed">
-                  This public technical site should be easier to update than the
-                  official NCI website and more user-oriented than repository issue
-                  threads. Its role is to explain, orient, announce, and route
-                  visitors to the correct official, technical, or approved-access
-                  channel.
+                  Use this public technical site to learn about the tools, read current
+                  manuals and release histories, review literature, and search community
+                  discussions. Use the official NCI website for institutional information
+                  and the secure User Portal for approved downloads and participation.
                 </p>
               </motion.div>
 
@@ -257,10 +256,10 @@ const Research = () => {
                 className="grid gap-3"
               >
                 {[
-                  "Keep public summaries current when tool capabilities, access routes, or documentation locations change.",
-                  "Keep the official NCI website as the authoritative institutional source for official context and access policy.",
-                  "Avoid burying new visitors in issue threads, release tags, or implementation details.",
-                  "Send approved users to the User Portal for restricted files and discussion posting, while manuals, release histories, and public conversations remain readable here.",
+                  "Tool summaries, manuals, API documentation, release histories, literature, and public discussions are available directly on this site.",
+                  "The official NCI website remains the authoritative institutional source for NCI context and access policy.",
+                  "Approved users use the secure User Portal for software downloads, announcements, account management, and posting or replying to discussions.",
+                  "Anyone can read the public documentation and community discussions without signing in.",
                 ].map((item) => (
                   <div key={item} className="flex gap-4 border border-border bg-white p-4">
                     <ArrowRight className="mt-0.5 h-4 w-4 flex-shrink-0 text-primary" />

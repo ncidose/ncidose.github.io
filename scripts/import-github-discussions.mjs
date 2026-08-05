@@ -16,7 +16,7 @@ const featureBodyRequestNumbers = new Set([39]);
 const featureTeamUpdateIds = new Set(["DC_kwDONcuSIs4AsESJ"]);
 const bugReportNumbers = new Set([9, 12, 14, 15, 21, 22, 27, 30, 45]);
 const embeddedBugPattern = /^(?:bug report|error report)\s*:\s*/i;
-const featureRequestBody = "Requests collected from the former GitHub Discussions feature-request threads. Community requests and NCI Dose Team status updates are identified below.";
+const featureRequestBody = "Feature requests collected from the NCI Dose Tools user community. Community requests and NCI Dose Team status updates are identified below.";
 
 const requestTypeForDiscussion = (number) => featureRequestNumbers.has(number)
   ? "feature_request"
@@ -67,6 +67,20 @@ const teamVoice = (value = "") => {
     .replace(/\*\*([\s\S]*?)\*\*/g, (_match, answer) => `**${pluralizeTeamVoice(answer)}**`);
   return introduction + questionAndAnswers;
 };
+
+const currentDistributionLanguage = (value = "") => value
+  .replace(
+    /The full body size phantom library \(n=362\) is now available from OneDrive for users with software transfer agreement completed\./i,
+    "The full body size-dependent phantom library (n = 362) is available through the secure NCI Dose Tools User Portal for users with an approved Software Transfer Agreement.",
+  )
+  .replace(
+    /the original voxel phantoms available in the Google Drive repository\./i,
+    "the original voxel phantoms available through the secure NCI Dose Tools User Portal.",
+  )
+  .replace(
+    /the full size-dependent phantom library available here:\s*https:\/\/drive\.google\.com\/drive\/folders\/1WUBog3LP2wNGPSl6wXVzniKOVr1KH_6z\?usp=share_link/i,
+    "the full size-dependent phantom library available through the secure NCI Dose Tools User Portal for approved users:\nhttps://portal.ncidosetools.com",
+  );
 
 const query = `
   query DiscussionArchive($owner: String!, $name: String!) {
@@ -185,7 +199,7 @@ for (const discussion of discussions) {
     const authorName = publicAuthorName(responseItem, responseType);
     const parentAnswerId = responseItem.parentSourceId ? `github-${responseItem.parentSourceId}` : null;
     const normalizedBody = normalizeMarkdown(responseItem.body);
-    const body = responseType === "team" ? teamVoice(normalizedBody) : normalizedBody;
+    const body = responseType === "team" ? currentDistributionLanguage(teamVoice(normalizedBody)) : normalizedBody;
     statements.push(`INSERT OR IGNORE INTO qa_answers (id, question_id, body, response_type, author_name, parent_answer_id, message_type, sort_order, source_ref, created_at, updated_at) VALUES (${sql(answerId)}, ${sql(questionId)}, ${sql(body)}, ${sql(responseType)}, ${sql(authorName)}, ${sql(parentAnswerId)}, ${sql(messageType)}, ${index}, ${sql(responseItem.id)}, ${sql(responseItem.createdAt)}, ${sql(responseItem.createdAt)});`);
     statements.push(`UPDATE qa_answers SET body=${sql(body)}, response_type=${sql(responseType)}, author_name=${sql(authorName)}, parent_answer_id=${sql(parentAnswerId)}, message_type=${sql(messageType)}, sort_order=${index}, updated_at=CURRENT_TIMESTAMP WHERE id=${sql(answerId)} AND source_ref=${sql(responseItem.id)};`);
     if (responseType === "team") seenTeamResponse = true;

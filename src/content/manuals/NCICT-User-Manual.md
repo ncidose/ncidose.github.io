@@ -156,7 +156,7 @@ Detailed cardiac substructure doses are available when size-dependent phantoms a
 
 ## 5. Batch Calculation Mode
 
-Input parameters can be provided in CSV format. A template file (**ncictBatchInput.csv**) is available in the repository and can be edited in Excel.
+Input parameters can be provided in CSV format. A template file (**ncictBatchInput.csv**) is included with the NCICT distribution and can be edited in Excel.
 
 The Batch CSV uses the same calculation parameters as the NCICT API. The API uses JSON format, while GUI Batch uses CSV format, but the parameter names and definitions are the same.
 

@@ -188,10 +188,10 @@ was adopted as the recommended distribution format for several reasons:
   correctly.
 - Compressed NIfTI files are smaller and easier to transfer than the corresponding
   raw binary voxel files.
-- In previous releases, the raw binary file size was too large to practically release
-  the full high-resolution NCI body size–dependent phantom library (**n = 362**) via
-  Google Drive. The compressed `.nii.gz` format makes this high-resolution release
-  practical while preserving the integer organ-label voxel data.
+- The raw binary representation of the full high-resolution NCI body size–dependent
+  phantom library (**n = 362**) is extremely large. The compressed `.nii.gz` format
+  makes distribution through the secure User Portal practical while preserving the
+  integer organ-label voxel data.
 
 ### What Information Is Included
 

@@ -8,6 +8,7 @@ export const Footer = () => {
     Product: [
       { label: "Our Tools", href: "/tools" },
       { label: "Manuals & API Documentation", href: "/manuals" },
+      { label: "Discussions", href: "/discussions" },
       { label: "For Vendors", href: "/vendors" },
       { label: "For Researchers", href: "/researchers" },
       { label: "Literature Registry", href: "/literature" },
@@ -15,8 +16,8 @@ export const Footer = () => {
     ],
     Resources: [
       { label: "Official NCI Resources", href: "https://dceg.cancer.gov/tools/radiation-dosimetry-tools", external: true },
-      { label: "GitHub Technical Repository", href: "https://github.com/ncidose/ncidosetools", external: true },
       { label: "Approved User Portal", href: portalLinks.userPortal, external: true },
+      { label: "GitHub Development Repository", href: "https://github.com/ncidose/ncidosetools", external: true },
       { label: "Professional Updates", href: "https://www.linkedin.com/in/choonsiklee/", external: true },
     ],
   };
@@ -76,11 +77,11 @@ export const Footer = () => {
 
         <div className="mt-12 border-t border-border pt-6">
           <p className="max-w-4xl text-xs leading-relaxed text-muted-foreground">
-            This GitHub Pages site provides technical documentation and user-support
-            information for NCI Dose Tools. The official NCI/DCEG information page
-            should be used as the authoritative institutional source. Access to
-            software is restricted to approved users under the applicable Software
-            Transfer Agreement or commercial licensing agreement.
+            This public technical site provides manuals, release histories, literature,
+            and user-support discussions for NCI Dose Tools. The official NCI/DCEG
+            information page remains the authoritative institutional source. Software
+            downloads are available only through the secure User Portal to users covered
+            by an approved Software Transfer Agreement or commercial licensing agreement.
           </p>
         </div>
 

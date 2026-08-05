@@ -47,7 +47,7 @@ Record begins: **2019**
 
 ### December 15, 2024 — Official Release 2.0.20241215
 
-- Added links to the user manual and user forum.
+- Added in-application links to the user manual and technical support forum (now NCI Dose Tools Discussions).
 - Corrected radionuclide selection when switching radiopharmaceuticals.
 
 ### January 24, 2024 — Official Release 2.0.20240124
@@ -112,7 +112,7 @@ Record begins: **2019**
 ### October 19, 2021
 
 - Added biokinetic data for **62 radiopharmaceuticals**.
-- Added User Manual and User Forum items under the Help menu.
+- Added User Manual and User Forum items under the Help menu (the forum is now NCI Dose Tools Discussions).
 
 ### May 15, 2021
 

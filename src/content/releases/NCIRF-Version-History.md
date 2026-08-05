@@ -74,7 +74,7 @@ Record begins: **2022**
 - Added patient-table thickness input for explicit Monte Carlo calculations.
 - Added automatic selection of the best-matching x-ray spectrum in **Batch Manager**.
 - Added numeric patient-age input in Batch Manager as an alternative to age-group selection for reference phantoms.
-- Added links to the user manual and user forum.
+- Added in-application links to the user manual and technical support forum (now NCI Dose Tools Discussions).
 
 #### Bug fixes from the July 18, 2024 beta
 

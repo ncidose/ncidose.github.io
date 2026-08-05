@@ -4,7 +4,7 @@ import { Link } from "react-router-dom";
 import { Header } from "@/components/Header";
 import { Footer } from "@/components/Footer";
 import { portalLinks } from "@/data/nciDoseTools";
-import { ExternalLink } from "lucide-react";
+import { ExternalLink, MessageSquare } from "lucide-react";
 
 const FeatureCard = ({ icon, title, description, delay = 0 }: { icon: React.ReactNode; title: string; description: string; delay?: number }) => {
   const ref = useRef<HTMLDivElement>(null);
@@ -218,7 +218,7 @@ const Researchers = () => {
               </h2>
             </motion.div>
 
-            <div className="max-w-4xl mx-auto grid md:grid-cols-2 gap-6">
+            <div className="mx-auto grid max-w-6xl gap-6 md:grid-cols-3">
               <motion.div
                 initial={{ opacity: 0, y: 30 }}
                 whileInView={{ opacity: 1, y: 0 }}
@@ -252,6 +252,32 @@ const Researchers = () => {
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
                 transition={{ duration: 0.6, delay: 0.2, ease: [0.16, 1, 0.3, 1] }}
+                className="glass-card p-6"
+              >
+                <div className="flex items-start gap-4">
+                  <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center border border-primary text-primary">
+                    <MessageSquare className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <h3 className="mb-3 font-medium text-foreground">Technical discussions</h3>
+                    <p className="mb-4 text-sm text-muted-foreground">
+                      Public questions, bug reports, feature requests, and responses from the NCI Dose Team
+                    </p>
+                    <Link
+                      to="/discussions"
+                      className="inline-flex items-center gap-1 font-mono text-sm text-primary hover:underline"
+                    >
+                      Browse discussions
+                    </Link>
+                  </div>
+                </div>
+              </motion.div>
+
+              <motion.div
+                initial={{ opacity: 0, y: 30 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ duration: 0.6, delay: 0.3, ease: [0.16, 1, 0.3, 1] }}
                 className="glass-card p-6"
               >
                 <div className="flex items-start gap-4">

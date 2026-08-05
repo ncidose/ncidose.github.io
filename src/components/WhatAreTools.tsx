@@ -44,7 +44,7 @@ export const WhatAreTools = () => {
             </div>
             <div className="p-4 bg-slate-200/40">
               <p className="text-sm text-muted-foreground">
-                <span className="text-foreground font-medium">NCI Dose Tools Technical Site</span> complements the{" "}
+                <span className="text-foreground font-medium">NCI Dose Tools Technical Site</span> is the public home for current user manuals, release histories, literature, and technical discussions. It complements the{" "}
                 <a 
                   href={portalLinks.officialNci}
                   target="_blank" 
@@ -53,25 +53,22 @@ export const WhatAreTools = () => {
                 >
                   official NCI website
                 </a>{" "}
-                and the{" "}
-                <a 
-                  href={portalLinks.github}
-                  target="_blank" 
-                  rel="noopener noreferrer"
-                  className="text-primary hover:underline"
-                >
-                  GitHub repository
-                </a>{" "}
-                by providing technical documentation and user-support resources. The
-                official NCI website remains the authoritative institutional source for official
-                context and access policy.
+                and provides a direct path to the secure User Portal for approved downloads and community participation. The official NCI website remains the authoritative institutional source for institutional context and access policy.
               </p>
-              <Link
-                to="/manuals"
-                className="mt-4 inline-flex font-mono text-sm text-primary hover:underline"
-              >
-                Browse user manuals and API documentation →
-              </Link>
+              <div className="mt-4 flex flex-wrap gap-x-6 gap-y-2">
+                <Link
+                  to="/manuals"
+                  className="inline-flex font-mono text-sm text-primary hover:underline"
+                >
+                  Browse user manuals and API documentation →
+                </Link>
+                <Link
+                  to="/discussions"
+                  className="inline-flex font-mono text-sm text-primary hover:underline"
+                >
+                  Browse technical discussions →
+                </Link>
+              </div>
             </div>
           </motion.div>
         </div>

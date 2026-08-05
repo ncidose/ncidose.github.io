@@ -89,7 +89,7 @@ Record begins: **2011**
 
 ### December 15, 2024 — Official Release 3.0.20241215
 
-- Added links to the user manual and user forum.
+- Added in-application links to the user manual and technical support forum (now NCI Dose Tools Discussions).
 
 ### June 26, 2024
 
@@ -139,7 +139,7 @@ Record begins: **2011**
 
 - Made height and weight fields read-only for body size-dependent phantoms; body size is adjusted using arrow controls.
 - Enabled batch input for pregnant women phantoms and fetal phantoms.
-- Added User Manual and User Forum menu items under the **Help** menu.
+- Added User Manual and User Forum menu items under the **Help** menu (the forum is now NCI Dose Tools Discussions).
 
 ### October 21, 2021
 
