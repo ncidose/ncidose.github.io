@@ -1,4 +1,4 @@
-import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -6,40 +6,6 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const projectRoot = path.resolve(__dirname, "..");
 const outputPath = path.join(projectRoot, "public", "literature.json");
 const eutilsBase = "https://eutils.ncbi.nlm.nih.gov/entrez/eutils";
-
-const literatureEntryKey = (toolId, pmid) => `${toolId}:${pmid}`;
-
-const existingRegistryDates = async () => {
-  try {
-    const existing = JSON.parse(await readFile(outputPath, "utf8"));
-    const dates = new Map();
-    for (const tool of existing.tools ?? []) {
-      for (const year of tool.years ?? []) {
-        for (const article of year.articles ?? []) {
-          dates.set(
-            literatureEntryKey(tool.id, article.pmid),
-            article.addedAt || existing.generatedAt,
-          );
-        }
-      }
-    }
-    return dates;
-  } catch {
-    return new Map();
-  }
-};
-
-const attachRegistryDates = (tools, previousDates, generatedAt) =>
-  tools.map((tool) => ({
-    ...tool,
-    years: tool.years.map((year) => ({
-      ...year,
-      articles: year.articles.map((article) => ({
-        ...article,
-        addedAt: previousDates.get(literatureEntryKey(tool.id, article.pmid)) || generatedAt,
-      })),
-    })),
-  }));
 
 const searchDefinitions = [
   {
@@ -288,6 +254,7 @@ const buildToolData = async (definition) => {
         title: String(summary.title ?? "").replace(/\.$/, ""),
         journal: summary.fulljournalname || summary.source || "",
         pubdate: summary.pubdate || summary.epubdate || "",
+        publicationDate: String(summary.sortpubdate || "").slice(0, 10).replaceAll("/", "-"),
         year: extractYear(summary),
         authors: authors.slice(0, 6),
         nciTeamAuthored: authors.includes("Lee C"),
@@ -394,17 +361,12 @@ const removeSharedToolPapersFromPhantom = (tools) => {
 };
 
 const main = async () => {
-  const previousDates = await existingRegistryDates();
   const generatedAt = new Date().toISOString();
   const rawTools = [];
   for (const definition of searchDefinitions) {
     rawTools.push(await buildToolData(definition));
   }
-  const tools = attachRegistryDates(
-    removeSharedToolPapersFromPhantom(rawTools),
-    previousDates,
-    generatedAt,
-  );
+  const tools = removeSharedToolPapersFromPhantom(rawTools);
 
   const payload = {
     generatedAt,

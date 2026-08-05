@@ -3,7 +3,6 @@ import { motion } from "framer-motion";
 import {
   ArrowRight,
   CalendarDays,
-  Clock3,
   Database,
   ExternalLink,
   FileText,
@@ -19,8 +18,8 @@ type LiteratureArticle = {
   title: string;
   journal: string;
   pubdate: string;
+  publicationDate?: string;
   year: string;
-  addedAt?: string;
   authors: string[];
   nciTeamAuthored?: boolean;
   doi: string | null;
@@ -58,8 +57,7 @@ type LiteratureData = {
   tools: LiteratureTool[];
 };
 
-type RecentlyAddedArticle = {
-  addedAt: string;
+type RecentlyPublishedArticle = {
   article: LiteratureArticle;
   tools: { id: string; name: string }[];
 };
@@ -69,9 +67,6 @@ const formatGeneratedDate = (value: string) =>
     dateStyle: "medium",
     timeStyle: "short",
   }).format(new Date(value));
-
-const formatRegistryDate = (value: string) =>
-  new Intl.DateTimeFormat("en-US", { dateStyle: "medium" }).format(new Date(value));
 
 const assetPath = (path: string) =>
   `${import.meta.env.BASE_URL.replace(/\/$/, "")}/${path.replace(/^\//, "")}`;
@@ -125,18 +120,21 @@ const cumulativeLiteratureSeries = (tools: LiteratureTool[]) => {
     });
 };
 
-const recentlyAddedArticles = (tools: LiteratureTool[], limit = 5) => {
-  const byPmid = new Map<string, RecentlyAddedArticle>();
+const publicationTimestamp = (article: LiteratureArticle) => {
+  const precise = article.publicationDate ? new Date(`${article.publicationDate}T00:00:00Z`).getTime() : Number.NaN;
+  return Number.isFinite(precise) ? precise : new Date(`${article.year}-01-01T00:00:00Z`).getTime();
+};
+
+const recentlyPublishedArticles = (tools: LiteratureTool[], limit = 5) => {
+  const byPmid = new Map<string, RecentlyPublishedArticle>();
 
   for (const tool of tools) {
     for (const year of tool.years) {
       for (const article of year.articles) {
-        if (!article.addedAt) continue;
         const existing = byPmid.get(article.pmid);
         const toolReference = { id: tool.id, name: tool.tool };
         if (!existing) {
           byPmid.set(article.pmid, {
-            addedAt: article.addedAt,
             article,
             tools: [toolReference],
           });
@@ -145,8 +143,7 @@ const recentlyAddedArticles = (tools: LiteratureTool[], limit = 5) => {
         if (!existing.tools.some((entry) => entry.id === tool.id)) {
           existing.tools.push(toolReference);
         }
-        if (new Date(article.addedAt).getTime() > new Date(existing.addedAt).getTime()) {
-          existing.addedAt = article.addedAt;
+        if (publicationTimestamp(article) > publicationTimestamp(existing.article)) {
           existing.article = article;
         }
       }
@@ -155,7 +152,7 @@ const recentlyAddedArticles = (tools: LiteratureTool[], limit = 5) => {
 
   return Array.from(byPmid.values())
     .sort((left, right) => {
-      const dateDifference = new Date(right.addedAt).getTime() - new Date(left.addedAt).getTime();
+      const dateDifference = publicationTimestamp(right.article) - publicationTimestamp(left.article);
       return dateDifference || right.article.pmid.localeCompare(left.article.pmid, undefined, { numeric: true });
     })
     .slice(0, limit);
@@ -302,7 +299,7 @@ const Literature = () => {
 
             {data && !isDetailPage && (
               <>
-                <RecentlyAdded tools={data.tools} />
+                <RecentlyPublished tools={data.tools} />
                 <LiteratureIndex tools={data.tools} />
               </>
             )}
@@ -591,8 +588,8 @@ const LiteratureIndex = ({ tools }: { tools: LiteratureTool[] }) => (
   </div>
 );
 
-const RecentlyAdded = ({ tools }: { tools: LiteratureTool[] }) => {
-  const articles = recentlyAddedArticles(tools);
+const RecentlyPublished = ({ tools }: { tools: LiteratureTool[] }) => {
+  const articles = recentlyPublishedArticles(tools);
   if (articles.length === 0) return null;
 
   return (
@@ -604,23 +601,23 @@ const RecentlyAdded = ({ tools }: { tools: LiteratureTool[] }) => {
       className="mb-12 grid border border-border bg-white lg:grid-cols-[0.7fr_1.3fr]"
     >
       <div className="border-b border-border bg-slate-50 p-7 lg:border-b-0 lg:border-r">
-        <Clock3 className="h-5 w-5 text-primary" />
+        <CalendarDays className="h-5 w-5 text-primary" />
         <div className="mt-6 font-mono text-xs uppercase tracking-widest text-primary">
-          Registry activity
+          Current literature
         </div>
-        <h2 className="mt-3 text-3xl font-light text-slate-950">Recently added</h2>
+        <h2 className="mt-3 text-3xl font-light text-slate-950">Recently published</h2>
         <p className="mt-4 max-w-md text-sm leading-relaxed text-muted-foreground">
-          The five papers most recently added to the NCI Dose Tools Literature Registry.
-          These dates reflect registry updates, not publication dates.
+          The five most recently published papers found in the NCI Dose Tools
+          Literature Registry, ordered by PubMed publication date.
         </p>
       </div>
 
       <div className="divide-y divide-border px-6 sm:px-8">
-        {articles.map(({ addedAt, article, tools: articleTools }) => (
+        {articles.map(({ article, tools: articleTools }) => (
           <article key={article.pmid} className="py-6">
             <div className="flex flex-wrap items-center gap-2">
               <span className="font-mono text-[11px] uppercase tracking-wider text-slate-500">
-                Added {formatRegistryDate(addedAt)}
+                Published {article.pubdate || article.year}
               </span>
               {articleTools.map((tool) => (
                 <Link

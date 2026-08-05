@@ -3,14 +3,14 @@ import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import Literature from "@/pages/Literature";
 
-const article = (pmid: string, title: string, addedAt: string) => ({
+const article = (pmid: string, title: string, publicationDate: string) => ({
   pmid,
   pmcid: null,
   title,
   journal: "Medical Physics",
   pubdate: "2026",
   year: "2026",
-  addedAt,
+  publicationDate,
   authors: ["Researcher A", "Researcher B"],
   doi: null,
   sources: ["PubMed title/abstract"],
@@ -44,7 +44,7 @@ const payload = {
 describe("literature registry activity", () => {
   afterEach(() => vi.restoreAllMocks());
 
-  it("shows the five most recently registered papers by added date", async () => {
+  it("shows the five most recently published papers by PubMed publication date", async () => {
     vi.stubGlobal("IntersectionObserver", class {
       observe() {}
       unobserve() {}
@@ -57,13 +57,13 @@ describe("literature registry activity", () => {
       </MemoryRouter>,
     );
 
-    const heading = await screen.findByRole("heading", { name: "Recently added" });
+    const heading = await screen.findByRole("heading", { name: "Recently published" });
     const section = heading.closest("section");
     expect(section).not.toBeNull();
     const recent = within(section!);
     expect(recent.getByText("Newest registry paper")).toBeInTheDocument();
     expect(recent.getByText("Fifth newest registry paper")).toBeInTheDocument();
     expect(recent.queryByText("Oldest registry paper")).not.toBeInTheDocument();
-    expect(recent.getByText(/registry updates, not publication dates/i)).toBeInTheDocument();
+    expect(recent.getByText(/ordered by PubMed publication date/i)).toBeInTheDocument();
   });
 });
