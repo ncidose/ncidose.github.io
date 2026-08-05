@@ -8,10 +8,22 @@ import { Footer } from "@/components/Footer";
 import { portalLinks } from "@/data/portalLinks";
 import { buildAnswerThreads, normalizePublicQuestion, publicQuestionsApi, questionAnswerLabel, questionAuthorLabel, questionRequestTypeLabels, questionRequestTypes, questionTools, type PublicQuestion, type QuestionAnswerThread, type QuestionRequestType } from "@/lib/questions";
 import { cn } from "@/lib/utils";
+import { applyPageSeo } from "@/lib/seo";
 
 const displayDate = (value: string | null) => value
   ? new Intl.DateTimeFormat("en-US", { year: "numeric", month: "short", day: "numeric" }).format(new Date(value))
   : "";
+
+const plainText = (value: string) => value
+  .replace(/!\[([^\]]*)\]\([^)]*\)/g, "$1")
+  .replace(/\[([^\]]+)\]\([^)]*\)/g, "$1")
+  .replace(/[#*_`>~]/g, "")
+  .replace(/\s+/g, " ")
+  .trim();
+
+const schemaDate = (value: string | null) => value && /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/.test(value)
+  ? `${value.replace(" ", "T")}Z`
+  : value;
 
 const Markdown = ({ children }: { children: string }) => (
   <ReactMarkdown
@@ -62,6 +74,47 @@ const Questions = () => {
   }, []);
 
   const selected = questionId ? questions.find((question) => question.id === questionId) : undefined;
+
+  useEffect(() => {
+    if (!selected) return;
+    const description = plainText(selected.body).slice(0, 220);
+    applyPageSeo({
+      pathname: `/discussions/${selected.id}`,
+      title: `${selected.title} | NCI Dose Tools Discussions`,
+      heading: selected.title,
+      description,
+      schemaType: "DiscussionForumPosting",
+      jsonLd: {
+        "@context": "https://schema.org",
+        "@type": "DiscussionForumPosting",
+        headline: selected.title,
+        articleBody: plainText(selected.body),
+        datePublished: schemaDate(selected.publishedAt || selected.createdAt),
+        dateModified: schemaDate(selected.updatedAt),
+        url: `https://ncidose.github.io/discussions/${selected.id}/`,
+        author: {
+          "@type": selected.authorType === "team" ? "Organization" : "Person",
+          name: questionAuthorLabel(selected),
+        },
+        publisher: {
+          "@type": "Organization",
+          name: "National Cancer Institute",
+          url: "https://www.cancer.gov/",
+        },
+        commentCount: selected.answers.length,
+        comment: selected.answers.map((answer) => ({
+          "@type": "Comment",
+          text: plainText(answer.body),
+          dateCreated: schemaDate(answer.createdAt),
+          author: {
+            "@type": answer.responseType === "team" ? "Organization" : "Person",
+            name: questionAnswerLabel(answer),
+          },
+        })),
+      },
+    });
+  }, [selected]);
+
   const filtered = useMemo(() => {
     const normalized = query.trim().toLowerCase();
     return questions.filter((question) =>

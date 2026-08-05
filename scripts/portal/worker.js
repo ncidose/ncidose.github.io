@@ -1384,8 +1384,8 @@ export default {
             context.waitUntil(sendPortalAccountEmail(env, {
               to: submitter.email,
               subject: `NCI Dose Tools discussion published: ${title}`,
-              html: announcementEmailHtml({ title: "Your discussion has been answered", category: tool, body: `Hello ${submitter.name || "NCI Dose Tools user"},\n\nThe NCI Dose Team has reviewed your discussion, “${title},” and published the response in Community Discussions.\n\nView the discussion: https://ncidose.github.io/#/discussions/${existing.id}` }, { includeUnsubscribe: false, headerLabel: "Community Discussions" }),
-              text: `Your NCI Dose Tools discussion has been answered.\n\n${title}\n\nView the discussion: https://ncidose.github.io/#/discussions/${existing.id}\n\nNCI Dose Team\nNational Cancer Institute`,
+              html: announcementEmailHtml({ title: "Your discussion has been answered", category: tool, body: `Hello ${submitter.name || "NCI Dose Tools user"},\n\nThe NCI Dose Team has reviewed your discussion, “${title},” and published the response in Community Discussions.\n\nView the discussion: https://ncidose.github.io/discussions/${existing.id}/` }, { includeUnsubscribe: false, headerLabel: "Community Discussions" }),
+              text: `Your NCI Dose Tools discussion has been answered.\n\n${title}\n\nView the discussion: https://ncidose.github.io/discussions/${existing.id}/\n\nNCI Dose Team\nNational Cancer Institute`,
             }).catch(() => undefined));
           }
         }

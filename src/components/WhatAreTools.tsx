@@ -96,7 +96,7 @@ export const WhatAreTools = () => {
                   transition={{ duration: 0.4, delay: 0.3 + i * 0.1, ease: [0.16, 1, 0.3, 1] }}
                 >
                   <Link
-                    to={`/tools#${tool.id}`}
+                    to={`/tools/${tool.id}`}
                     className="group flex h-full flex-col overflow-hidden border border-border bg-white transition-all duration-300 hover:border-primary/50"
                   >
                     {tool.id === "phantom" ? (

@@ -82,7 +82,7 @@ const ReleaseHistoryPage = ({ history }: { history: ReleaseHistoryDefinition }) 
               <span className="flex items-center gap-3"><FileText className="h-4 w-4 text-primary" /> Read the current manual</span>
               <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
             </Link>
-            <Link to={`/tools#${history.id}`} className="group flex items-center justify-between bg-slate-50 px-5 py-5 text-sm text-slate-700 transition-colors hover:bg-white hover:text-primary">
+            <Link to={`/tools/${history.id}`} className="group flex items-center justify-between bg-slate-50 px-5 py-5 text-sm text-slate-700 transition-colors hover:bg-white hover:text-primary">
               <span className="flex items-center gap-3"><History className="h-4 w-4 text-primary" /> View {history.product} overview</span>
               <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
             </Link>

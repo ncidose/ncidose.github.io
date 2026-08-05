@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { motion } from "framer-motion";
-import { Link, useLocation } from "react-router-dom";
+import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
 import { Header } from "@/components/Header";
 import { Footer } from "@/components/Footer";
 import { PhantomLibraryVisual } from "@/components/PhantomLibraryVisual";
@@ -251,20 +251,26 @@ const ToolContent = ({
 
 const Protocols = () => {
   const { hash } = useLocation();
+  const { toolId } = useParams();
+  const navigate = useNavigate();
   const toolSectionRef = useRef<HTMLElement | null>(null);
   const [activeTab, setActiveTab] = useState("ncict");
   const [publicationSummaries, setPublicationSummaries] =
     useState<Record<string, PublicationSummary> | null>(null);
 
   useEffect(() => {
-    const toolId = hash.replace("#", "");
-    if (toolId && tools.some((tool) => tool.id === toolId)) {
-      setActiveTab(toolId);
+    const legacyToolId = hash.replace("#", "");
+    const requestedToolId = toolId || legacyToolId;
+    if (requestedToolId && tools.some((tool) => tool.id === requestedToolId)) {
+      setActiveTab(requestedToolId);
+      if (!toolId && legacyToolId) {
+        navigate(`/tools/${legacyToolId}`, { replace: true });
+      }
       window.requestAnimationFrame(() => {
         toolSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
       });
     }
-  }, [hash]);
+  }, [hash, navigate, toolId]);
 
   useEffect(() => {
     let cancelled = false;
@@ -294,7 +300,7 @@ const Protocols = () => {
 
   const handleTabChange = (value: string, shouldScroll = false) => {
     setActiveTab(value);
-    window.history.replaceState(null, "", `#${value}`);
+    navigate(`/tools/${value}`);
     if (shouldScroll) {
       toolSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
     }
@@ -383,13 +389,12 @@ const Protocols = () => {
                     {tools.map((tool) => (
                       <tr key={tool.id} className="transition-colors hover:bg-slate-50">
                         <td className="px-6 py-5 font-mono font-medium text-primary">
-                          <button
-                            type="button"
-                            onClick={() => handleTabChange(tool.id, true)}
+                          <Link
+                            to={`/tools/${tool.id}`}
                             className="hover:underline"
                           >
                             {tool.name}
-                          </button>
+                          </Link>
                         </td>
                         <td className="max-w-md px-6 py-5 text-sm leading-relaxed text-slate-700">
                           {tool.comparison.bestFor}
