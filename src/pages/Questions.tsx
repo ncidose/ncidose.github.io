@@ -53,7 +53,7 @@ const Questions = () => {
   const filtered = useMemo(() => {
     const normalized = query.trim().toLowerCase();
     return questions.filter((question) =>
-      (tool === "All" || question.tool === tool)
+      (requestType === "feature_request" || tool === "All" || question.tool === tool)
       && (requestType === "all" || question.requestType === requestType)
       && (!normalized || `${question.title} ${question.body} ${question.answers.map((answer) => answer.body).join(" ")}`.toLowerCase().includes(normalized)),
     );
