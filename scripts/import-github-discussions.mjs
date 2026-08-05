@@ -3,7 +3,8 @@ import { writeFile } from "node:fs/promises";
 
 const outputPath = "/tmp/ncidose-discussions-import.sql";
 const excludedTitle = /^(welcome|publication|peer-reviewed publications)/i;
-const teamLogins = new Set(["choonsiklee", "ncidoseteam"]);
+const teamLogins = new Set(["choonsiklee", "ncidoseteam", "haeginh", "sstreitmatter"]);
+const featureProxyLogins = new Set(["choonsiklee", "ncidoseteam"]);
 const technicalCategories = new Set(["NCICT", "NCIRF", "NCINM", "PHANTOM"]);
 // These were the four pinned feature-request discussions in the legacy GitHub forum.
 // Keep the list explicit so ordinary technical questions are never reclassified by
@@ -25,8 +26,15 @@ const historicalAuthor = (value = "") => value.match(/^\s*\*\*([^*\n]{2,100})\*\
 
 const isTeamResponse = (response) => {
   const author = historicalAuthor(response.body);
-  if (author) return /^(?:Dr\.?\s+)?Choonsik(?:\s+Lee)?$|^Dr\.?\s+Lee$|^NCI Dose Team$/i.test(author);
+  if (author) return /^(?:Dr\.?\s+)?Choonsik(?:\s+Lee)?$|^Dr\.?\s+Lee$|^Haegin(?:\s+Han)?$|^Seth(?:\s+W\.?\s+Streitmatter)?$|^NCI Dose Team$/i.test(author);
   return teamLogins.has(response.author?.login);
+};
+
+const publicAuthorName = (entry, responseType = "community") => {
+  const login = entry.author?.login;
+  if (!login) return null;
+  if (responseType === "team") return `@${login}`;
+  return !teamLogins.has(login) ? `@${login}` : null;
 };
 
 const pluralizeTeamVoice = (value = "") => value
@@ -65,7 +73,7 @@ const query = `
     repository(owner: $owner, name: $name) {
       discussions(first: 100, orderBy: { field: CREATED_AT, direction: ASC }) {
         nodes {
-          number title body createdAt
+          number title body createdAt author { login }
           category { name }
           comments(first: 50) {
             nodes {
@@ -82,9 +90,9 @@ const query = `
 `;
 
 const normalizeMarkdown = (value = "") => value
-  .replace(/\b(?:Dr\.?\s+)?Choonsik(?:\s+Lee)?\b|\bDr\.?\s+Lee\b/gi, "the NCI Dose Team")
-  .replace(/\b(?:Dogan\s+Bor|Seth\s+Streitmatter|Allan\s+Thomas|Haegin\s+Han|Kenneth\s+Lewis|Mikhail\s+V\s+Osipov|Defez\s+Didier)\b/gi, "the user")
-  .replace(/\b(?:Seth|Allan|Haegin|Mikhail)\b/g, "the user")
+  .replace(/\b(?:Dr\.?\s+)?Choonsik(?:\s+Lee)?\b|\bDr\.?\s+Lee\b|\bHaegin\s+Han\b|\bSeth\s+(?:W\.?\s+)?Streitmatter\b/gi, "the NCI Dose Team")
+  .replace(/\b(?:Dogan\s+Bor|Allan\s+Thomas|Kenneth\s+Lewis|Mikhail\s+V\s+Osipov|Defez\s+Didier)\b/gi, "the user")
+  .replace(/\b(?:Allan|Mikhail)\b/g, "the user")
   .replace(/\*{3}@\*{3}\.\*{3}/g, "[email removed]")
   .replace(/^\*\*[^*\n]{2,100}\*\*\s*\n+/i, "")
   .replace(/^Anonymous\s*\n+/i, "")
@@ -136,12 +144,13 @@ const discussions = JSON.parse(response).data.repository.discussions.nodes
       createdAt: item.createdAt,
       author: null,
       threadPosition: "comment",
+      parentSourceId: null,
     }] : [];
     const responses = [
       ...bodyRequests,
       ...item.comments.nodes.flatMap((comment) => [
-        { ...comment, threadPosition: "comment" },
-        ...comment.replies.nodes.map((reply) => ({ ...reply, threadPosition: "reply" })),
+        { ...comment, threadPosition: "comment", parentSourceId: null },
+        ...comment.replies.nodes.map((reply) => ({ ...reply, threadPosition: "reply", parentSourceId: comment.id })),
       ]),
     ]
       .filter((responseItem) => !bugResponseIds.has(responseItem.id))
@@ -157,19 +166,29 @@ for (const discussion of discussions) {
   const tool = requestType === "feature_request" ? "General" : discussion.category.name;
   const pinned = requestType === "feature_request" ? 1 : 0;
   const questionBody = requestType === "feature_request" ? featureRequestBody : normalizeMarkdown(discussion.body);
-  statements.push(`INSERT OR IGNORE INTO qa_questions (id, tool, request_type, is_pinned, title, body, status, source, source_ref, created_at, updated_at, published_at) VALUES (${sql(questionId)}, ${sql(tool)}, ${sql(requestType)}, ${pinned}, ${sql(discussion.title)}, ${sql(questionBody)}, 'published', 'github_discussions', ${sql(String(discussion.number))}, ${sql(discussion.createdAt)}, ${sql(discussion.createdAt)}, ${sql(discussion.createdAt)});`);
-  statements.push(`UPDATE qa_questions SET tool=${sql(tool)}, request_type=${sql(requestType)}, is_pinned=${pinned}, title=${sql(discussion.title)}, body=${sql(questionBody)}, status='published', published_at=COALESCE(published_at, ${sql(discussion.createdAt)}), updated_at=CURRENT_TIMESTAMP WHERE id=${sql(questionId)} AND source='github_discussions';`);
+  const questionAuthorName = publicAuthorName(discussion);
+  statements.push(`INSERT OR IGNORE INTO qa_questions (id, tool, request_type, is_pinned, author_name, visibility, title, body, status, source, source_ref, created_at, updated_at, published_at) VALUES (${sql(questionId)}, ${sql(tool)}, ${sql(requestType)}, ${pinned}, ${sql(questionAuthorName)}, 'public_after_review', ${sql(discussion.title)}, ${sql(questionBody)}, 'published', 'github_discussions', ${sql(String(discussion.number))}, ${sql(discussion.createdAt)}, ${sql(discussion.createdAt)}, ${sql(discussion.createdAt)});`);
+  statements.push(`UPDATE qa_questions SET tool=${sql(tool)}, request_type=${sql(requestType)}, is_pinned=${pinned}, author_name=${sql(questionAuthorName)}, visibility='public_after_review', title=${sql(discussion.title)}, body=${sql(questionBody)}, status='published', published_at=COALESCE(published_at, ${sql(discussion.createdAt)}), updated_at=CURRENT_TIMESTAMP WHERE id=${sql(questionId)} AND source='github_discussions';`);
+  let seenTeamResponse = false;
   discussion.responses.forEach((responseItem, index) => {
     const answerId = `github-${responseItem.id}`;
+    const teamIdentity = isTeamResponse(responseItem);
     const featureTeamResponse = requestType === "feature_request" && (
       featureTeamUpdateIds.has(responseItem.id)
       || (responseItem.threadPosition === "reply" && isTeamResponse(responseItem))
+      || (teamIdentity && !featureProxyLogins.has(responseItem.author?.login))
     );
-    const responseType = featureTeamResponse || (requestType !== "feature_request" && isTeamResponse(responseItem)) ? "team" : "community";
+    const responseType = featureTeamResponse || (requestType !== "feature_request" && teamIdentity) ? "team" : "community";
+    const messageType = requestType === "feature_request"
+      ? (featureTeamUpdateIds.has(responseItem.id) || (responseItem.threadPosition === "reply" && responseType === "team") ? "status_update" : "request")
+      : (responseType === "team" ? "response" : (responseItem.threadPosition === "reply" || seenTeamResponse ? "follow_up" : "response"));
+    const authorName = publicAuthorName(responseItem, responseType);
+    const parentAnswerId = responseItem.parentSourceId ? `github-${responseItem.parentSourceId}` : null;
     const normalizedBody = normalizeMarkdown(responseItem.body);
     const body = responseType === "team" ? teamVoice(normalizedBody) : normalizedBody;
-    statements.push(`INSERT OR IGNORE INTO qa_answers (id, question_id, body, response_type, sort_order, source_ref, created_at, updated_at) VALUES (${sql(answerId)}, ${sql(questionId)}, ${sql(body)}, ${sql(responseType)}, ${index}, ${sql(responseItem.id)}, ${sql(responseItem.createdAt)}, ${sql(responseItem.createdAt)});`);
-    statements.push(`UPDATE qa_answers SET body=${sql(body)}, response_type=${sql(responseType)}, updated_at=CURRENT_TIMESTAMP WHERE id=${sql(answerId)} AND source_ref=${sql(responseItem.id)};`);
+    statements.push(`INSERT OR IGNORE INTO qa_answers (id, question_id, body, response_type, author_name, parent_answer_id, message_type, sort_order, source_ref, created_at, updated_at) VALUES (${sql(answerId)}, ${sql(questionId)}, ${sql(body)}, ${sql(responseType)}, ${sql(authorName)}, ${sql(parentAnswerId)}, ${sql(messageType)}, ${index}, ${sql(responseItem.id)}, ${sql(responseItem.createdAt)}, ${sql(responseItem.createdAt)});`);
+    statements.push(`UPDATE qa_answers SET body=${sql(body)}, response_type=${sql(responseType)}, author_name=${sql(authorName)}, parent_answer_id=${sql(parentAnswerId)}, message_type=${sql(messageType)}, sort_order=${index}, updated_at=CURRENT_TIMESTAMP WHERE id=${sql(answerId)} AND source_ref=${sql(responseItem.id)};`);
+    if (responseType === "team") seenTeamResponse = true;
   });
 }
 
@@ -178,13 +197,16 @@ for (const bug of embeddedBugs) {
   const title = normalizedBody.replace(embeddedBugPattern, "").split("\n")[0].trim();
   const questionId = `github-${bug.discussionNumber}-bug-${bug.index + 1}`;
   const sourceRef = `feature-bug:${bug.comment.id}`;
-  statements.push(`INSERT OR IGNORE INTO qa_questions (id, tool, request_type, is_pinned, title, body, status, source, source_ref, created_at, updated_at, published_at) VALUES (${sql(questionId)}, ${sql(bug.tool)}, 'bug_report', 0, ${sql(title)}, ${sql(normalizedBody)}, 'published', 'github_discussions', ${sql(sourceRef)}, ${sql(bug.comment.createdAt)}, ${sql(bug.comment.createdAt)}, ${sql(bug.comment.createdAt)});`);
-  statements.push(`UPDATE qa_questions SET tool=${sql(bug.tool)}, request_type='bug_report', is_pinned=0, title=${sql(title)}, body=${sql(normalizedBody)}, updated_at=CURRENT_TIMESTAMP WHERE id=${sql(questionId)} AND source='github_discussions';`);
+  const questionAuthorName = publicAuthorName(bug.comment);
+  statements.push(`INSERT OR IGNORE INTO qa_questions (id, tool, request_type, is_pinned, author_name, visibility, title, body, status, source, source_ref, created_at, updated_at, published_at) VALUES (${sql(questionId)}, ${sql(bug.tool)}, 'bug_report', 0, ${sql(questionAuthorName)}, 'public_after_review', ${sql(title)}, ${sql(normalizedBody)}, 'published', 'github_discussions', ${sql(sourceRef)}, ${sql(bug.comment.createdAt)}, ${sql(bug.comment.createdAt)}, ${sql(bug.comment.createdAt)});`);
+  statements.push(`UPDATE qa_questions SET tool=${sql(bug.tool)}, request_type='bug_report', is_pinned=0, author_name=${sql(questionAuthorName)}, visibility='public_after_review', title=${sql(title)}, body=${sql(normalizedBody)}, updated_at=CURRENT_TIMESTAMP WHERE id=${sql(questionId)} AND source='github_discussions';`);
   bug.comment.replies.nodes.forEach((reply, index) => {
     const answerId = `github-${reply.id}`;
-    const body = teamVoice(normalizeMarkdown(reply.body));
-    statements.push(`INSERT OR IGNORE INTO qa_answers (id, question_id, body, response_type, sort_order, source_ref, created_at, updated_at) VALUES (${sql(answerId)}, ${sql(questionId)}, ${sql(body)}, 'team', ${index}, ${sql(reply.id)}, ${sql(reply.createdAt)}, ${sql(reply.createdAt)});`);
-    statements.push(`UPDATE qa_answers SET question_id=${sql(questionId)}, body=${sql(body)}, response_type='team', sort_order=${index}, updated_at=CURRENT_TIMESTAMP WHERE id=${sql(answerId)} AND source_ref=${sql(reply.id)};`);
+    const responseType = isTeamResponse(reply) ? "team" : "community";
+    const authorName = publicAuthorName(reply, responseType);
+    const body = responseType === "team" ? teamVoice(normalizeMarkdown(reply.body)) : normalizeMarkdown(reply.body);
+    statements.push(`INSERT OR IGNORE INTO qa_answers (id, question_id, body, response_type, author_name, parent_answer_id, message_type, sort_order, source_ref, created_at, updated_at) VALUES (${sql(answerId)}, ${sql(questionId)}, ${sql(body)}, ${sql(responseType)}, ${sql(authorName)}, NULL, ${sql(responseType === "team" ? "response" : "follow_up")}, ${index}, ${sql(reply.id)}, ${sql(reply.createdAt)}, ${sql(reply.createdAt)});`);
+    statements.push(`UPDATE qa_answers SET question_id=${sql(questionId)}, body=${sql(body)}, response_type=${sql(responseType)}, author_name=${sql(authorName)}, parent_answer_id=NULL, message_type=${sql(responseType === "team" ? "response" : "follow_up")}, sort_order=${index}, updated_at=CURRENT_TIMESTAMP WHERE id=${sql(answerId)} AND source_ref=${sql(reply.id)};`);
   });
 }
 await writeFile(outputPath, `${statements.join("\n")}\n`);

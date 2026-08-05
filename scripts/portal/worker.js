@@ -215,12 +215,17 @@ const announcementCategories = new Set(["Release", "Maintenance", "Access"]);
 const cleanText = (value, maximum) => typeof value === "string" ? value.trim().slice(0, maximum) : "";
 const questionTools = new Set(["NCICT", "NCIRF", "NCINM", "PHANTOM", "General"]);
 const questionStatuses = new Set(["submitted", "draft", "published", "archived"]);
+const questionVisibilities = new Set(["public_after_review", "team_only"]);
+export const normalizeQuestionVisibility = (value) => questionVisibilities.has(value) ? value : "public_after_review";
+export const canPublishQuestion = (visibility) => normalizeQuestionVisibility(visibility) !== "team_only";
 
 const questionFromRow = (row) => ({
   id: row.id,
   tool: row.tool,
   requestType: row.request_type || "technical_question",
   pinned: Boolean(row.is_pinned),
+  authorName: row.author_name || null,
+  visibility: row.visibility || "public_after_review",
   title: row.title,
   body: row.body,
   status: row.status,
@@ -248,7 +253,7 @@ const attachmentFromRow = (row) => ({
 async function loadQuestions(env, { publicOnly = false, userId = null } = {}) {
   const conditions = [];
   const bindings = [];
-  if (publicOnly) conditions.push("questions.status='published'");
+  if (publicOnly) conditions.push("questions.status='published'", "questions.visibility='public_after_review'");
   if (userId) {
     conditions.push("questions.submitted_by_user_id=?");
     bindings.push(userId);
@@ -256,6 +261,7 @@ async function loadQuestions(env, { publicOnly = false, userId = null } = {}) {
   const where = conditions.length ? `WHERE ${conditions.join(" AND ")}` : "";
   const questionResult = await env.DB.prepare(`
     SELECT questions.id, questions.tool, questions.request_type, questions.is_pinned,
+      questions.author_name, questions.visibility,
       questions.title, questions.body, questions.status,
       questions.source, questions.created_at, questions.updated_at, questions.published_at,
       users.display_name AS submitter_name, users.institution AS submitter_institution,
@@ -271,7 +277,8 @@ async function loadQuestions(env, { publicOnly = false, userId = null } = {}) {
   if (!questions.length) return questions;
   const placeholders = questions.map(() => "?").join(",");
   const answerResult = await env.DB.prepare(`
-    SELECT id, question_id, body, response_type, sort_order, source_ref, created_at, updated_at
+    SELECT id, question_id, body, response_type, author_name, parent_answer_id, message_type,
+      sort_order, source_ref, created_at, updated_at
     FROM qa_answers WHERE question_id IN (${placeholders})
     ORDER BY sort_order ASC, created_at ASC
   `).bind(...questions.map((question) => question.id)).all();
@@ -281,6 +288,9 @@ async function loadQuestions(env, { publicOnly = false, userId = null } = {}) {
       id: answer.id,
       body: answer.body,
       responseType: answer.response_type,
+      authorName: answer.author_name || null,
+      parentAnswerId: answer.parent_answer_id || null,
+      messageType: answer.message_type || "response",
       editable: !answer.source_ref,
       createdAt: answer.created_at,
       updatedAt: answer.updated_at,
@@ -802,17 +812,18 @@ export default {
         const input = await request.json();
         const requestType = qaRequestTypes.has(input.requestType) ? input.requestType : "technical_question";
         const tool = requestType === "feature_request" ? "General" : (questionTools.has(input.tool) ? input.tool : "General");
+        const visibility = normalizeQuestionVisibility(input.visibility);
         const title = cleanText(input.title, 240);
         const body = cleanText(input.body, 12000);
         if (!title || !body) return json({ error: "title_and_question_required" }, 400, cors);
         const id = crypto.randomUUID();
         await env.DB.batch([
           env.DB.prepare(`
-            INSERT INTO qa_questions (id, tool, request_type, title, body, status, source, submitted_by_user_id)
-            VALUES (?, ?, ?, ?, ?, 'submitted', 'portal', ?)
-          `).bind(id, tool, requestType, title, body, user.id),
+            INSERT INTO qa_questions (id, tool, request_type, author_name, visibility, title, body, status, source, submitted_by_user_id)
+            VALUES (?, ?, ?, ?, ?, ?, ?, 'submitted', 'portal', ?)
+          `).bind(id, tool, requestType, cleanText(user.display_name, 200) || null, visibility, title, body, user.id),
           env.DB.prepare("INSERT INTO access_events (id, user_id, event_type, metadata_json) VALUES (?, ?, 'question_submitted', ?)")
-            .bind(crypto.randomUUID(), user.id, JSON.stringify({ questionId: id, tool })),
+            .bind(crypto.randomUUID(), user.id, JSON.stringify({ questionId: id, tool, visibility })),
         ]);
         if (env.RESEND_API_KEY && env.RESEND_FROM) {
           const administrators = await env.DB.prepare(`
@@ -824,8 +835,8 @@ export default {
             context.waitUntil(sendPortalAccountEmail(env, {
               to: administrator.email,
               subject: `New NCI Dose Tools ${qaRequestTypeLabel(requestType).toLowerCase()}: ${title}`,
-              html: announcementEmailHtml({ title: `A new ${qaRequestTypeLabel(requestType).toLowerCase()} was submitted`, category: requestType === "feature_request" ? "Feature request" : tool, body: `${title}\n\nReview and respond in Portal administration > Q&A.` }, { includeUnsubscribe: false, headerLabel: "User Portal Q&A" }),
-              text: `A new ${qaRequestTypeLabel(requestType).toLowerCase()} was submitted:\n\n${title}\n\nReview it in Portal administration > Q&A:\nhttps://portal.ncidosetools.com/#/portal/admin`,
+              html: announcementEmailHtml({ title: `A new ${qaRequestTypeLabel(requestType).toLowerCase()} was submitted`, category: requestType === "feature_request" ? "Feature request" : tool, body: `${title}\n\nVisibility: ${visibility === "team_only" ? "NCI Dose Team only" : "May be shared after review"}\n\nReview and respond in Portal administration > Q&A.` }, { includeUnsubscribe: false, headerLabel: "User Portal Q&A" }),
+              text: `A new ${qaRequestTypeLabel(requestType).toLowerCase()} was submitted:\n\n${title}\n\nVisibility: ${visibility === "team_only" ? "NCI Dose Team only" : "May be shared after review"}\n\nReview it in Portal administration > Q&A:\nhttps://portal.ncidosetools.com/#/portal/admin`,
             }).catch(() => undefined));
           }
         }
@@ -1228,6 +1239,7 @@ export default {
         const status = input.status === undefined ? existing.status : (questionStatuses.has(input.status) ? input.status : "");
         const pinned = requestType === "feature_request" && (input.pinned === undefined ? Boolean(existing.is_pinned) : Boolean(input.pinned));
         if (!requestType || !tool || !title || !body || !status) return json({ error: "valid_question_fields_required" }, 400, cors);
+        if (status === "published" && !canPublishQuestion(existing.visibility)) return json({ error: "team_only_question_cannot_be_published" }, 409, cors);
         if (status === "published") {
           const answerCount = await env.DB.prepare("SELECT COUNT(*) AS total FROM qa_answers WHERE question_id=?").bind(existing.id).first();
           if (!Number(answerCount.total)) return json({ error: "answer_required_before_publishing" }, 409, cors);
@@ -1276,8 +1288,8 @@ export default {
         } else {
           const order = await env.DB.prepare("SELECT COALESCE(MAX(sort_order), -1) + 1 AS next_order FROM qa_answers WHERE question_id=?").bind(question.id).first();
           await env.DB.prepare(`
-            INSERT INTO qa_answers (id, question_id, body, response_type, sort_order, created_by_user_id)
-            VALUES (?, ?, ?, 'team', ?, ?)
+            INSERT INTO qa_answers (id, question_id, body, response_type, author_name, parent_answer_id, message_type, sort_order, created_by_user_id)
+            VALUES (?, ?, ?, 'team', NULL, NULL, 'response', ?, ?)
           `).bind(crypto.randomUUID(), question.id, body, Number(order.next_order || 0), user.id).run();
         }
         await env.DB.prepare("UPDATE qa_questions SET updated_at=CURRENT_TIMESTAMP WHERE id=?").bind(question.id).run();

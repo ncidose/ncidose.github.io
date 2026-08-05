@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { announcementEmailHtml, generateLoginCode, loginCodeEmailHtml, normalizePortalEmail, portalSessionCookieHeader, qaAttachmentValidationError, secondaryEmailAddedHtml, welcomeEmailHtml } from "../../scripts/portal/worker.js";
+import { announcementEmailHtml, canPublishQuestion, generateLoginCode, loginCodeEmailHtml, normalizePortalEmail, normalizeQuestionVisibility, portalSessionCookieHeader, qaAttachmentValidationError, secondaryEmailAddedHtml, welcomeEmailHtml } from "../../scripts/portal/worker.js";
 
 describe("portal email normalization", () => {
   it("normalizes a valid approved email", () => {
@@ -36,6 +36,15 @@ describe("Q&A attachment validation", () => {
   it("rejects oversized or unsupported files", () => {
     expect(qaAttachmentValidationError({ name: "large.pdf", type: "application/pdf", size: 10 * 1024 * 1024 + 1 })).toBe("attachment_too_large");
     expect(qaAttachmentValidationError({ name: "script.html", type: "text/html", size: 100 })).toBe("attachment_type_not_allowed");
+  });
+});
+
+describe("Q&A visibility", () => {
+  it("defaults to reviewable public sharing and blocks team-only publication", () => {
+    expect(normalizeQuestionVisibility(undefined)).toBe("public_after_review");
+    expect(normalizeQuestionVisibility("team_only")).toBe("team_only");
+    expect(canPublishQuestion("public_after_review")).toBe(true);
+    expect(canPublishQuestion("team_only")).toBe(false);
   });
 });
 

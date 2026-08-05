@@ -143,6 +143,8 @@ CREATE TABLE IF NOT EXISTS qa_questions (
   source TEXT NOT NULL DEFAULT 'portal' CHECK (source IN ('portal', 'github_discussions', 'admin')),
   request_type TEXT NOT NULL DEFAULT 'technical_question' CHECK (request_type IN ('technical_question', 'bug_report', 'feature_request')),
   is_pinned INTEGER NOT NULL DEFAULT 0 CHECK (is_pinned IN (0, 1)),
+  author_name TEXT,
+  visibility TEXT NOT NULL DEFAULT 'public_after_review' CHECK (visibility IN ('public_after_review', 'team_only')),
   source_ref TEXT UNIQUE,
   submitted_by_user_id TEXT REFERENCES users(id),
   created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -155,6 +157,9 @@ CREATE TABLE IF NOT EXISTS qa_answers (
   question_id TEXT NOT NULL REFERENCES qa_questions(id) ON DELETE CASCADE,
   body TEXT NOT NULL,
   response_type TEXT NOT NULL DEFAULT 'team' CHECK (response_type IN ('team', 'community')),
+  author_name TEXT,
+  parent_answer_id TEXT,
+  message_type TEXT NOT NULL DEFAULT 'response' CHECK (message_type IN ('request', 'response', 'follow_up', 'status_update')),
   sort_order INTEGER NOT NULL DEFAULT 0,
   created_by_user_id TEXT REFERENCES users(id),
   source_ref TEXT UNIQUE,
@@ -188,5 +193,6 @@ CREATE INDEX IF NOT EXISTS idx_announcement_email_deliveries_announcement ON ann
 CREATE INDEX IF NOT EXISTS idx_qa_questions_public ON qa_questions(status, published_at, created_at);
 CREATE INDEX IF NOT EXISTS idx_qa_questions_user ON qa_questions(submitted_by_user_id, created_at);
 CREATE INDEX IF NOT EXISTS idx_qa_answers_question ON qa_answers(question_id, sort_order, created_at);
+CREATE INDEX IF NOT EXISTS idx_qa_answers_parent ON qa_answers(parent_answer_id, sort_order, created_at);
 CREATE INDEX IF NOT EXISTS idx_qa_attachments_question ON qa_attachments(question_id, created_at);
 CREATE INDEX IF NOT EXISTS idx_qa_attachments_answer ON qa_attachments(answer_id, created_at);

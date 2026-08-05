@@ -6,7 +6,7 @@ import { ArrowLeft, ArrowRight, HelpCircle, Loader2, Paperclip, Pin, Search, Sen
 import { Header } from "@/components/Header";
 import { Footer } from "@/components/Footer";
 import { portalLinks } from "@/data/portalLinks";
-import { normalizePublicQuestion, publicQuestionsApi, questionRequestTypeLabels, questionRequestTypes, questionTools, type PublicQuestion, type QuestionRequestType } from "@/lib/questions";
+import { normalizePublicQuestion, publicQuestionsApi, questionAnswerLabel, questionRequestTypeLabels, questionRequestTypes, questionTools, type PublicQuestion, type QuestionRequestType } from "@/lib/questions";
 import { cn } from "@/lib/utils";
 
 const displayDate = (value: string | null) => value
@@ -83,14 +83,15 @@ const Questions = () => {
             <div className="mx-auto max-w-4xl">
               <Link to="/questions" className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-primary"><ArrowLeft className="h-4 w-4" /> All questions</Link>
               <article className="mt-8 border border-border bg-white p-6 shadow-sm sm:p-10">
-                <div className="flex flex-wrap items-center gap-3 font-mono text-xs uppercase tracking-wider text-primary">{selected.pinned && <span className="inline-flex items-center gap-1"><Pin className="h-3 w-3" /> Pinned</span>}<span>{questionRequestTypeLabels[selected.requestType]}</span>{selected.requestType !== "feature_request" && <><span className="text-slate-300">/</span><span>{selected.tool}</span></>}<span className="text-slate-300">/</span><span className="text-muted-foreground">{displayDate(selected.publishedAt || selected.createdAt)}</span></div>
+                <div className="flex flex-wrap items-center gap-3 font-mono text-xs uppercase tracking-wider text-primary">{selected.pinned && <span className="inline-flex items-center gap-1"><Pin className="h-3 w-3" /> Pinned</span>}<span>{questionRequestTypeLabels[selected.requestType]}</span>{selected.requestType !== "feature_request" && <><span className="text-slate-300">/</span><span>{selected.tool}</span></>}<span className="text-slate-300">/</span><span className="text-muted-foreground">{displayDate(selected.publishedAt || selected.createdAt)}</span>{selected.requestType !== "feature_request" && <><span className="text-slate-300">/</span><span>{selected.authorName ? `User Community · ${selected.authorName}` : "User Community"}</span></>}</div>
                 <h2 className="mt-5 text-3xl font-light leading-tight text-slate-950 sm:text-4xl">{selected.title}</h2>
                 <div className="prose prose-slate mt-8 max-w-none text-sm leading-relaxed"><Markdown>{selected.body}</Markdown></div>
                 {selected.attachments.length > 0 && <div className="mt-6 flex flex-wrap gap-2">{selected.attachments.map((attachment) => <a key={attachment.id} href={`https://portal.ncidosetools.com/api/public/attachments/${attachment.id}`} className="inline-flex items-center gap-2 border border-border bg-slate-50 px-3 py-2 text-xs text-slate-700 hover:border-primary hover:text-primary"><Paperclip className="h-3.5 w-3.5" /> {attachment.fileName} <span className="text-muted-foreground">({Math.max(1, Math.round(attachment.sizeBytes / 1024))} KB)</span></a>)}</div>}
                 <div className="mt-10 space-y-6 border-t border-border pt-8">
                   {selected.answers.map((answer) => (
-                    <section key={answer.id} className={cn("p-6", answer.responseType === "team" ? "border-l-4 border-primary bg-sky-50/70" : "border border-border bg-slate-50")}>
-                      <div className="font-mono text-xs uppercase tracking-widest text-primary">{answer.responseType === "team" ? (selected.requestType === "feature_request" ? "NCI Dose Team · Status update" : "NCI Dose Team") : (selected.requestType === "feature_request" ? "User Community · Request" : "User Community")}</div>
+                    <section key={answer.id} className={cn("p-6", answer.responseType === "team" ? "border-l-4 border-primary bg-sky-50/70" : "border border-border bg-slate-50", answer.parentAnswerId && "ml-6 border-l-4 border-l-slate-300 sm:ml-12")}>
+                      {answer.parentAnswerId && <div className="mb-3 font-mono text-[10px] uppercase tracking-widest text-slate-400">Reply to the message above</div>}
+                      <div className="flex flex-wrap items-center justify-between gap-2 font-mono text-xs uppercase tracking-widest"><span className="text-primary">{questionAnswerLabel(answer)}</span><span className="text-slate-400">{displayDate(answer.createdAt)}</span></div>
                       <div className="prose prose-slate mt-4 max-w-none text-sm leading-relaxed"><Markdown>{answer.body}</Markdown></div>
                       {answer.attachments.length > 0 && <div className="mt-5 flex flex-wrap gap-2">{answer.attachments.map((attachment) => <a key={attachment.id} href={`https://portal.ncidosetools.com/api/public/attachments/${attachment.id}`} className="inline-flex items-center gap-2 border border-sky-200 bg-white px-3 py-2 text-xs text-slate-700 hover:border-primary hover:text-primary"><Paperclip className="h-3.5 w-3.5" /> {attachment.fileName}</a>)}</div>}
                     </section>
