@@ -56,6 +56,20 @@ describe("portal migration experience", () => {
     expect(screen.getByText("Approved", { selector: ".text-3xl" })).toBeInTheDocument();
   });
 
+  it("keeps public resources visible inside the approved portal", () => {
+    window.sessionStorage.setItem("ncidose-portal-demo-user", "user");
+    render(
+      <MemoryRouter initialEntries={["/portal/downloads"]}>
+        <Portal />
+      </MemoryRouter>,
+    );
+
+    const manualLinks = screen.getAllByRole("link", { name: /manuals/i });
+    expect(manualLinks.some((link) => link.getAttribute("href") === "https://ncidose.github.io/manuals")).toBe(true);
+    expect(screen.getByRole("link", { name: /view NCICT manual/i })).toHaveAttribute("href", "https://ncidose.github.io/manuals/ncict");
+    expect(screen.getAllByRole("link", { name: /public website/i })[0]).toHaveAttribute("target", "_blank");
+  });
+
   it("shows the branded public portal landing before secure authentication", () => {
     render(
       <MemoryRouter initialEntries={["/portal"]}>

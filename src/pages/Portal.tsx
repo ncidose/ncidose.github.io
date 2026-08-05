@@ -5,6 +5,7 @@ import {
   ArrowUpDown,
   BarChart3,
   Bell,
+  BookOpen,
   Building2,
   Check,
   ChevronRight,
@@ -15,6 +16,7 @@ import {
   FileArchive,
   FileCheck2,
   Folder,
+  Globe2,
   LayoutDashboard,
   Loader2,
   LogOut,
@@ -81,6 +83,19 @@ const portalNav = [
 ] satisfies Array<{ id: PortalSection; label: string; icon: typeof LayoutDashboard }>;
 
 const publicSiteUrl = "https://ncidose.github.io/";
+const portalResources = [
+  { label: "Manuals", href: `${publicSiteUrl}manuals`, icon: BookOpen },
+  { label: "Tool information", href: `${publicSiteUrl}tools`, icon: ClipboardCheck },
+  { label: "Literature", href: `${publicSiteUrl}literature`, icon: FileCheck2 },
+  { label: "Public website", href: publicSiteUrl, icon: Globe2 },
+] satisfies Array<{ label: string; href: string; icon: typeof LayoutDashboard }>;
+
+const toolManualUrls: Record<string, string> = {
+  NCICT: `${publicSiteUrl}manuals/ncict`,
+  NCINM: `${publicSiteUrl}manuals/ncinm`,
+  NCIRF: `${publicSiteUrl}manuals/ncirf`,
+  PHANTOM: `${publicSiteUrl}manuals/phantom`,
+};
 const qaAttachmentMaximumBytes = 10 * 1024 * 1024;
 const qaAttachmentMaximumCount = 3;
 const qaAttachmentAccept = ".pdf,.png,.jpg,.jpeg,.txt,.log,.csv,.zip";
@@ -833,7 +848,7 @@ const PortalTopbar = ({ user, onSignOut }: { user: PortalUser; onSignOut: () => 
 );
 
 const PortalSidebar = ({ section, isAdmin }: { section: PortalSection; isAdmin: boolean }) => (
-  <aside className="sticky top-16 z-30 hidden h-[calc(100vh-4rem)] w-56 shrink-0 self-start border-r border-border bg-white px-4 py-6 md:block xl:w-64">
+  <aside className="sticky top-16 z-30 hidden h-[calc(100vh-4rem)] w-56 shrink-0 flex-col self-start overflow-y-auto border-r border-border bg-white px-4 py-6 md:flex xl:w-64">
     <nav className="space-y-1">
       {portalNav.map((item) => (
         <PortalNavLink key={item.id} item={item} active={section === item.id} layout="sidebar" />
@@ -844,8 +859,13 @@ const PortalSidebar = ({ section, isAdmin }: { section: PortalSection; isAdmin: 
           <PortalNavLink item={{ id: "admin", label: "Admin", icon: Settings }} active={section === "admin"} layout="sidebar" />
         </>
       )}
+      <div className="my-5 border-t border-border" />
+      <div className="px-4 pb-2 font-mono text-[10px] uppercase tracking-[0.18em] text-slate-400">Resources</div>
+      {portalResources.map((item) => (
+        <PortalResourceLink key={item.label} item={item} layout="sidebar" />
+      ))}
     </nav>
-    <div className="absolute bottom-6 left-4 right-4 border border-primary/20 bg-primary/5 p-4">
+    <div className="mt-auto shrink-0 border border-primary/20 bg-primary/5 p-4">
       <div className="flex items-center gap-2 text-sm font-medium text-slate-800"><ShieldCheck className="h-4 w-4 text-primary" /> Access approved</div>
       <p className="mt-2 text-xs leading-relaxed text-muted-foreground">Software access is governed by your approved agreement.</p>
     </div>
@@ -856,6 +876,9 @@ const PortalMobileNav = ({ section, isAdmin }: { section: PortalSection; isAdmin
   <nav className="fixed inset-x-0 top-16 z-40 flex overflow-x-auto border-b border-border bg-white px-3 py-2 md:hidden">
     {[...portalNav, ...(isAdmin ? [{ id: "admin" as const, label: "Admin", icon: Settings }] : [])].map((item) => (
       <PortalNavLink key={item.id} item={item} active={section === item.id} layout="tabs" />
+    ))}
+    {portalResources.map((item) => (
+      <PortalResourceLink key={item.label} item={item} layout="tabs" />
     ))}
   </nav>
 );
@@ -872,6 +895,22 @@ const PortalNavLink = ({ item, active, layout }: { item: { id: PortalSection; la
   >
     <item.icon className="h-4 w-4 shrink-0" /> <span>{item.label}</span>
   </Link>
+);
+
+const PortalResourceLink = ({ item, layout }: { item: { label: string; href: string; icon: typeof LayoutDashboard }; layout: "sidebar" | "tabs" }) => (
+  <a
+    href={item.href}
+    target="_blank"
+    rel="noreferrer"
+    className={cn(
+      "flex items-center gap-3 whitespace-nowrap border-l-2 border-transparent py-3 text-sm text-slate-600 transition-colors hover:bg-slate-50 hover:text-primary",
+      layout === "sidebar" ? "w-full px-4" : "w-auto flex-none px-3",
+    )}
+  >
+    <item.icon className="h-4 w-4 shrink-0" />
+    <span>{item.label}</span>
+    <ExternalLink className="ml-auto h-3 w-3 shrink-0 text-slate-400" aria-hidden="true" />
+  </a>
 );
 
 const Overview = ({ user, demoMode }: { user: PortalUser; demoMode: boolean }) => {
@@ -1033,6 +1072,8 @@ const Downloads = ({ demoMode }: { demoMode: boolean }) => {
   const visibleFiles = files.filter((file) => itemName(file.key).toLowerCase().includes(normalizedSearch));
   const visibleFolderDownloads = visibleFiles.filter((file) => prefix === "PHANTOM/nci_size/" && file.key.endsWith(".zip"));
   const visibleRegularFiles = visibleFiles.filter((file) => !visibleFolderDownloads.includes(file));
+  const selectedTool = rootPrefix.replace(/\/$/, "");
+  const selectedManualUrl = toolManualUrls[selectedTool];
 
   return (
     <div className="space-y-6">
@@ -1056,7 +1097,14 @@ const Downloads = ({ demoMode }: { demoMode: boolean }) => {
             {prefix !== rootPrefix && <Button type="button" variant="outline" size="sm" onClick={goUp} className="shrink-0 rounded-none"><ArrowLeft className="h-4 w-4" /> Up</Button>}
             <div className="min-w-0 truncate font-mono text-xs text-slate-600">/{prefix}</div>
           </div>
-          {!demoMode && <div className="font-mono text-xs text-muted-foreground">{folders.length} folders · {files.length} files</div>}
+          <div className="flex items-center gap-4">
+            {!demoMode && <div className="font-mono text-xs text-muted-foreground">{folders.length} folders · {files.length} files</div>}
+            {selectedManualUrl && (
+              <a href={selectedManualUrl} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 text-sm font-medium text-primary hover:underline">
+                <BookOpen className="h-4 w-4" /> View {selectedTool} manual <ExternalLink className="h-3 w-3" />
+              </a>
+            )}
+          </div>
         </div>
 
         {demoMode ? (
