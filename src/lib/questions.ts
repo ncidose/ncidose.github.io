@@ -4,6 +4,7 @@ export const questionRequestTypes = ["technical_question", "bug_report", "featur
 export type QuestionRequestType = (typeof questionRequestTypes)[number];
 export type QuestionVisibility = "public_after_review" | "team_only";
 export type QuestionMessageType = "request" | "response" | "follow_up" | "status_update";
+export type DiscussionAuthorType = "community" | "team";
 export const questionRequestTypeLabels: Record<QuestionRequestType, string> = {
   technical_question: "Technical question",
   bug_report: "Bug report",
@@ -37,6 +38,7 @@ export type PublicQuestion = {
   requestType: QuestionRequestType;
   pinned: boolean;
   authorName: string | null;
+  authorType: DiscussionAuthorType;
   visibility: QuestionVisibility;
   title: string;
   body: string;
@@ -46,6 +48,8 @@ export type PublicQuestion = {
   attachments: QuestionAttachment[];
   answers: QuestionAnswer[];
 };
+
+export type QuestionAnswerThread = QuestionAnswer & { children: QuestionAnswerThread[] };
 
 export type ManagedQuestion = PublicQuestion & {
   status: "submitted" | "draft" | "published" | "archived";
@@ -70,11 +74,29 @@ export const questionAnswerLabel = (answer: QuestionAnswer) => {
   return `${participant} · ${questionMessageTypeLabels[answer.messageType]}`;
 };
 
+export const questionAuthorLabel = (question: Pick<PublicQuestion, "authorName" | "authorType">) => {
+  const participant = question.authorType === "team" ? "NCI Dose Team" : "User Community";
+  return `${participant}${question.authorName ? ` · ${question.authorName}` : ""}`;
+};
+
+export const buildAnswerThreads = (answers: QuestionAnswer[]): QuestionAnswerThread[] => {
+  const nodes = new Map(answers.map((answer) => [answer.id, { ...answer, children: [] } as QuestionAnswerThread]));
+  const roots: QuestionAnswerThread[] = [];
+  for (const answer of answers) {
+    const node = nodes.get(answer.id)!;
+    const parent = answer.parentAnswerId ? nodes.get(answer.parentAnswerId) : undefined;
+    if (parent && parent.id !== node.id) parent.children.push(node);
+    else roots.push(node);
+  }
+  return roots;
+};
+
 export const normalizePublicQuestion = (question: PublicQuestion): PublicQuestion => ({
   ...question,
   requestType: question.requestType || "technical_question",
   pinned: Boolean(question.pinned),
   authorName: question.authorName || null,
+  authorType: question.authorType || "community",
   visibility: question.visibility || "public_after_review",
   attachments: Array.isArray(question.attachments) ? question.attachments : [],
   answers: Array.isArray(question.answers) ? question.answers.map((answer) => ({

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { announcementEmailHtml, canPublishQuestion, generateLoginCode, loginCodeEmailHtml, normalizePortalEmail, normalizeQuestionVisibility, portalSessionCookieHeader, qaAttachmentValidationError, secondaryEmailAddedHtml, welcomeEmailHtml } from "../../scripts/portal/worker.js";
+import { announcementEmailHtml, canPublishQuestion, canViewDiscussion, discussionAuthorForUser, generateLoginCode, loginCodeEmailHtml, normalizePortalEmail, normalizeQuestionVisibility, portalSessionCookieHeader, qaAttachmentValidationError, secondaryEmailAddedHtml, welcomeEmailHtml } from "../../scripts/portal/worker.js";
 
 describe("portal email normalization", () => {
   it("normalizes a valid approved email", () => {
@@ -45,6 +45,21 @@ describe("Q&A visibility", () => {
     expect(normalizeQuestionVisibility("team_only")).toBe("team_only");
     expect(canPublishQuestion("public_after_review")).toBe(true);
     expect(canPublishQuestion("team_only")).toBe(false);
+  });
+
+  it("allows public reading while keeping private discussions between the author and team", () => {
+    const community = { id: "user-1", role: "user", discussion_role: "community" };
+    const other = { id: "user-2", role: "user", discussion_role: "community" };
+    const team = { id: "team-1", role: "user", discussion_role: "team" };
+    expect(canViewDiscussion({ status: "published", visibility: "public_after_review", submitted_by_user_id: community.id }, other)).toBe(true);
+    expect(canViewDiscussion({ status: "submitted", visibility: "team_only", submitted_by_user_id: community.id }, community)).toBe(true);
+    expect(canViewDiscussion({ status: "submitted", visibility: "team_only", submitted_by_user_id: community.id }, other)).toBe(false);
+    expect(canViewDiscussion({ status: "submitted", visibility: "team_only", submitted_by_user_id: community.id }, team)).toBe(true);
+  });
+
+  it("labels designated team members separately from community users", () => {
+    expect(discussionAuthorForUser({ role: "admin", discussion_role: "team", discussion_handle: "choonsiklee" })).toEqual({ type: "team", name: "@choonsiklee" });
+    expect(discussionAuthorForUser({ role: "user", discussion_role: "community", display_name: "Grace Lee" })).toEqual({ type: "community", name: "Grace Lee" });
   });
 });
 

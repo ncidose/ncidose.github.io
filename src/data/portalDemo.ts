@@ -122,6 +122,8 @@ export const demoApprovedUser = {
   primaryEmail: "approved.user@gmail.com",
   institution: "Example University",
   role: "user" as const,
+  discussionRole: "community" as const,
+  discussionHandle: "approvedresearcher",
   staStatus: "Approved" as const,
   staApprovedOn: "June 18, 2024",
   identities: [
@@ -142,6 +144,8 @@ export const demoAdminUser = {
   primaryEmail: "portal.admin@nih.gov",
   institution: "National Cancer Institute",
   role: "admin" as const,
+  discussionRole: "team" as const,
+  discussionHandle: "choonsiklee",
   identities: [
     {
       id: "google-admin",

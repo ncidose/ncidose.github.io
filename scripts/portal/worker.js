@@ -169,7 +169,8 @@ async function authenticatedEmail(request, env) {
 async function userForEmail(email, env) {
   return env.DB.prepare(`
     SELECT users.id, users.display_name, users.institution, users.country, users.role, users.sta_status,
-      users.access_status, users.approved_at, identities.normalized_email AS signed_in_email
+      users.access_status, users.approved_at, users.discussion_role, users.discussion_handle,
+      identities.normalized_email AS signed_in_email
     FROM user_identities identities
     JOIN users ON users.id = identities.user_id
     WHERE identities.normalized_email = ?
@@ -213,6 +214,31 @@ const safeFilename = (key) => (key.split("/").pop() || "download").replaceAll(/[
 const announcementCategories = new Set(["Release", "Maintenance", "Access"]);
 
 const cleanText = (value, maximum) => typeof value === "string" ? value.trim().slice(0, maximum) : "";
+const discussionHandle = (value, fallback = "member") => {
+  const normalized = cleanText(value, 80).replace(/^@+/, "").toLowerCase().replace(/[^a-z0-9._-]+/g, "");
+  if (normalized) return normalized;
+  const fallbackHandle = cleanText(fallback, 200).toLowerCase().replace(/[^a-z0-9._-]+/g, "");
+  return fallbackHandle || "member";
+};
+export const isDiscussionTeamUser = (user) => user?.role === "admin" || user?.discussion_role === "team";
+export const discussionAuthorForUser = (user) => {
+  const type = isDiscussionTeamUser(user) ? "team" : "community";
+  return {
+    type,
+    name: type === "team"
+      ? `@${discussionHandle(user?.discussion_handle, user?.display_name || String(user?.signed_in_email || "").split("@")[0])}`
+      : cleanText(user?.display_name, 200) || `@${discussionHandle(null, String(user?.signed_in_email || "").split("@")[0])}`,
+  };
+};
+export const canViewDiscussion = (question, user) => Boolean(
+  question
+  && user
+  && (
+    (question.status === "published" && question.visibility === "public_after_review")
+    || question.submitted_by_user_id === user.id
+    || isDiscussionTeamUser(user)
+  )
+);
 const questionTools = new Set(["NCICT", "NCIRF", "NCINM", "PHANTOM", "General"]);
 const questionStatuses = new Set(["submitted", "draft", "published", "archived"]);
 const questionVisibilities = new Set(["public_after_review", "team_only"]);
@@ -225,6 +251,7 @@ const questionFromRow = (row) => ({
   requestType: row.request_type || "technical_question",
   pinned: Boolean(row.is_pinned),
   authorName: row.author_name || null,
+  authorType: row.author_type || "community",
   visibility: row.visibility || "public_after_review",
   title: row.title,
   body: row.body,
@@ -250,18 +277,22 @@ const attachmentFromRow = (row) => ({
   createdAt: row.created_at,
 });
 
-async function loadQuestions(env, { publicOnly = false, userId = null } = {}) {
+async function loadQuestions(env, { publicOnly = false, viewer = null } = {}) {
   const conditions = [];
   const bindings = [];
   if (publicOnly) conditions.push("questions.status='published'", "questions.visibility='public_after_review'");
-  if (userId) {
-    conditions.push("questions.submitted_by_user_id=?");
-    bindings.push(userId);
+  if (viewer) {
+    if (isDiscussionTeamUser(viewer)) {
+      conditions.push("((questions.status='published' AND questions.visibility='public_after_review') OR questions.submitted_by_user_id=? OR questions.visibility='team_only')");
+    } else {
+      conditions.push("((questions.status='published' AND questions.visibility='public_after_review') OR questions.submitted_by_user_id=?)");
+    }
+    bindings.push(viewer.id);
   }
   const where = conditions.length ? `WHERE ${conditions.join(" AND ")}` : "";
   const questionResult = await env.DB.prepare(`
     SELECT questions.id, questions.tool, questions.request_type, questions.is_pinned,
-      questions.author_name, questions.visibility,
+      questions.author_name, questions.author_type, questions.visibility,
       questions.title, questions.body, questions.status,
       questions.source, questions.created_at, questions.updated_at, questions.published_at,
       users.display_name AS submitter_name, users.institution AS submitter_institution,
@@ -680,7 +711,7 @@ function corsHeaders(request, env) {
 
 async function attachmentRecord(env, id) {
   return env.DB.prepare(`
-    SELECT attachments.*, questions.status, questions.submitted_by_user_id
+    SELECT attachments.*, questions.status, questions.visibility, questions.submitted_by_user_id
     FROM qa_attachments attachments
     JOIN qa_questions questions ON questions.id=attachments.question_id
     WHERE attachments.id=?
@@ -753,7 +784,7 @@ export default {
       return Response.json({ questions }, {
         headers: {
           ...cors,
-          "cache-control": "public, max-age=300, s-maxage=300, stale-while-revalidate=3600",
+          "cache-control": "public, max-age=30, s-maxage=30, stale-while-revalidate=120",
         },
       });
     }
@@ -785,7 +816,7 @@ export default {
       const attachmentMatch = url.pathname.match(/^\/api\/attachments\/([0-9a-f-]+)$/i);
       if (request.method === "GET" && attachmentMatch) {
         const attachment = await attachmentRecord(env, attachmentMatch[1]);
-        if (!attachment || (attachment.status !== "published" && attachment.submitted_by_user_id !== user.id && user.role !== "admin")) {
+        if (!attachment || !canViewDiscussion(attachment, user)) {
           return new Response("Attachment not found", { status: 404, headers: cors });
         }
         return attachmentResponse(env, attachment);
@@ -803,7 +834,7 @@ export default {
       }
 
       if (request.method === "GET" && url.pathname === "/api/questions") {
-        return json({ questions: await loadQuestions(env, { userId: user.id }) }, 200, cors);
+        return json({ questions: await loadQuestions(env, { viewer: user }) }, 200, cors);
       }
 
       if (request.method === "POST" && url.pathname === "/api/questions") {
@@ -817,11 +848,13 @@ export default {
         const body = cleanText(input.body, 12000);
         if (!title || !body) return json({ error: "title_and_question_required" }, 400, cors);
         const id = crypto.randomUUID();
+        const author = discussionAuthorForUser(user);
+        const status = visibility === "team_only" ? "submitted" : "published";
         await env.DB.batch([
           env.DB.prepare(`
-            INSERT INTO qa_questions (id, tool, request_type, author_name, visibility, title, body, status, source, submitted_by_user_id)
-            VALUES (?, ?, ?, ?, ?, ?, ?, 'submitted', 'portal', ?)
-          `).bind(id, tool, requestType, cleanText(user.display_name, 200) || null, visibility, title, body, user.id),
+            INSERT INTO qa_questions (id, tool, request_type, author_name, author_type, visibility, title, body, status, source, submitted_by_user_id, published_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'portal', ?, CASE WHEN ?='published' THEN CURRENT_TIMESTAMP ELSE NULL END)
+          `).bind(id, tool, requestType, author.name, author.type, visibility, title, body, status, user.id, status),
           env.DB.prepare("INSERT INTO access_events (id, user_id, event_type, metadata_json) VALUES (?, ?, 'question_submitted', ?)")
             .bind(crypto.randomUUID(), user.id, JSON.stringify({ questionId: id, tool, visibility })),
         ]);
@@ -835,13 +868,13 @@ export default {
             context.waitUntil(sendPortalAccountEmail(env, {
               to: administrator.email,
               subject: `New NCI Dose Tools ${qaRequestTypeLabel(requestType).toLowerCase()}: ${title}`,
-              html: announcementEmailHtml({ title: `A new ${qaRequestTypeLabel(requestType).toLowerCase()} was submitted`, category: requestType === "feature_request" ? "Feature request" : tool, body: `${title}\n\nVisibility: ${visibility === "team_only" ? "NCI Dose Team only" : "May be shared after review"}\n\nReview and respond in Portal administration > Q&A.` }, { includeUnsubscribe: false, headerLabel: "User Portal Q&A" }),
-              text: `A new ${qaRequestTypeLabel(requestType).toLowerCase()} was submitted:\n\n${title}\n\nVisibility: ${visibility === "team_only" ? "NCI Dose Team only" : "May be shared after review"}\n\nReview it in Portal administration > Q&A:\nhttps://portal.ncidosetools.com/#/portal/admin`,
+              html: announcementEmailHtml({ title: `A new ${qaRequestTypeLabel(requestType).toLowerCase()} was posted`, category: requestType === "feature_request" ? "Feature request" : tool, body: `${title}\n\nVisibility: ${visibility === "team_only" ? "NCI Dose Team only" : "Public discussion"}\n\nReview it in Portal administration > Discussions.` }, { includeUnsubscribe: false, headerLabel: "Community Discussions" }),
+              text: `A new ${qaRequestTypeLabel(requestType).toLowerCase()} was posted:\n\n${title}\n\nVisibility: ${visibility === "team_only" ? "NCI Dose Team only" : "Public discussion"}\n\nReview it in Portal administration > Discussions:\nhttps://portal.ncidosetools.com/#/portal/admin`,
             }).catch(() => undefined));
           }
         }
-        const created = await env.DB.prepare("SELECT * FROM qa_questions WHERE id=?").bind(id).first();
-        return json({ question: questionFromRow(created) }, 201, cors);
+        const created = (await loadQuestions(env, { viewer: user })).find((question) => question.id === id);
+        return json({ question: created }, 201, cors);
       }
 
       const questionAttachmentMatch = url.pathname.match(/^\/api\/questions\/([0-9a-f-]+)\/attachments$/i);
@@ -849,10 +882,75 @@ export default {
         const originError = requireSameOrigin(request, url, cors);
         if (originError) return originError;
         const question = await env.DB.prepare("SELECT id, submitted_by_user_id, status FROM qa_questions WHERE id=?").bind(questionAttachmentMatch[1]).first();
-        if (!question || question.submitted_by_user_id !== user.id || !["submitted", "draft"].includes(question.status)) {
+        if (!question || question.submitted_by_user_id !== user.id || !["submitted", "draft", "published"].includes(question.status)) {
           return json({ error: "question_not_available_for_attachment" }, 404, cors);
         }
         const result = await storeQaAttachment(request, env, { question, userId: user.id });
+        return result.error ? json({ error: result.error }, result.error === "attachment_limit_reached" ? 409 : 400, cors) : json(result, 201, cors);
+      }
+
+      const discussionReplyMatch = url.pathname.match(/^\/api\/questions\/([0-9a-z-]+)\/replies$/i);
+      if (request.method === "POST" && discussionReplyMatch) {
+        const originError = requireSameOrigin(request, url, cors);
+        if (originError) return originError;
+        const question = await env.DB.prepare("SELECT * FROM qa_questions WHERE id=?").bind(discussionReplyMatch[1]).first();
+        if (!canViewDiscussion(question, user) || question.status === "archived") return json({ error: "discussion_not_available" }, 404, cors);
+        const input = await request.json();
+        const body = cleanText(input.body, 20000);
+        if (!body) return json({ error: "reply_required" }, 400, cors);
+        const parentAnswerId = cleanText(input.parentAnswerId, 100) || null;
+        let parentAuthorId = null;
+        if (parentAnswerId) {
+          const parent = await env.DB.prepare("SELECT id, created_by_user_id FROM qa_answers WHERE id=? AND question_id=?").bind(parentAnswerId, question.id).first();
+          if (!parent) return json({ error: "parent_reply_not_found" }, 404, cors);
+          parentAuthorId = parent.created_by_user_id || null;
+        }
+        const author = discussionAuthorForUser(user);
+        const answerId = crypto.randomUUID();
+        const order = await env.DB.prepare("SELECT COALESCE(MAX(sort_order), -1) + 1 AS next_order FROM qa_answers WHERE question_id=?").bind(question.id).first();
+        const messageType = parentAnswerId || author.type === "community" ? "follow_up" : "response";
+        await env.DB.batch([
+          env.DB.prepare(`
+            INSERT INTO qa_answers (id, question_id, body, response_type, author_name, parent_answer_id, message_type, sort_order, created_by_user_id)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+          `).bind(answerId, question.id, body, author.type, author.name, parentAnswerId, messageType, Number(order.next_order || 0), user.id),
+          env.DB.prepare("UPDATE qa_questions SET updated_at=CURRENT_TIMESTAMP WHERE id=?").bind(question.id),
+          env.DB.prepare("INSERT INTO access_events (id, user_id, event_type, metadata_json) VALUES (?, ?, 'discussion_reply_added', ?)")
+            .bind(crypto.randomUUID(), user.id, JSON.stringify({ questionId: question.id, answerId, parentAnswerId })),
+        ]);
+        if (env.RESEND_API_KEY && env.RESEND_FROM) {
+          const recipients = await env.DB.prepare(`
+            SELECT DISTINCT identities.normalized_email AS email
+            FROM users
+            JOIN user_identities identities ON identities.user_id=users.id AND identities.is_primary=1
+            WHERE users.access_status='active' AND users.id<>?
+              AND (
+                users.id=? OR users.id=?
+                OR (?='community' AND (users.role='admin' OR users.discussion_role='team'))
+              )
+          `).bind(user.id, question.submitted_by_user_id || "", parentAuthorId || "", author.type).all();
+          for (const recipient of recipients.results) {
+            context.waitUntil(sendPortalAccountEmail(env, {
+              to: recipient.email,
+              subject: `New reply: ${question.title}`,
+              html: announcementEmailHtml({ title: "A discussion has a new reply", category: qaRequestTypeLabel(question.request_type), body: `${author.name} replied to “${question.title}.”\n\nOpen the discussion in the approved User Portal to read and respond.` }, { includeUnsubscribe: false, headerLabel: "Community Discussions" }),
+              text: `${author.name} replied to “${question.title}.”\n\nOpen the discussion: https://portal.ncidosetools.com/#/portal/questions?discussion=${question.id}\n\nNCI Dose Team\nNational Cancer Institute`,
+            }).catch(() => undefined));
+          }
+        }
+        const updated = (await loadQuestions(env, { viewer: user })).find((entry) => entry.id === question.id);
+        return json({ question: updated, answer: updated?.answers.find((answer) => answer.id === answerId) }, 201, cors);
+      }
+
+      const discussionReplyAttachmentMatch = url.pathname.match(/^\/api\/questions\/([0-9a-z-]+)\/replies\/([0-9a-f-]+)\/attachments$/i);
+      if (request.method === "POST" && discussionReplyAttachmentMatch) {
+        const originError = requireSameOrigin(request, url, cors);
+        if (originError) return originError;
+        const question = await env.DB.prepare("SELECT * FROM qa_questions WHERE id=?").bind(discussionReplyAttachmentMatch[1]).first();
+        if (!canViewDiscussion(question, user) || question.status === "archived") return json({ error: "discussion_not_available" }, 404, cors);
+        const answer = await env.DB.prepare("SELECT id, created_by_user_id FROM qa_answers WHERE id=? AND question_id=?").bind(discussionReplyAttachmentMatch[2], question.id).first();
+        if (!answer || answer.created_by_user_id !== user.id) return json({ error: "reply_not_available_for_attachment" }, 404, cors);
+        const result = await storeQaAttachment(request, env, { question, answerId: answer.id, userId: user.id });
         return result.error ? json({ error: result.error }, result.error === "attachment_limit_reached" ? 409 : 400, cors) : json(result, 201, cors);
       }
 
@@ -962,7 +1060,8 @@ export default {
         if (user.role !== "admin") return json({ error: "administrator_required" }, 403, cors);
         const [usersResult, identitiesResult] = await Promise.all([
           env.DB.prepare(`
-            SELECT users.id, users.display_name, users.institution, users.country, users.role, users.sta_status,
+            SELECT users.id, users.display_name, users.institution, users.country, users.role,
+              users.discussion_role, users.discussion_handle, users.sta_status,
               users.access_status, users.approval_source, users.approved_at, users.group_joined_at, users.created_at,
               (SELECT MAX(events.occurred_at) FROM access_events events
                 WHERE events.user_id=users.id AND events.event_type='login') AS last_login_at
@@ -991,6 +1090,8 @@ export default {
             institution: entry.institution,
             country: entry.country,
             role: entry.role,
+            discussionRole: entry.role === "admin" ? "team" : entry.discussion_role,
+            discussionHandle: entry.discussion_handle,
             staStatus: entry.sta_status,
             accessStatus: entry.access_status,
             approvalSource: entry.approval_source,
@@ -1124,6 +1225,8 @@ export default {
             institution: institution || null,
             country: country || null,
             role: "user",
+            discussionRole: "community",
+            discussionHandle: null,
             staStatus: "approved",
             accessStatus: "active",
             approvalSource: "sta_admin",
@@ -1143,31 +1246,53 @@ export default {
         const originError = requireSameOrigin(request, url, cors);
         if (originError) return originError;
         const input = await request.json();
-        const accessStatus = input.accessStatus === "active" ? "active" : input.accessStatus === "suspended" ? "suspended" : "";
-        if (!accessStatus) return json({ error: "valid_access_status_required" }, 400, cors);
+        const accessStatus = input.accessStatus === undefined ? null : input.accessStatus === "active" ? "active" : input.accessStatus === "suspended" ? "suspended" : "";
+        const nextDiscussionRole = input.discussionRole === undefined ? null : input.discussionRole === "team" ? "team" : input.discussionRole === "community" ? "community" : "";
+        if (accessStatus === "" || nextDiscussionRole === "") return json({ error: "valid_user_update_required" }, 400, cors);
+        if (!accessStatus && !nextDiscussionRole) return json({ error: "user_update_required" }, 400, cors);
         if (adminUserMatch[1] === user.id && accessStatus === "suspended") return json({ error: "cannot_suspend_current_admin" }, 409, cors);
         const existing = await env.DB.prepare(`
-          SELECT users.id, identities.normalized_email AS primary_email
+          SELECT users.id, users.display_name, users.role, users.access_status, users.discussion_role,
+            users.discussion_handle, identities.normalized_email AS primary_email
           FROM users
           LEFT JOIN user_identities identities ON identities.user_id=users.id AND identities.is_primary=1
           WHERE users.id=?
         `).bind(adminUserMatch[1]).first();
         if (!existing) return json({ error: "user_not_found" }, 404, cors);
-        const statements = [
-          env.DB.prepare("UPDATE users SET access_status=?, updated_at=CURRENT_TIMESTAMP WHERE id=?").bind(accessStatus, adminUserMatch[1]),
-        ];
+        const statements = [];
+        if (accessStatus) statements.push(env.DB.prepare("UPDATE users SET access_status=?, updated_at=CURRENT_TIMESTAMP WHERE id=?").bind(accessStatus, adminUserMatch[1]));
+        let nextHandle = existing.discussion_handle || null;
+        if (nextDiscussionRole) {
+          nextHandle = nextDiscussionRole === "team"
+            ? discussionHandle(input.discussionHandle, existing.discussion_handle || existing.display_name || String(existing.primary_email || "").split("@")[0])
+            : existing.discussion_handle;
+          const nextAuthorName = nextDiscussionRole === "team"
+            ? `@${nextHandle}`
+            : cleanText(existing.display_name, 200) || `@${discussionHandle(null, String(existing.primary_email || "").split("@")[0])}`;
+          statements.push(env.DB.prepare("UPDATE users SET discussion_role=?, discussion_handle=?, updated_at=CURRENT_TIMESTAMP WHERE id=?").bind(nextDiscussionRole, nextHandle, adminUserMatch[1]));
+          statements.push(env.DB.prepare("UPDATE qa_questions SET author_type=?, author_name=?, updated_at=CURRENT_TIMESTAMP WHERE submitted_by_user_id=?").bind(nextDiscussionRole === "team" ? "team" : "community", nextAuthorName, adminUserMatch[1]));
+          statements.push(env.DB.prepare("UPDATE qa_answers SET response_type=?, author_name=?, updated_at=CURRENT_TIMESTAMP WHERE created_by_user_id=?").bind(nextDiscussionRole === "team" ? "team" : "community", nextAuthorName, adminUserMatch[1]));
+        }
         if (accessStatus === "suspended") {
           statements.push(env.DB.prepare("UPDATE portal_sessions SET revoked_at=CURRENT_TIMESTAMP WHERE user_id=? AND revoked_at IS NULL").bind(adminUserMatch[1]));
         }
         await env.DB.batch(statements);
-        context.waitUntil(env.DB.prepare("INSERT INTO access_events (id, user_id, event_type, metadata_json) VALUES (?, ?, 'access_status_changed', ?)").bind(crypto.randomUUID(), adminUserMatch[1], JSON.stringify({ accessStatus, changedBy: user.id })).run());
-        if (existing.primary_email && env.RESEND_API_KEY && env.RESEND_SEGMENT_ID) {
+        context.waitUntil(env.DB.prepare("INSERT INTO access_events (id, user_id, event_type, metadata_json) VALUES (?, ?, ?, ?)").bind(
+          crypto.randomUUID(), adminUserMatch[1], nextDiscussionRole ? "discussion_role_changed" : "access_status_changed",
+          JSON.stringify({ accessStatus, discussionRole: nextDiscussionRole, discussionHandle: nextHandle, changedBy: user.id }),
+        ).run());
+        if (accessStatus && existing.primary_email && env.RESEND_API_KEY && env.RESEND_SEGMENT_ID) {
           const syncContact = accessStatus === "active"
             ? addResendContactToAudience(env, existing.primary_email)
             : removeResendContactFromAudience(env, existing.primary_email);
           context.waitUntil(syncContact.catch(() => undefined));
         }
-        return json({ id: adminUserMatch[1], accessStatus }, 200, cors);
+        return json({
+          id: adminUserMatch[1],
+          accessStatus: accessStatus || existing.access_status,
+          discussionRole: existing.role === "admin" ? "team" : (nextDiscussionRole || existing.discussion_role),
+          discussionHandle: nextHandle,
+        }, 200, cors);
       }
 
       if (request.method === "DELETE" && adminUserMatch) {
@@ -1258,9 +1383,9 @@ export default {
           if (submitter?.email) {
             context.waitUntil(sendPortalAccountEmail(env, {
               to: submitter.email,
-              subject: `NCI Dose Tools Q&A published: ${title}`,
-              html: announcementEmailHtml({ title: "Your technical question has been answered", category: tool, body: `Hello ${submitter.name || "NCI Dose Tools user"},\n\nThe NCI Dose Team has reviewed your question, “${title},” and published the answer in the public Q&A knowledge base.\n\nView the answer: https://ncidose.github.io/#/questions/${existing.id}` }, { includeUnsubscribe: false, headerLabel: "Technical Q&A" }),
-              text: `Your NCI Dose Tools question has been answered.\n\n${title}\n\nView the answer: https://ncidose.github.io/#/questions/${existing.id}\n\nNCI Dose Team\nNational Cancer Institute`,
+              subject: `NCI Dose Tools discussion published: ${title}`,
+              html: announcementEmailHtml({ title: "Your discussion has been answered", category: tool, body: `Hello ${submitter.name || "NCI Dose Tools user"},\n\nThe NCI Dose Team has reviewed your discussion, “${title},” and published the response in Community Discussions.\n\nView the discussion: https://ncidose.github.io/#/discussions/${existing.id}` }, { includeUnsubscribe: false, headerLabel: "Community Discussions" }),
+              text: `Your NCI Dose Tools discussion has been answered.\n\n${title}\n\nView the discussion: https://ncidose.github.io/#/discussions/${existing.id}\n\nNCI Dose Team\nNational Cancer Institute`,
             }).catch(() => undefined));
           }
         }
@@ -1278,19 +1403,20 @@ export default {
         const input = await request.json();
         const body = cleanText(input.body, 20000);
         if (!body) return json({ error: "answer_required" }, 400, cors);
+        const author = discussionAuthorForUser(user);
         const existing = await env.DB.prepare(`
           SELECT id FROM qa_answers
           WHERE question_id=? AND response_type='team' AND source_ref IS NULL
           ORDER BY created_at DESC LIMIT 1
         `).bind(question.id).first();
         if (existing) {
-          await env.DB.prepare("UPDATE qa_answers SET body=?, updated_at=CURRENT_TIMESTAMP WHERE id=?").bind(body, existing.id).run();
+          await env.DB.prepare("UPDATE qa_answers SET body=?, response_type='team', author_name=?, updated_at=CURRENT_TIMESTAMP WHERE id=?").bind(body, author.name, existing.id).run();
         } else {
           const order = await env.DB.prepare("SELECT COALESCE(MAX(sort_order), -1) + 1 AS next_order FROM qa_answers WHERE question_id=?").bind(question.id).first();
           await env.DB.prepare(`
             INSERT INTO qa_answers (id, question_id, body, response_type, author_name, parent_answer_id, message_type, sort_order, created_by_user_id)
-            VALUES (?, ?, ?, 'team', NULL, NULL, 'response', ?, ?)
-          `).bind(crypto.randomUUID(), question.id, body, Number(order.next_order || 0), user.id).run();
+            VALUES (?, ?, ?, 'team', ?, NULL, 'response', ?, ?)
+          `).bind(crypto.randomUUID(), question.id, body, author.name, Number(order.next_order || 0), user.id).run();
         }
         await env.DB.prepare("UPDATE qa_questions SET updated_at=CURRENT_TIMESTAMP WHERE id=?").bind(question.id).run();
         const questions = await loadQuestions(env);

@@ -38,11 +38,11 @@ const portalCards = [
   {
     icon: MessageSquare,
     eyebrow: "Public Knowledge Base",
-    title: "Technical Questions & Answers",
+    title: "Community Discussions",
     description:
       "Search practical NCICT, NCINM, NCIRF, and PHANTOM guidance without a GitHub account.",
-    href: "/questions",
-    linkText: "Browse technical Q&A",
+    href: "/discussions",
+    linkText: "Browse discussions",
     external: false,
   },
   {
@@ -81,7 +81,7 @@ const userPaths = [
   },
   {
     title: "Technical implementer",
-    text: "Read public user and REST API manuals, release histories, and curated technical Q&A directly on this site.",
+    text: "Read public user and REST API manuals, release histories, and technical discussions directly on this site.",
     href: "/manuals",
     linkText: "Browse technical manuals",
     external: false,
@@ -260,7 +260,7 @@ const Research = () => {
                   "Keep public summaries current when tool capabilities, access routes, or documentation locations change.",
                   "Keep the official NCI website as the authoritative institutional source for official context and access policy.",
                   "Avoid burying new visitors in issue threads, release tags, or implementation details.",
-                  "Send approved users to the User Portal for restricted files and questions, while manuals, release histories, and curated answers remain publicly readable here.",
+                  "Send approved users to the User Portal for restricted files and discussion posting, while manuals, release histories, and public conversations remain readable here.",
                 ].map((item) => (
                   <div key={item} className="flex gap-4 border border-border bg-white p-4">
                     <ArrowRight className="mt-0.5 h-4 w-4 flex-shrink-0 text-primary" />

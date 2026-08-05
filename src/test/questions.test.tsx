@@ -9,6 +9,7 @@ const sample = {
   requestType: "technical_question",
   pinned: false,
   authorName: "@fujibuchi",
+  authorType: "community",
   visibility: "public_after_review",
   title: "How should scan coverage be entered?",
   body: "Use the anatomical landmarks described in the manual.",
@@ -52,7 +53,7 @@ describe("public Q&A", () => {
     await waitFor(() => expect(screen.getByText("NCI Dose Team · @haeginh · Response")).toBeInTheDocument());
     expect(screen.getByText(sample.answers[0].body)).toBeInTheDocument();
     expect(screen.getByText("User Community · @fujibuchi · Follow-up")).toBeInTheDocument();
-    expect(screen.getByText("Reply to the message above")).toBeInTheDocument();
+    expect(screen.getByText("Reply in this conversation")).toBeInTheDocument();
   });
 
   it("distinguishes feature requests from NCI Dose Team status updates", async () => {
