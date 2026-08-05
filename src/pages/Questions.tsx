@@ -90,7 +90,7 @@ const Questions = () => {
                 <div className="mt-10 space-y-6 border-t border-border pt-8">
                   {selected.answers.map((answer) => (
                     <section key={answer.id} className={cn("p-6", answer.responseType === "team" ? "border-l-4 border-primary bg-sky-50/70" : "border border-border bg-slate-50")}>
-                      <div className="font-mono text-xs uppercase tracking-widest text-primary">{answer.responseType === "team" ? "NCI Dose Team" : "Community response"}</div>
+                      <div className="font-mono text-xs uppercase tracking-widest text-primary">{answer.responseType === "team" ? (selected.requestType === "feature_request" ? "NCI Dose Team · Status update" : "NCI Dose Team") : (selected.requestType === "feature_request" ? "User Community · Request" : "User Community")}</div>
                       <div className="prose prose-slate mt-4 max-w-none text-sm leading-relaxed"><Markdown>{answer.body}</Markdown></div>
                       {answer.attachments.length > 0 && <div className="mt-5 flex flex-wrap gap-2">{answer.attachments.map((attachment) => <a key={attachment.id} href={`https://portal.ncidosetools.com/api/public/attachments/${attachment.id}`} className="inline-flex items-center gap-2 border border-sky-200 bg-white px-3 py-2 text-xs text-slate-700 hover:border-primary hover:text-primary"><Paperclip className="h-3.5 w-3.5" /> {attachment.fileName}</a>)}</div>}
                     </section>

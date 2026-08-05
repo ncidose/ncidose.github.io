@@ -9,8 +9,13 @@ const technicalCategories = new Set(["NCICT", "NCIRF", "NCINM", "PHANTOM"]);
 // Keep the list explicit so ordinary technical questions are never reclassified by
 // a loose keyword match.
 const featureRequestNumbers = new Set([31, 34, 36, 39]);
+const featureBodyRequestNumbers = new Set([39]);
+// Most top-level entries in the legacy pinned threads were requests copied from
+// users' email. This one entry was an official availability update.
+const featureTeamUpdateIds = new Set(["DC_kwDONcuSIs4AsESJ"]);
 const bugReportNumbers = new Set([9, 12, 14, 15, 21, 22, 27, 30, 45]);
 const embeddedBugPattern = /^(?:bug report|error report)\s*:\s*/i;
+const featureRequestBody = "Requests collected from the former GitHub Discussions feature-request threads. Community requests and NCI Dose Team status updates are identified below.";
 
 const requestTypeForDiscussion = (number) => featureRequestNumbers.has(number)
   ? "feature_request"
@@ -125,7 +130,20 @@ const discussions = JSON.parse(response).data.repository.discussions.nodes
       tool: item.category.name,
       comment,
     }));
-    const responses = item.comments.nodes.flatMap((comment) => [comment, ...comment.replies.nodes])
+    const bodyRequests = featureBodyRequestNumbers.has(item.number) ? [{
+      id: `discussion-body:${item.number}`,
+      body: item.body,
+      createdAt: item.createdAt,
+      author: null,
+      threadPosition: "comment",
+    }] : [];
+    const responses = [
+      ...bodyRequests,
+      ...item.comments.nodes.flatMap((comment) => [
+        { ...comment, threadPosition: "comment" },
+        ...comment.replies.nodes.map((reply) => ({ ...reply, threadPosition: "reply" })),
+      ]),
+    ]
       .filter((responseItem) => !bugResponseIds.has(responseItem.id))
       .filter((responseItem) => normalizeMarkdown(responseItem.body));
     return { ...item, responses };
@@ -138,11 +156,16 @@ for (const discussion of discussions) {
   const requestType = requestTypeForDiscussion(discussion.number);
   const tool = requestType === "feature_request" ? "General" : discussion.category.name;
   const pinned = requestType === "feature_request" ? 1 : 0;
-  statements.push(`INSERT OR IGNORE INTO qa_questions (id, tool, request_type, is_pinned, title, body, status, source, source_ref, created_at, updated_at, published_at) VALUES (${sql(questionId)}, ${sql(tool)}, ${sql(requestType)}, ${pinned}, ${sql(discussion.title)}, ${sql(normalizeMarkdown(discussion.body))}, 'published', 'github_discussions', ${sql(String(discussion.number))}, ${sql(discussion.createdAt)}, ${sql(discussion.createdAt)}, ${sql(discussion.createdAt)});`);
-  statements.push(`UPDATE qa_questions SET tool=${sql(tool)}, request_type=${sql(requestType)}, is_pinned=${pinned}, title=${sql(discussion.title)}, body=${sql(normalizeMarkdown(discussion.body))}, status='published', published_at=COALESCE(published_at, ${sql(discussion.createdAt)}), updated_at=CURRENT_TIMESTAMP WHERE id=${sql(questionId)} AND source='github_discussions';`);
+  const questionBody = requestType === "feature_request" ? featureRequestBody : normalizeMarkdown(discussion.body);
+  statements.push(`INSERT OR IGNORE INTO qa_questions (id, tool, request_type, is_pinned, title, body, status, source, source_ref, created_at, updated_at, published_at) VALUES (${sql(questionId)}, ${sql(tool)}, ${sql(requestType)}, ${pinned}, ${sql(discussion.title)}, ${sql(questionBody)}, 'published', 'github_discussions', ${sql(String(discussion.number))}, ${sql(discussion.createdAt)}, ${sql(discussion.createdAt)}, ${sql(discussion.createdAt)});`);
+  statements.push(`UPDATE qa_questions SET tool=${sql(tool)}, request_type=${sql(requestType)}, is_pinned=${pinned}, title=${sql(discussion.title)}, body=${sql(questionBody)}, status='published', published_at=COALESCE(published_at, ${sql(discussion.createdAt)}), updated_at=CURRENT_TIMESTAMP WHERE id=${sql(questionId)} AND source='github_discussions';`);
   discussion.responses.forEach((responseItem, index) => {
     const answerId = `github-${responseItem.id}`;
-    const responseType = requestType === "feature_request" || isTeamResponse(responseItem) ? "team" : "community";
+    const featureTeamResponse = requestType === "feature_request" && (
+      featureTeamUpdateIds.has(responseItem.id)
+      || (responseItem.threadPosition === "reply" && isTeamResponse(responseItem))
+    );
+    const responseType = featureTeamResponse || (requestType !== "feature_request" && isTeamResponse(responseItem)) ? "team" : "community";
     const normalizedBody = normalizeMarkdown(responseItem.body);
     const body = responseType === "team" ? teamVoice(normalizedBody) : normalizedBody;
     statements.push(`INSERT OR IGNORE INTO qa_answers (id, question_id, body, response_type, sort_order, source_ref, created_at, updated_at) VALUES (${sql(answerId)}, ${sql(questionId)}, ${sql(body)}, ${sql(responseType)}, ${index}, ${sql(responseItem.id)}, ${sql(responseItem.createdAt)}, ${sql(responseItem.createdAt)});`);

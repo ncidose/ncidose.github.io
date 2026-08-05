@@ -17,6 +17,19 @@ const sample = {
   answers: [{ id: "a1", body: "Confirm the start and end landmarks before calculation.", responseType: "team", createdAt: "2025-01-02T00:00:00Z", updatedAt: "2025-01-02T00:00:00Z", attachments: [] }],
 };
 
+const featureRequestSample = {
+  ...sample,
+  id: "github-31",
+  requestType: "feature_request",
+  pinned: true,
+  title: "Feature request NCICT",
+  body: "Community requests and NCI Dose Team status updates are identified below.",
+  answers: [
+    { ...sample.answers[0], id: "request-1", body: "Please add a new scanner model.", responseType: "community" },
+    { ...sample.answers[0], id: "update-1", body: "Included in the current release.", responseType: "team" },
+  ],
+};
+
 describe("public Q&A", () => {
   afterEach(() => vi.restoreAllMocks());
 
@@ -33,5 +46,13 @@ describe("public Q&A", () => {
     render(<MemoryRouter initialEntries={["/questions/github-12"]}><Routes><Route path="/questions/:questionId" element={<Questions />} /></Routes></MemoryRouter>);
     await waitFor(() => expect(screen.getByText("NCI Dose Team")).toBeInTheDocument());
     expect(screen.getByText(sample.answers[0].body)).toBeInTheDocument();
+  });
+
+  it("distinguishes feature requests from NCI Dose Team status updates", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: true, json: async () => ({ questions: [featureRequestSample] }) }));
+    render(<MemoryRouter initialEntries={["/questions/github-31"]}><Routes><Route path="/questions/:questionId" element={<Questions />} /></Routes></MemoryRouter>);
+    expect(await screen.findByText("User Community · Request")).toBeInTheDocument();
+    expect(screen.getByText("NCI Dose Team · Status update")).toBeInTheDocument();
+    expect(screen.getByText("Included in the current release.")).toBeInTheDocument();
   });
 });
