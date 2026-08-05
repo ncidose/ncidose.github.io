@@ -3,6 +3,7 @@ import { motion } from "framer-motion";
 import {
   ArrowRight,
   CalendarDays,
+  Clock3,
   Database,
   ExternalLink,
   FileText,
@@ -19,6 +20,7 @@ type LiteratureArticle = {
   journal: string;
   pubdate: string;
   year: string;
+  addedAt?: string;
   authors: string[];
   nciTeamAuthored?: boolean;
   doi: string | null;
@@ -56,11 +58,20 @@ type LiteratureData = {
   tools: LiteratureTool[];
 };
 
+type RecentlyAddedArticle = {
+  addedAt: string;
+  article: LiteratureArticle;
+  tools: { id: string; name: string }[];
+};
+
 const formatGeneratedDate = (value: string) =>
   new Intl.DateTimeFormat("en-US", {
     dateStyle: "medium",
     timeStyle: "short",
   }).format(new Date(value));
+
+const formatRegistryDate = (value: string) =>
+  new Intl.DateTimeFormat("en-US", { dateStyle: "medium" }).format(new Date(value));
 
 const assetPath = (path: string) =>
   `${import.meta.env.BASE_URL.replace(/\/$/, "")}/${path.replace(/^\//, "")}`;
@@ -112,6 +123,42 @@ const cumulativeLiteratureSeries = (tools: LiteratureTool[]) => {
       cumulative += count;
       return { year, count, cumulative };
     });
+};
+
+const recentlyAddedArticles = (tools: LiteratureTool[], limit = 5) => {
+  const byPmid = new Map<string, RecentlyAddedArticle>();
+
+  for (const tool of tools) {
+    for (const year of tool.years) {
+      for (const article of year.articles) {
+        if (!article.addedAt) continue;
+        const existing = byPmid.get(article.pmid);
+        const toolReference = { id: tool.id, name: tool.tool };
+        if (!existing) {
+          byPmid.set(article.pmid, {
+            addedAt: article.addedAt,
+            article,
+            tools: [toolReference],
+          });
+          continue;
+        }
+        if (!existing.tools.some((entry) => entry.id === tool.id)) {
+          existing.tools.push(toolReference);
+        }
+        if (new Date(article.addedAt).getTime() > new Date(existing.addedAt).getTime()) {
+          existing.addedAt = article.addedAt;
+          existing.article = article;
+        }
+      }
+    }
+  }
+
+  return Array.from(byPmid.values())
+    .sort((left, right) => {
+      const dateDifference = new Date(right.addedAt).getTime() - new Date(left.addedAt).getTime();
+      return dateDifference || right.article.pmid.localeCompare(left.article.pmid, undefined, { numeric: true });
+    })
+    .slice(0, limit);
 };
 
 const Literature = () => {
@@ -253,7 +300,12 @@ const Literature = () => {
               <LiteratureNav activeToolId={selectedTool?.id ?? null} tools={data.tools} />
             )}
 
-            {data && !isDetailPage && <LiteratureIndex tools={data.tools} />}
+            {data && !isDetailPage && (
+              <>
+                <RecentlyAdded tools={data.tools} />
+                <LiteratureIndex tools={data.tools} />
+              </>
+            )}
 
             {data && isDetailPage && !selectedTool && (
               <div className="max-w-3xl border border-border bg-white p-6">
@@ -538,6 +590,70 @@ const LiteratureIndex = ({ tools }: { tools: LiteratureTool[] }) => (
     })}
   </div>
 );
+
+const RecentlyAdded = ({ tools }: { tools: LiteratureTool[] }) => {
+  const articles = recentlyAddedArticles(tools);
+  if (articles.length === 0) return null;
+
+  return (
+    <motion.section
+      initial={{ opacity: 0, y: 20 }}
+      whileInView={{ opacity: 1, y: 0 }}
+      viewport={{ once: true }}
+      transition={{ duration: 0.55, ease: [0.16, 1, 0.3, 1] }}
+      className="mb-12 grid border border-border bg-white lg:grid-cols-[0.7fr_1.3fr]"
+    >
+      <div className="border-b border-border bg-slate-50 p-7 lg:border-b-0 lg:border-r">
+        <Clock3 className="h-5 w-5 text-primary" />
+        <div className="mt-6 font-mono text-xs uppercase tracking-widest text-primary">
+          Registry activity
+        </div>
+        <h2 className="mt-3 text-3xl font-light text-slate-950">Recently added</h2>
+        <p className="mt-4 max-w-md text-sm leading-relaxed text-muted-foreground">
+          The five papers most recently added to the NCI Dose Tools Literature Registry.
+          These dates reflect registry updates, not publication dates.
+        </p>
+      </div>
+
+      <div className="divide-y divide-border px-6 sm:px-8">
+        {articles.map(({ addedAt, article, tools: articleTools }) => (
+          <article key={article.pmid} className="py-6">
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="font-mono text-[11px] uppercase tracking-wider text-slate-500">
+                Added {formatRegistryDate(addedAt)}
+              </span>
+              {articleTools.map((tool) => (
+                <Link
+                  key={tool.id}
+                  to={`/literature/${tool.id}`}
+                  className="border border-sky-200 bg-sky-50 px-2 py-1 font-mono text-[10px] uppercase tracking-wider text-primary hover:border-primary"
+                >
+                  {tool.name}
+                </Link>
+              ))}
+            </div>
+            <h3 className="mt-3 text-base font-medium leading-snug text-slate-950">
+              <a
+                href={article.pubmedUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-start gap-2 transition-colors hover:text-primary"
+              >
+                <span>{article.title}</span>
+                <ExternalLink className="mt-1 h-3.5 w-3.5 shrink-0" />
+              </a>
+            </h3>
+            <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
+              {article.authors.slice(0, 4).join(", ")}
+              {article.authors.length > 4 ? ", et al." : article.authors.length > 0 ? "." : ""}{" "}
+              <span className="italic">{article.journal}</span>
+            </p>
+          </article>
+        ))}
+      </div>
+    </motion.section>
+  );
+};
 
 const ToolLiterature = ({
   note,
