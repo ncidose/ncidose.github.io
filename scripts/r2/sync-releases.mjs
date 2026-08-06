@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { createReadStream } from "node:fs";
+import { createReadStream, readFileSync } from "node:fs";
 import { mkdtemp, open, readdir, rm, stat } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
@@ -11,12 +11,20 @@ const defaultSource = profile === "phantom"
   : path.join(os.homedir(), "ncidose_frontend/_release");
 const source = path.resolve(process.argv[2] || process.env.NCIDOSE_RELEASE_DIR || defaultSource);
 const keyPrefix = profile === "phantom" ? "PHANTOM" : "";
+const bundlesOnly = process.env.NCIDOSE_R2_BUNDLES_ONLY === "true";
 const workerUrl = (process.env.NCIDOSE_R2_WORKER_URL || "https://ncidosetools-storage-admin.ncidosetools-614ade55.workers.dev").replace(/\/$/, "");
-const token = process.env.NCIDOSE_R2_UPLOAD_TOKEN || execFileSync(
-  "security",
-  ["find-generic-password", "-a", os.userInfo().username, "-s", "ncidosetools-r2-uploader", "-w"],
-  { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] },
-).trim();
+const tokenFile = path.join(os.homedir(), "Library/Application Support/NCI Dose Tools/r2-upload-token");
+const token = process.env.NCIDOSE_R2_UPLOAD_TOKEN || (() => {
+  try {
+    return execFileSync(
+      "security",
+      ["find-generic-password", "-a", os.userInfo().username, "-s", "ncidosetools-r2-uploader", "-w"],
+      { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] },
+    ).trim();
+  } catch {
+    return readFileSync(tokenFile, "utf8").trim();
+  }
+})();
 const partSize = 32 * 1024 * 1024;
 const fileConcurrency = 4;
 const excludedNames = new Set([".DS_Store", "upload_to_r2.py"]);
@@ -194,7 +202,7 @@ for (const [index, directory] of bundleDirectories.entries()) {
 }
 
 const collectedFiles = (await collect(source, keyPrefix)).filter((file) => !legacyBundleKeys.has(file.key));
-const files = [...collectedFiles, ...bundleFiles];
+const files = bundlesOnly ? bundleFiles : [...collectedFiles, ...bundleFiles];
 const totalBytes = files.reduce((sum, file) => sum + file.size, 0);
 console.log(`Syncing ${files.length} files (${totalBytes} bytes) from ${source}`);
 

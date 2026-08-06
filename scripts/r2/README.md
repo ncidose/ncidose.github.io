@@ -5,7 +5,10 @@ This directory contains the private R2 upload service and the Mac-side sync clie
 ## Routine release sync
 
 The upload token is stored in the macOS Keychain under the service name
-`ncidosetools-r2-uploader`. From the repository root, run:
+`ncidosetools-r2-uploader`. Remote sessions that cannot unlock the Keychain use
+the owner-only fallback file at
+`~/Library/Application Support/NCI Dose Tools/r2-upload-token`. From the
+repository root, run:
 
 ```bash
 npm run r2:sync
@@ -25,11 +28,18 @@ those archives out of the file browser and presents a consistent **Download
 folder** action instead. It never deletes R2 objects. `.DS_Store` and the legacy
 `upload_to_r2.py` helper are excluded.
 
+To rebuild and publish only the hidden PHANTOM and DCC folder downloads, run:
+
+```bash
+npm run r2:sync-folder-downloads
+```
+
 ## Security
 
 - The `ncidosetools` bucket remains private.
 - The Worker rejects requests without the `UPLOAD_TOKEN` bearer secret.
-- The token is stored only in Cloudflare Worker secrets and the macOS Keychain.
+- The token is stored only in Cloudflare Worker secrets and either the macOS
+  Keychain or the owner-only remote-session fallback file described above.
 - Do not add the token to this repository or to shell history.
 
 ## Deploy an uploader update
