@@ -26,9 +26,20 @@ export default {
 
       if (request.method === "GET" && url.pathname === "/list") {
         const cursor = url.searchParams.get("cursor") || undefined;
-        const result = await env.BUCKET.list({ limit: 1000, cursor });
+        const prefix = url.searchParams.get("prefix") || undefined;
+        const result = await env.BUCKET.list({
+          limit: 1000,
+          cursor,
+          prefix,
+          include: ["customMetadata"],
+        });
         return json({
-          objects: result.objects.map((object) => ({ key: object.key, size: object.size })),
+          objects: result.objects.map((object) => ({
+            key: object.key,
+            size: object.size,
+            etag: object.httpEtag,
+            customMetadata: object.customMetadata || {},
+          })),
           truncated: result.truncated,
           cursor: result.truncated ? result.cursor : null,
         });

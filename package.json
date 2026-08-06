@@ -21,6 +21,7 @@
     "portal:api:deploy": "npm run build:portal && npx --yes wrangler@latest deploy --config scripts/portal/wrangler.jsonc",
     "r2:sync": "node scripts/r2/sync-releases.mjs",
     "r2:deploy-uploader": "npx --yes wrangler@latest deploy --config scripts/r2/wrangler.jsonc",
+    "phantom:push": "NCIDOSE_R2_SYNC_PROFILE=phantom node scripts/r2/sync-releases.mjs",
     "lint": "eslint .",
     "preview": "vite preview",
     "test": "vitest run",

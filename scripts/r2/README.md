@@ -19,9 +19,10 @@ npm run r2:sync -- /absolute/path/to/releases
 ```
 
 The sync is additive: it uploads new or changed files and skips objects whose
-byte size and SHA-256 metadata match. It also builds four ZIP downloads for
-the folders under `PHANTOM/nci_size` and places them at the top of that portal
-folder. It never deletes R2 objects. `.DS_Store` and the legacy
+byte size and SHA-256 metadata match. It also builds private folder-download
+archives for every nested folder under `PHANTOM/` and `DCC/`. The portal keeps
+those archives out of the file browser and presents a consistent **Download
+folder** action instead. It never deletes R2 objects. `.DS_Store` and the legacy
 `upload_to_r2.py` helper are excluded.
 
 ## Security
@@ -41,3 +42,22 @@ npm run r2:deploy-uploader
 
 The deployed service is `ncidosetools-storage-admin` and is bound only to the
 `ncidosetools` R2 bucket.
+
+## PHANTOM working folder
+
+The editable local copy of the R2 `PHANTOM/` folder is:
+
+```text
+~/ncidose_frontend/phantom
+```
+
+After updating the local folder, publish its new and changed files with:
+
+```bash
+npm run phantom:push
+```
+
+The push maps the local folder root to R2 `PHANTOM/`. It rebuilds the hidden
+folder-download archives and does not delete remote objects. Deleting a
+file locally therefore does not delete it from R2; remote removal should always
+be handled as a separate, deliberate maintenance operation.

@@ -994,6 +994,7 @@ const StatusCard = ({ icon: Icon, label, value, note }: { icon: typeof ShieldChe
 );
 
 type PortalFile = { key: string; size: number; etag: string };
+type PortalFolder = { prefix: string; downloadAvailable: boolean };
 
 const formatBytes = (bytes: number) => {
   if (bytes < 1024) return `${bytes} B`;
@@ -1015,7 +1016,7 @@ const Downloads = ({ demoMode }: { demoMode: boolean }) => {
   const [rootPrefix, setRootPrefix] = useState("NCICT/");
   const [prefix, setPrefix] = useState("NCICT/");
   const [files, setFiles] = useState<PortalFile[]>([]);
-  const [folders, setFolders] = useState<string[]>([]);
+  const [folders, setFolders] = useState<PortalFolder[]>([]);
   const [cursor, setCursor] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [loadError, setLoadError] = useState("");
@@ -1031,7 +1032,10 @@ const Downloads = ({ demoMode }: { demoMode: boolean }) => {
       if (!response.ok) throw new Error("The file list could not be loaded.");
       const body = await response.json();
       setFiles((current) => nextCursor ? [...current, ...body.objects] : body.objects);
-      setFolders((current) => nextCursor ? [...current, ...body.folders] : body.folders);
+      const nextFolders: PortalFolder[] = (body.folders || []).map((folder: string | PortalFolder) => (
+        typeof folder === "string" ? { prefix: folder, downloadAvailable: false } : folder
+      ));
+      setFolders((current) => nextCursor ? [...current, ...nextFolders] : nextFolders);
       setCursor(body.cursor);
       setPrefix(nextPrefix);
     } catch (error) {
@@ -1067,13 +1071,17 @@ const Downloads = ({ demoMode }: { demoMode: boolean }) => {
     window.location.assign(`/api/download?key=${encodeURIComponent(file.key)}`);
   };
 
+  const downloadFolder = (folder: PortalFolder) => {
+    if (!folder.downloadAvailable) return;
+    window.location.assign(`/api/folder-download?prefix=${encodeURIComponent(folder.prefix)}`);
+  };
+
   const normalizedSearch = search.trim().toLowerCase();
-  const visibleFolders = folders.filter((folder) => itemName(folder).toLowerCase().includes(normalizedSearch));
+  const visibleFolders = folders.filter((folder) => itemName(folder.prefix).toLowerCase().includes(normalizedSearch));
   const visibleFiles = files.filter((file) => itemName(file.key).toLowerCase().includes(normalizedSearch));
-  const visibleFolderDownloads = visibleFiles.filter((file) => prefix === "PHANTOM/nci_size/" && file.key.endsWith(".zip"));
-  const visibleRegularFiles = visibleFiles.filter((file) => !visibleFolderDownloads.includes(file));
   const selectedTool = rootPrefix.replace(/\/$/, "");
   const selectedManualUrl = toolManualUrls[selectedTool];
+  const supportsFolderDownloads = selectedTool === "PHANTOM" || selectedTool === "DCC";
 
   return (
     <div className="space-y-6">
@@ -1115,20 +1123,21 @@ const Downloads = ({ demoMode }: { demoMode: boolean }) => {
           <div className="p-8 text-center"><p className="text-sm text-destructive">{loadError}</p><Button type="button" variant="outline" onClick={() => void loadFolder(prefix)} className="mt-4 rounded-none">Try again</Button></div>
         ) : (
           <div className="divide-y divide-border">
-            {visibleFolderDownloads.map((file) => (
-              <div key={file.key} className="flex flex-col justify-between gap-4 bg-primary/5 px-6 py-4 sm:flex-row sm:items-center">
-                <div className="flex min-w-0 items-center gap-4"><div className="flex h-10 w-10 shrink-0 items-center justify-center bg-primary text-white"><FileArchive className="h-5 w-5" /></div><div className="min-w-0"><div className="break-words text-sm font-medium text-slate-800">{itemName(file.key)}</div><div className="mt-1 text-xs text-muted-foreground">Complete folder · ZIP · {formatBytes(file.size)}</div></div></div>
-                <Button type="button" onClick={() => downloadFile(file)} className="shrink-0 rounded-none"><Download className="h-4 w-4" /> Download ZIP</Button>
+            {visibleFolders.map((folder) => (
+              <div key={folder.prefix} className="flex flex-col gap-3 px-6 py-4 hover:bg-slate-50 sm:flex-row sm:items-center">
+                <button type="button" onClick={() => void loadFolder(folder.prefix)} className="flex min-w-0 flex-1 items-center gap-4 text-left">
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center border border-border bg-slate-50"><Folder className="h-5 w-5 text-primary" /></div>
+                  <div><div className="text-sm font-medium text-slate-800">{itemName(folder.prefix)}</div><div className="mt-1 text-xs text-muted-foreground">Folder</div></div>
+                  <ChevronRight className="ml-auto h-4 w-4 text-muted-foreground" />
+                </button>
+                {supportsFolderDownloads && (
+                  <Button type="button" variant="outline" disabled={!folder.downloadAvailable} onClick={() => downloadFolder(folder)} className="shrink-0 rounded-none">
+                    <Download className="h-4 w-4" /> {folder.downloadAvailable ? "Download folder" : "Folder download pending"}
+                  </Button>
+                )}
               </div>
             ))}
-            {visibleFolders.map((folder) => (
-              <button key={folder} type="button" onClick={() => void loadFolder(folder)} className="flex w-full items-center gap-4 px-6 py-4 text-left hover:bg-slate-50">
-                <div className="flex h-10 w-10 shrink-0 items-center justify-center border border-border bg-slate-50"><Folder className="h-5 w-5 text-primary" /></div>
-                <div><div className="text-sm font-medium text-slate-800">{itemName(folder)}</div><div className="mt-1 text-xs text-muted-foreground">Folder</div></div>
-                <ChevronRight className="ml-auto h-4 w-4 text-muted-foreground" />
-              </button>
-            ))}
-            {visibleRegularFiles.map((file) => (
+            {visibleFiles.map((file) => (
               <div key={file.key} className="flex flex-col justify-between gap-4 px-6 py-4 sm:flex-row sm:items-center">
                 <div className="flex min-w-0 items-center gap-4"><div className="flex h-10 w-10 shrink-0 items-center justify-center border border-border bg-slate-50"><FileArchive className="h-5 w-5 text-primary" /></div><div className="min-w-0"><div className="break-words text-sm font-medium text-slate-800">{itemName(file.key)}</div><div className="mt-1 text-xs text-muted-foreground">{formatBytes(file.size)}</div></div></div>
                 <Button type="button" onClick={() => downloadFile(file)} className="shrink-0 rounded-none"><Download className="h-4 w-4" /> Download</Button>

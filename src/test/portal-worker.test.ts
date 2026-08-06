@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { announcementEmailHtml, canPublishQuestion, canViewDiscussion, discussionAuthorForUser, generateLoginCode, loginCodeEmailHtml, normalizePortalEmail, normalizeQuestionVisibility, portalSessionCookieHeader, qaAttachmentValidationError, secondaryEmailAddedHtml, welcomeEmailHtml } from "../../scripts/portal/worker.js";
+import { announcementEmailHtml, canPublishQuestion, canViewDiscussion, discussionAuthorForUser, folderArchiveKeys, generateLoginCode, isFolderDownloadPrefix, loginCodeEmailHtml, normalizePortalEmail, normalizeQuestionVisibility, portalSessionCookieHeader, qaAttachmentValidationError, secondaryEmailAddedHtml, welcomeEmailHtml } from "../../scripts/portal/worker.js";
 
 describe("portal email normalization", () => {
   it("normalizes a valid approved email", () => {
@@ -36,6 +36,24 @@ describe("Q&A attachment validation", () => {
   it("rejects oversized or unsupported files", () => {
     expect(qaAttachmentValidationError({ name: "large.pdf", type: "application/pdf", size: 10 * 1024 * 1024 + 1 })).toBe("attachment_too_large");
     expect(qaAttachmentValidationError({ name: "script.html", type: "text/html", size: 100 })).toBe("attachment_type_not_allowed");
+  });
+});
+
+describe("folder downloads", () => {
+  it("supports nested PHANTOM and DCC folders through hidden archives", () => {
+    expect(isFolderDownloadPrefix("PHANTOM/nci_size/")).toBe(true);
+    expect(isFolderDownloadPrefix("DCC/nevada_nuclear_bomb_test/thyroid_dose/")).toBe(true);
+    expect(folderArchiveKeys("PHANTOM/nci_size/")).toEqual([
+      "_folder-downloads/PHANTOM/nci_size.zip",
+      "PHANTOM/nci_size.zip",
+    ]);
+  });
+
+  it("does not add folder downloads to the three flat software distributions", () => {
+    expect(isFolderDownloadPrefix("NCICT/releases/")).toBe(false);
+    expect(isFolderDownloadPrefix("NCINM/data/")).toBe(false);
+    expect(isFolderDownloadPrefix("NCIRF/examples/")).toBe(false);
+    expect(isFolderDownloadPrefix("PHANTOM/")).toBe(false);
   });
 });
 

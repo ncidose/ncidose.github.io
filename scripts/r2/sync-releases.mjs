@@ -5,7 +5,12 @@ import os from "node:os";
 import path from "node:path";
 import { execFileSync } from "node:child_process";
 
-const source = path.resolve(process.argv[2] || process.env.NCIDOSE_RELEASE_DIR || path.join(os.homedir(), "ncidose_frontend/_release"));
+const profile = process.env.NCIDOSE_R2_SYNC_PROFILE === "phantom" ? "phantom" : "releases";
+const defaultSource = profile === "phantom"
+  ? path.join(os.homedir(), "ncidose_frontend/phantom")
+  : path.join(os.homedir(), "ncidose_frontend/_release");
+const source = path.resolve(process.argv[2] || process.env.NCIDOSE_RELEASE_DIR || defaultSource);
+const keyPrefix = profile === "phantom" ? "PHANTOM" : "";
 const workerUrl = (process.env.NCIDOSE_R2_WORKER_URL || "https://ncidosetools-storage-admin.ncidosetools-614ade55.workers.dev").replace(/\/$/, "");
 const token = process.env.NCIDOSE_R2_UPLOAD_TOKEN || execFileSync(
   "security",
@@ -15,7 +20,12 @@ const token = process.env.NCIDOSE_R2_UPLOAD_TOKEN || execFileSync(
 const partSize = 32 * 1024 * 1024;
 const fileConcurrency = 4;
 const excludedNames = new Set([".DS_Store", "upload_to_r2.py"]);
-const bundleFolders = ["arm_highres", "arm_lowres", "armless_highres", "armless_lowres"];
+const legacyBundleKeys = new Set([
+  "PHANTOM/nci_size/arm_highres.zip",
+  "PHANTOM/nci_size/arm_lowres.zip",
+  "PHANTOM/nci_size/armless_highres.zip",
+  "PHANTOM/nci_size/armless_lowres.zip",
+]);
 
 const mimeTypes = new Map([
   [".csv", "text/csv; charset=utf-8"],
@@ -64,6 +74,19 @@ async function collect(directory, prefix = "") {
     else if (entry.isFile()) files.push({ absolute, key: relative, size: (await stat(absolute)).size });
   }
   return files;
+}
+
+async function collectDirectories(directory, prefix) {
+  const directories = [];
+  const entries = await readdir(directory, { withFileTypes: true });
+  for (const entry of entries.sort((a, b) => a.name.localeCompare(b.name))) {
+    if (!entry.isDirectory() || excludedNames.has(entry.name)) continue;
+    const absolute = path.join(directory, entry.name);
+    const key = `${prefix}/${entry.name}`;
+    directories.push({ absolute, key });
+    directories.push(...(await collectDirectories(absolute, key)));
+  }
+  return directories;
 }
 
 async function sha256File(file) {
@@ -130,12 +153,13 @@ async function uploadFile(file, index, total) {
   return "uploaded";
 }
 
-async function listRemote() {
+async function listRemote(prefix = "") {
   const objects = [];
   let cursor = "";
   do {
     const query = new URLSearchParams();
     if (cursor) query.set("cursor", cursor);
+    if (prefix) query.set("prefix", `${prefix}/`);
     const page = await requestJson(`/list?${query}`);
     objects.push(...page.objects);
     cursor = page.truncated ? page.cursor : "";
@@ -146,17 +170,31 @@ async function listRemote() {
 const bundleTempDirectory = await mkdtemp(path.join(os.tmpdir(), "ncidose-r2-bundles-"));
 try {
 const bundleFiles = [];
-for (const folder of bundleFolders) {
-  const bundleParent = "PHANTOM/nci_size";
-  const folderPath = path.join(source, bundleParent, folder);
-  if (!(await stat(folderPath).catch(() => null))?.isDirectory()) continue;
-  const archive = path.join(bundleTempDirectory, `${folder}.zip`);
-  console.log(`Building folder download ${folder}.zip`);
-  execFileSync("zip", ["-0", "-q", "-r", archive, folder, "-x", "*/.DS_Store"], { cwd: path.join(source, bundleParent) });
-  bundleFiles.push({ absolute: archive, key: `${bundleParent}/${folder}.zip`, size: (await stat(archive)).size });
+const bundleRoots = profile === "phantom"
+  ? [{ absolute: source, key: "PHANTOM" }]
+  : ["PHANTOM", "DCC"].map((key) => ({ absolute: path.join(source, key), key }));
+const bundleDirectories = [];
+for (const root of bundleRoots) {
+  if ((await stat(root.absolute).catch(() => null))?.isDirectory()) {
+    bundleDirectories.push(...(await collectDirectories(root.absolute, root.key)));
+  }
+}
+for (const [index, directory] of bundleDirectories.entries()) {
+  const archive = path.join(bundleTempDirectory, `${String(index + 1).padStart(4, "0")}.zip`);
+  const archiveKey = `_folder-downloads/${directory.key}.zip`;
+  const parentKey = directory.key.split("/").slice(0, -1).join("/");
+  const exclusions = [...legacyBundleKeys]
+    .filter((key) => key.startsWith(`${directory.key}/`))
+    .map((key) => key.slice(parentKey.length + 1));
+  console.log(`Building folder download ${directory.key}`);
+  execFileSync("zip", ["-0", "-q", "-r", archive, path.basename(directory.absolute), "-x", "*/.DS_Store", ...exclusions], {
+    cwd: path.dirname(directory.absolute),
+  });
+  bundleFiles.push({ absolute: archive, key: archiveKey, size: (await stat(archive)).size });
 }
 
-const files = [...(await collect(source)), ...bundleFiles];
+const collectedFiles = (await collect(source, keyPrefix)).filter((file) => !legacyBundleKeys.has(file.key));
+const files = [...collectedFiles, ...bundleFiles];
 const totalBytes = files.reduce((sum, file) => sum + file.size, 0);
 console.log(`Syncing ${files.length} files (${totalBytes} bytes) from ${source}`);
 
@@ -181,7 +219,9 @@ async function runUploadWorker() {
 }
 await Promise.all(Array.from({ length: fileConcurrency }, () => runUploadWorker()));
 
-const remote = await listRemote();
+const remote = profile === "phantom"
+  ? [...(await listRemote("PHANTOM")), ...(await listRemote("_folder-downloads/PHANTOM"))]
+  : await listRemote();
 const remoteMap = new Map(remote.map((object) => [object.key, object.size]));
 const missing = files.filter((file) => remoteMap.get(file.key) !== file.size);
 const matchedBytes = files.reduce((sum, file) => sum + (remoteMap.get(file.key) === file.size ? file.size : 0), 0);

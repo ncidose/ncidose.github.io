@@ -1,4 +1,5 @@
 const allowedPrefixes = ["NCICT/", "NCINM/", "NCIRF/", "PHANTOM/", "DCC/"];
+const folderDownloadPrefixes = ["PHANTOM/", "DCC/"];
 const portalSessionCookie = "__Host-ncidose_session";
 const loginCodeLifetimeMinutes = 10;
 const portalSessionLifetimeDays = 30;
@@ -209,6 +210,20 @@ const requireSameOrigin = (request, url, cors) => {
 export const isDownloadableKey = (key) => Boolean(
   key && !key.startsWith("_archive/") && !key.includes("..") && allowedPrefixes.some((prefix) => key.startsWith(prefix)),
 );
+
+export const isFolderDownloadPrefix = (prefix) => Boolean(
+  prefix
+  && prefix.endsWith("/")
+  && !prefix.includes("..")
+  && folderDownloadPrefixes.some((allowed) => prefix.startsWith(allowed))
+  && prefix.split("/").filter(Boolean).length > 1,
+);
+
+export const folderArchiveKeys = (prefix) => {
+  if (!isFolderDownloadPrefix(prefix)) return [];
+  const normalized = prefix.slice(0, -1);
+  return [`_folder-downloads/${normalized}.zip`, `${normalized}.zip`];
+};
 
 const safeFilename = (key) => (key.split("/").pop() || "download").replaceAll(/[\r\n"]/g, "_");
 const announcementCategories = new Set(["Release", "Maintenance", "Access"]);
@@ -1647,11 +1662,45 @@ export default {
           return json({ error: "invalid_prefix" }, 400, cors);
         }
         const result = await env.BUCKET.list({ prefix, delimiter: "/", limit: 200, cursor: url.searchParams.get("cursor") || undefined });
+        const listedFolders = result.delimitedPrefixes.filter((folder) => allowedPrefixes.some((allowed) => folder.startsWith(allowed)));
+        const folderDownloads = await Promise.all(listedFolders.map(async (folderPrefix) => {
+          let available = false;
+          for (const archiveKey of folderArchiveKeys(folderPrefix)) {
+            if (await env.BUCKET.head(archiveKey)) {
+              available = true;
+              break;
+            }
+          }
+          return { prefix: folderPrefix, downloadAvailable: available };
+        }));
+        const legacyFolderArchives = new Set(listedFolders.flatMap((folderPrefix) => folderArchiveKeys(folderPrefix).slice(1)));
         return json({
-          objects: result.objects.filter((object) => isDownloadableKey(object.key)).map((object) => ({ key: object.key, size: object.size, etag: object.httpEtag })),
-          folders: result.delimitedPrefixes.filter((folder) => allowedPrefixes.some((allowed) => folder.startsWith(allowed))),
+          objects: result.objects
+            .filter((object) => isDownloadableKey(object.key) && !legacyFolderArchives.has(object.key))
+            .map((object) => ({ key: object.key, size: object.size, etag: object.httpEtag })),
+          folders: folderDownloads,
           cursor: result.truncated ? result.cursor : null,
         }, 200, cors);
+      }
+
+      if (request.method === "GET" && url.pathname === "/api/folder-download") {
+        const prefix = url.searchParams.get("prefix") || "";
+        if (!isFolderDownloadPrefix(prefix)) return json({ error: "invalid_folder_prefix" }, 400, cors);
+        let object = null;
+        for (const archiveKey of folderArchiveKeys(prefix)) {
+          object = await env.BUCKET.get(archiveKey);
+          if (object) break;
+        }
+        if (!object) return json({ error: "folder_download_not_ready" }, 404, cors);
+        const eventId = crypto.randomUUID();
+        context.waitUntil(env.DB.prepare("INSERT INTO access_events (id, user_id, event_type, object_key) VALUES (?, ?, 'download', ?)").bind(eventId, user.id, `${prefix} [folder]`).run());
+        const headers = new Headers(cors);
+        object.writeHttpMetadata(headers);
+        headers.set("content-disposition", `attachment; filename="${safeFilename(`${prefix.slice(0, -1)}.zip`)}"`);
+        headers.set("content-length", String(object.size));
+        headers.set("etag", object.httpEtag);
+        headers.set("cache-control", "private, no-store");
+        return new Response(object.body, { headers });
       }
 
       if (request.method === "GET" && url.pathname === "/api/download") {
