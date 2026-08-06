@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { announcementEmailHtml, canPublishQuestion, canViewDiscussion, discussionAuthorForUser, folderArchiveKeys, generateLoginCode, isFolderDownloadPrefix, loginCodeEmailHtml, normalizePortalEmail, normalizeQuestionVisibility, portalSessionCookieHeader, qaAttachmentValidationError, secondaryEmailAddedHtml, welcomeEmailHtml } from "../../scripts/portal/worker.js";
+import { announcementEmailHtml, canPublishQuestion, canViewDiscussion, discussionAuthorForUser, folderArchiveKeys, generateLoginCode, isFolderDownloadPrefix, loginCodeEmailHtml, normalizePortalEmail, normalizeQuestionVisibility, portalSessionCookieHeader, qaAttachmentValidationError, secondaryEmailAddedHtml, shouldNotifyDiscussionReplyRecipient, shouldNotifyNewDiscussionRecipient, welcomeEmailHtml } from "../../scripts/portal/worker.js";
 
 describe("portal email normalization", () => {
   it("normalizes a valid approved email", () => {
@@ -78,6 +78,31 @@ describe("Q&A visibility", () => {
   it("labels designated team members separately from community users", () => {
     expect(discussionAuthorForUser({ role: "admin", discussion_role: "team", discussion_handle: "choonsiklee" })).toEqual({ type: "team", name: "@choonsiklee" });
     expect(discussionAuthorForUser({ role: "user", discussion_role: "community", display_name: "Grace Lee" })).toEqual({ type: "community", name: "Grace Lee" });
+  });
+
+  it("notifies every designated team member about a new private discussion", () => {
+    const author = { id: "user-1", role: "user", discussion_role: "community" };
+    const administrator = { id: "admin-1", role: "admin", discussion_role: "team" };
+    const teamMember = { id: "team-1", role: "user", discussion_role: "team" };
+    const communityMember = { id: "user-2", role: "user", discussion_role: "community" };
+
+    expect(shouldNotifyNewDiscussionRecipient("team_only", author.id, administrator)).toBe(true);
+    expect(shouldNotifyNewDiscussionRecipient("team_only", author.id, teamMember)).toBe(true);
+    expect(shouldNotifyNewDiscussionRecipient("team_only", author.id, communityMember)).toBe(false);
+    expect(shouldNotifyNewDiscussionRecipient("team_only", author.id, author)).toBe(false);
+  });
+
+  it("keeps the private team informed as replies accumulate", () => {
+    const question = { visibility: "team_only", submitted_by_user_id: "user-1" };
+    const replyingTeamMember = { id: "team-1", role: "user", discussion_role: "team" };
+    const otherTeamMember = { id: "team-2", role: "user", discussion_role: "team" };
+    const submitter = { id: "user-1", role: "user", discussion_role: "community" };
+    const unrelatedUser = { id: "user-2", role: "user", discussion_role: "community" };
+
+    expect(shouldNotifyDiscussionReplyRecipient(question, replyingTeamMember, otherTeamMember)).toBe(true);
+    expect(shouldNotifyDiscussionReplyRecipient(question, replyingTeamMember, submitter)).toBe(true);
+    expect(shouldNotifyDiscussionReplyRecipient(question, replyingTeamMember, unrelatedUser)).toBe(false);
+    expect(shouldNotifyDiscussionReplyRecipient(question, replyingTeamMember, replyingTeamMember)).toBe(false);
   });
 });
 

@@ -1280,13 +1280,13 @@ const Announcements = ({ demoMode }: { demoMode: boolean }) => {
   );
 };
 
-const PortalDiscussionReply = ({ answer, depth, onReply }: { answer: QuestionAnswerThread; depth: number; onReply: (answer: QuestionAnswerThread) => void }) => (
+const PortalDiscussionReply = ({ answer, depth, onReply }: { answer: QuestionAnswerThread; depth: number; onReply?: (answer: QuestionAnswerThread) => void }) => (
   <div className={cn(depth > 0 && "ml-4 border-l border-slate-200 pl-4 sm:ml-7 sm:pl-5")}>
     <div className={cn("border p-4", answer.responseType === "team" ? "border-sky-200 bg-sky-50" : "border-border bg-white")}>
       <div className="flex flex-wrap items-center justify-between gap-2 font-mono text-[11px] uppercase tracking-wider"><span className="normal-case text-primary">{questionAnswerLabel(answer)}</span><span className="text-slate-400">{announcementDate(answer.createdAt)}</span></div>
       <p className="mt-3 whitespace-pre-wrap text-sm leading-relaxed text-slate-700">{answer.body}</p>
       {answer.attachments.length > 0 && <div className="mt-3 flex flex-wrap gap-2">{answer.attachments.map((attachment) => <a key={attachment.id} href={`/api/attachments/${attachment.id}`} className="inline-flex items-center gap-2 border border-border bg-white px-3 py-2 text-xs text-primary"><Paperclip className="h-3.5 w-3.5" /> {attachment.fileName}</a>)}</div>}
-      <button type="button" onClick={() => onReply(answer)} className="mt-4 text-xs font-medium text-primary hover:underline">Reply to this message</button>
+      {onReply && <button type="button" onClick={() => onReply(answer)} className="mt-4 text-xs font-medium text-primary hover:underline">Reply to this message</button>}
     </div>
     {answer.children.length > 0 && <div className="mt-3 space-y-3">{answer.children.map((child) => <PortalDiscussionReply key={child.id} answer={child} depth={depth + 1} onReply={onReply} />)}</div>}
   </div>
@@ -1712,7 +1712,7 @@ const AdminQuestions = ({ demoMode }: { demoMode: boolean }) => {
     setTool(question.tool);
     setTitle(question.title);
     setBody(question.body);
-    setAnswer(question.answers.find((item) => item.responseType === "team" && item.editable)?.body || "");
+    setAnswer("");
     setAnswerFiles([]);
   };
 
@@ -1743,10 +1743,13 @@ const AdminQuestions = ({ demoMode }: { demoMode: boolean }) => {
           method: "PUT", credentials: "include", headers: { "content-type": "application/json" }, body: JSON.stringify({ body: answer }),
         });
         if (!answerResponse.ok) throw new Error("The answer could not be saved.");
+        const answerPayload = await answerResponse.json();
+        const answerId = answerPayload.answer?.id;
+        if (!answerId) throw new Error("The new response could not be identified.");
         for (const file of answerFiles) {
           const form = new FormData();
           form.append("file", file);
-          const attachmentResponse = await fetch(`/api/admin/questions/${selectedId}/answer-attachments`, { method: "POST", credentials: "include", body: form });
+          const attachmentResponse = await fetch(`/api/questions/${selectedId}/replies/${answerId}/attachments`, { method: "POST", credentials: "include", body: form });
           if (!attachmentResponse.ok) throw new Error(`The answer was saved, but ${file.name} could not be attached.`);
         }
       }
@@ -1786,10 +1789,9 @@ const AdminQuestions = ({ demoMode }: { demoMode: boolean }) => {
             <label className="block"><span className="font-mono text-xs uppercase tracking-wider text-muted-foreground">{selected.visibility === "team_only" ? "Discussion title" : "Public title"}</span><Input value={title} onChange={(event) => setTitle(event.target.value)} className="mt-2 rounded-none" /></label>
             <label className="block"><span className="font-mono text-xs uppercase tracking-wider text-muted-foreground">{selected.visibility === "team_only" ? "Discussion" : "Public discussion"}</span><textarea value={body} onChange={(event) => setBody(event.target.value)} className="mt-2 min-h-36 w-full border border-input p-3 text-sm outline-none focus:border-primary" /></label>
             {selected.attachments.length > 0 && <div className="border border-border bg-slate-50 p-4"><div className="font-mono text-[11px] uppercase tracking-widest text-muted-foreground">Submitted attachments</div><div className="mt-3 flex flex-wrap gap-2">{selected.attachments.map((attachment) => <a key={attachment.id} href={`/api/attachments/${attachment.id}`} className="inline-flex items-center gap-2 border border-border bg-white px-3 py-2 text-xs text-primary"><Paperclip className="h-3.5 w-3.5" /> {attachment.fileName} · {attachmentSize(attachment.sizeBytes)}</a>)}</div></div>}
-            {selected.answers.filter((item) => !item.editable).length > 0 && <div className="border border-border bg-slate-50 p-4"><div className="font-mono text-[11px] uppercase tracking-widest text-muted-foreground">Migrated responses retained</div><p className="mt-2 text-xs leading-relaxed text-muted-foreground">{selected.answers.filter((item) => !item.editable).length} historical response(s) will remain in the published record alongside any updated team response.</p></div>}
-            <label className="block"><span className="font-mono text-xs uppercase tracking-wider text-muted-foreground">NCI Dose Team response</span><textarea value={answer} onChange={(event) => setAnswer(event.target.value)} placeholder="Write a concise answer suitable for public viewing. Remove names, email addresses, and sensitive research details." className="mt-2 min-h-52 w-full border border-input p-3 text-sm outline-none focus:border-primary" /></label>
-            {selected.answers.find((item) => item.responseType === "team" && item.editable)?.attachments.length ? <div className="flex flex-wrap gap-2">{selected.answers.find((item) => item.responseType === "team" && item.editable)?.attachments.map((attachment) => <a key={attachment.id} href={`/api/attachments/${attachment.id}`} className="inline-flex items-center gap-2 border border-border px-3 py-2 text-xs text-primary"><Paperclip className="h-3.5 w-3.5" /> {attachment.fileName}</a>)}</div> : null}
-            <div className="border border-dashed border-sky-200 bg-sky-50/50 p-4"><label className="inline-flex cursor-pointer items-center gap-2 text-sm text-primary"><Paperclip className="h-4 w-4" /> Attach files to the team response<input type="file" multiple accept={qaAttachmentAccept} className="sr-only" onChange={(event) => setAnswerFiles(Array.from(event.target.files || []).slice(0, qaAttachmentMaximumCount))} /></label><p className="mt-2 text-xs text-muted-foreground">Up to 3 files, 10 MB each. Attachments become public only when the discussion is published.</p>{answerFiles.length > 0 && <div className="mt-3 flex flex-wrap gap-2">{answerFiles.map((file) => <span key={`${file.name}-${file.size}`} className="border border-sky-200 bg-white px-2 py-1 text-xs text-slate-600">{file.name} · {attachmentSize(file.size)}</span>)}</div>}</div>
+            {selected.answers.length > 0 && <div className="border border-border bg-slate-50 p-4"><div className="font-mono text-[11px] uppercase tracking-widest text-muted-foreground">Conversation history</div><div className="mt-4 space-y-3">{buildAnswerThreads(selected.answers).map((item) => <PortalDiscussionReply key={item.id} answer={item} depth={0} />)}</div></div>}
+            <label className="block"><span className="font-mono text-xs uppercase tracking-wider text-muted-foreground">New NCI Dose Team response</span><textarea value={answer} onChange={(event) => setAnswer(event.target.value)} placeholder={selected.visibility === "team_only" ? "Write a private reply. Earlier messages will remain in the conversation history." : "Write a concise new response suitable for public viewing. Earlier responses will remain in the discussion history."} className="mt-2 min-h-52 w-full border border-input p-3 text-sm outline-none focus:border-primary" /></label>
+            <div className="border border-dashed border-sky-200 bg-sky-50/50 p-4"><label className="inline-flex cursor-pointer items-center gap-2 text-sm text-primary"><Paperclip className="h-4 w-4" /> Attach files to the new team response<input type="file" multiple accept={qaAttachmentAccept} className="sr-only" onChange={(event) => setAnswerFiles(Array.from(event.target.files || []).slice(0, qaAttachmentMaximumCount))} /></label><p className="mt-2 text-xs text-muted-foreground">Up to 3 files, 10 MB each. Private-discussion attachments remain visible only to the author and NCI Dose Team.</p>{answerFiles.length > 0 && <div className="mt-3 flex flex-wrap gap-2">{answerFiles.map((file) => <span key={`${file.name}-${file.size}`} className="border border-sky-200 bg-white px-2 py-1 text-xs text-slate-600">{file.name} · {attachmentSize(file.size)}</span>)}</div>}</div>
             <div className="flex flex-wrap justify-end gap-2"><Button type="button" variant="outline" disabled={saving} onClick={() => void save("archived")} className="rounded-none">Archive</Button><Button type="button" variant="outline" disabled={saving} onClick={() => void save("draft")} className="rounded-none">{selected.visibility === "team_only" ? "Save private response" : "Save draft"}</Button><Button type="button" disabled={saving || selected.visibility === "team_only"} onClick={() => void save("published")} className="rounded-none">{saving && <Loader2 className="h-4 w-4 animate-spin" />} Publish discussion</Button></div>
           </div>}
       </section>

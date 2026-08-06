@@ -254,6 +254,32 @@ export const canViewDiscussion = (question, user) => Boolean(
     || isDiscussionTeamUser(user)
   )
 );
+export const shouldNotifyNewDiscussionRecipient = (visibility, authorUserId, recipient) => Boolean(
+  recipient
+  && recipient.id !== authorUserId
+  && (
+    normalizeQuestionVisibility(visibility) === "team_only"
+      ? isDiscussionTeamUser(recipient)
+      : recipient.role === "admin"
+  )
+);
+export const shouldNotifyDiscussionReplyRecipient = (question, replyingUser, recipient, parentAuthorId = null) => Boolean(
+  question
+  && replyingUser
+  && recipient
+  && recipient.id !== replyingUser.id
+  && (
+    recipient.id === question.submitted_by_user_id
+    || recipient.id === parentAuthorId
+    || (
+      isDiscussionTeamUser(recipient)
+      && (
+        normalizeQuestionVisibility(question.visibility) === "team_only"
+        || !isDiscussionTeamUser(replyingUser)
+      )
+    )
+  )
+);
 const questionTools = new Set(["NCICT", "NCIRF", "NCINM", "PHANTOM", "General"]);
 const questionStatuses = new Set(["submitted", "draft", "published", "archived"]);
 const questionVisibilities = new Set(["public_after_review", "team_only"]);
@@ -535,6 +561,34 @@ async function sendPortalAccountEmail(env, { to, subject, html, text }) {
     body: JSON.stringify({ from: env.RESEND_FROM, to: [to], subject, html, text }),
   });
   return { status: "sent", sentTo: to, providerEmailId: result.id || null };
+}
+
+async function sendDiscussionReplyNotifications(env, context, { question, replyingUser, author, parentAuthorId = null }) {
+  if (!env.RESEND_API_KEY || !env.RESEND_FROM) return;
+  const candidates = await env.DB.prepare(`
+    SELECT DISTINCT users.id, users.role, users.discussion_role,
+      identities.normalized_email AS email
+    FROM users
+    JOIN user_identities identities ON identities.user_id=users.id AND identities.is_primary=1
+    WHERE users.access_status='active' AND users.id<>?
+      AND (
+        users.id=? OR users.id=?
+        OR users.role='admin' OR users.discussion_role='team'
+      )
+  `).bind(replyingUser.id, question.submitted_by_user_id || "", parentAuthorId || "").all();
+  const visibilityLabel = normalizeQuestionVisibility(question.visibility) === "team_only"
+    ? "Private NCI Dose Team discussion"
+    : "Community discussion";
+  for (const recipient of candidates.results.filter((candidate) => (
+    shouldNotifyDiscussionReplyRecipient(question, replyingUser, candidate, parentAuthorId)
+  ))) {
+    context.waitUntil(sendPortalAccountEmail(env, {
+      to: recipient.email,
+      subject: `New reply: ${question.title}`,
+      html: announcementEmailHtml({ title: "A discussion has a new reply", category: qaRequestTypeLabel(question.request_type), body: `${author.name} replied to “${question.title}.”\n\n${visibilityLabel}. Open the discussion in the approved User Portal to read the full conversation and respond.` }, { includeUnsubscribe: false, headerLabel: "Community Discussions" }),
+      text: `${author.name} replied to “${question.title}.”\n\n${visibilityLabel}.\n\nOpen the full conversation: https://portal.ncidosetools.com/#/portal/questions?discussion=${question.id}\n\nNCI Dose Team\nNational Cancer Institute`,
+    }).catch(() => undefined));
+  }
 }
 
 const welcomeEmailText = (displayName, email) => `Hello ${displayName || "NCI Dose Tools user"},\n\nYour approved access to the NCI Dose Tools User Portal is ready.\n\nSign in using ${email}. A one-time verification code will be sent to that address.\n\nOpen User Portal: https://portal.ncidosetools.com\n\nSincerely,\nNCI Dose Team\nNCI Dose Tools portal: https://ncidose.github.io/\nNational Cancer Institute`;
@@ -874,17 +928,24 @@ export default {
             .bind(crypto.randomUUID(), user.id, JSON.stringify({ questionId: id, tool, visibility })),
         ]);
         if (env.RESEND_API_KEY && env.RESEND_FROM) {
-          const administrators = await env.DB.prepare(`
-            SELECT identities.normalized_email AS email
+          const notificationCandidates = await env.DB.prepare(`
+            SELECT users.id, users.role, users.discussion_role,
+              identities.normalized_email AS email
             FROM users JOIN user_identities identities ON identities.user_id=users.id AND identities.is_primary=1
-            WHERE users.role='admin' AND users.access_status='active'
+            WHERE users.access_status='active'
+              AND (users.role='admin' OR users.discussion_role='team')
           `).all();
-          for (const administrator of administrators.results) {
+          const notificationUrl = visibility === "team_only"
+            ? `https://portal.ncidosetools.com/#/portal/questions?discussion=${id}`
+            : "https://portal.ncidosetools.com/#/portal/admin";
+          for (const recipient of notificationCandidates.results.filter((candidate) => (
+            shouldNotifyNewDiscussionRecipient(visibility, user.id, candidate)
+          ))) {
             context.waitUntil(sendPortalAccountEmail(env, {
-              to: administrator.email,
+              to: recipient.email,
               subject: `New NCI Dose Tools ${qaRequestTypeLabel(requestType).toLowerCase()}: ${title}`,
-              html: announcementEmailHtml({ title: `A new ${qaRequestTypeLabel(requestType).toLowerCase()} was posted`, category: requestType === "feature_request" ? "Feature request" : tool, body: `${title}\n\nVisibility: ${visibility === "team_only" ? "NCI Dose Team only" : "Public discussion"}\n\nReview it in Portal administration > Discussions.` }, { includeUnsubscribe: false, headerLabel: "Community Discussions" }),
-              text: `A new ${qaRequestTypeLabel(requestType).toLowerCase()} was posted:\n\n${title}\n\nVisibility: ${visibility === "team_only" ? "NCI Dose Team only" : "Public discussion"}\n\nReview it in Portal administration > Discussions:\nhttps://portal.ncidosetools.com/#/portal/admin`,
+              html: announcementEmailHtml({ title: `A new ${qaRequestTypeLabel(requestType).toLowerCase()} was posted`, category: requestType === "feature_request" ? "Feature request" : tool, body: `${title}\n\nVisibility: ${visibility === "team_only" ? "NCI Dose Team only" : "Public discussion"}\n\nOpen it in the approved User Portal to read and respond.` }, { includeUnsubscribe: false, headerLabel: "Community Discussions" }),
+              text: `A new ${qaRequestTypeLabel(requestType).toLowerCase()} was posted:\n\n${title}\n\nVisibility: ${visibility === "team_only" ? "NCI Dose Team only" : "Public discussion"}\n\nOpen the discussion:\n${notificationUrl}`,
             }).catch(() => undefined));
           }
         }
@@ -933,26 +994,7 @@ export default {
           env.DB.prepare("INSERT INTO access_events (id, user_id, event_type, metadata_json) VALUES (?, ?, 'discussion_reply_added', ?)")
             .bind(crypto.randomUUID(), user.id, JSON.stringify({ questionId: question.id, answerId, parentAnswerId })),
         ]);
-        if (env.RESEND_API_KEY && env.RESEND_FROM) {
-          const recipients = await env.DB.prepare(`
-            SELECT DISTINCT identities.normalized_email AS email
-            FROM users
-            JOIN user_identities identities ON identities.user_id=users.id AND identities.is_primary=1
-            WHERE users.access_status='active' AND users.id<>?
-              AND (
-                users.id=? OR users.id=?
-                OR (?='community' AND (users.role='admin' OR users.discussion_role='team'))
-              )
-          `).bind(user.id, question.submitted_by_user_id || "", parentAuthorId || "", author.type).all();
-          for (const recipient of recipients.results) {
-            context.waitUntil(sendPortalAccountEmail(env, {
-              to: recipient.email,
-              subject: `New reply: ${question.title}`,
-              html: announcementEmailHtml({ title: "A discussion has a new reply", category: qaRequestTypeLabel(question.request_type), body: `${author.name} replied to “${question.title}.”\n\nOpen the discussion in the approved User Portal to read and respond.` }, { includeUnsubscribe: false, headerLabel: "Community Discussions" }),
-              text: `${author.name} replied to “${question.title}.”\n\nOpen the discussion: https://portal.ncidosetools.com/#/portal/questions?discussion=${question.id}\n\nNCI Dose Team\nNational Cancer Institute`,
-            }).catch(() => undefined));
-          }
-        }
+        await sendDiscussionReplyNotifications(env, context, { question, replyingUser: user, author, parentAuthorId });
         const updated = (await loadQuestions(env, { viewer: user })).find((entry) => entry.id === question.id);
         return json({ question: updated, answer: updated?.answers.find((answer) => answer.id === answerId) }, 201, cors);
       }
@@ -1413,29 +1455,23 @@ export default {
         if (user.role !== "admin") return json({ error: "administrator_required" }, 403, cors);
         const originError = requireSameOrigin(request, url, cors);
         if (originError) return originError;
-        const question = await env.DB.prepare("SELECT id FROM qa_questions WHERE id=?").bind(adminAnswerMatch[1]).first();
+        const question = await env.DB.prepare("SELECT * FROM qa_questions WHERE id=?").bind(adminAnswerMatch[1]).first();
         if (!question) return json({ error: "question_not_found" }, 404, cors);
         const input = await request.json();
         const body = cleanText(input.body, 20000);
         if (!body) return json({ error: "answer_required" }, 400, cors);
         const author = discussionAuthorForUser(user);
-        const existing = await env.DB.prepare(`
-          SELECT id FROM qa_answers
-          WHERE question_id=? AND response_type='team' AND source_ref IS NULL
-          ORDER BY created_at DESC LIMIT 1
-        `).bind(question.id).first();
-        if (existing) {
-          await env.DB.prepare("UPDATE qa_answers SET body=?, response_type='team', author_name=?, updated_at=CURRENT_TIMESTAMP WHERE id=?").bind(body, author.name, existing.id).run();
-        } else {
-          const order = await env.DB.prepare("SELECT COALESCE(MAX(sort_order), -1) + 1 AS next_order FROM qa_answers WHERE question_id=?").bind(question.id).first();
-          await env.DB.prepare(`
-            INSERT INTO qa_answers (id, question_id, body, response_type, author_name, parent_answer_id, message_type, sort_order, created_by_user_id)
-            VALUES (?, ?, ?, 'team', ?, NULL, 'response', ?, ?)
-          `).bind(crypto.randomUUID(), question.id, body, author.name, Number(order.next_order || 0), user.id).run();
-        }
+        const answerId = crypto.randomUUID();
+        const order = await env.DB.prepare("SELECT COALESCE(MAX(sort_order), -1) + 1 AS next_order FROM qa_answers WHERE question_id=?").bind(question.id).first();
+        await env.DB.prepare(`
+          INSERT INTO qa_answers (id, question_id, body, response_type, author_name, parent_answer_id, message_type, sort_order, created_by_user_id)
+          VALUES (?, ?, ?, 'team', ?, NULL, 'response', ?, ?)
+        `).bind(answerId, question.id, body, author.name, Number(order.next_order || 0), user.id).run();
         await env.DB.prepare("UPDATE qa_questions SET updated_at=CURRENT_TIMESTAMP WHERE id=?").bind(question.id).run();
+        await sendDiscussionReplyNotifications(env, context, { question, replyingUser: user, author });
         const questions = await loadQuestions(env);
-        return json({ question: questions.find((entry) => entry.id === question.id) }, 200, cors);
+        const updated = questions.find((entry) => entry.id === question.id);
+        return json({ question: updated, answer: updated?.answers.find((entry) => entry.id === answerId) }, 200, cors);
       }
 
       const adminAnswerAttachmentMatch = url.pathname.match(/^\/api\/admin\/questions\/([0-9a-f-]+)\/answer-attachments$/i);
