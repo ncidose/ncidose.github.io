@@ -1010,7 +1010,7 @@ const formatBytes = (bytes: number) => {
 
 const itemName = (key: string) => key.replace(/\/$/, "").split("/").pop() || key;
 
-const Downloads = ({ demoMode }: { demoMode: boolean }) => {
+export const Downloads = ({ demoMode }: { demoMode: boolean }) => {
   const { toast } = useToast();
   const [search, setSearch] = useState("");
   const [rootPrefix, setRootPrefix] = useState("NCICT/");
@@ -1054,6 +1054,10 @@ const Downloads = ({ demoMode }: { demoMode: boolean }) => {
   const chooseTool = (tool: string) => {
     const nextPrefix = `${tool}/`;
     setSearch("");
+    if (!demoMode && nextPrefix === rootPrefix) {
+      void loadFolder(nextPrefix);
+      return;
+    }
     setRootPrefix(nextPrefix);
     setPrefix(nextPrefix);
     if (demoMode) {

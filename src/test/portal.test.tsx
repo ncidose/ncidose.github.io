@@ -1,12 +1,48 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
-import { beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { getPortalHeaderEmail, selectPrimaryPortalIdentity } from "@/lib/portalUser";
-import { Portal } from "@/pages/Portal";
+import { Downloads, Portal } from "@/pages/Portal";
 
 describe("portal migration experience", () => {
   beforeEach(() => {
     window.sessionStorage.clear();
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("returns to the selected tool root when its card is clicked from a subfolder", async () => {
+    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+      const requestUrl = new URL(String(input), "https://portal.ncidosetools.com");
+      const requestedPrefix = requestUrl.searchParams.get("prefix");
+      const folders = requestedPrefix === "PHANTOM/"
+        ? [{ prefix: "PHANTOM/nci_size/", downloadAvailable: true }]
+        : requestedPrefix === "PHANTOM/nci_size/"
+          ? [{ prefix: "PHANTOM/nci_size/armless_highres/", downloadAvailable: true }]
+          : [];
+
+      return {
+        ok: true,
+        json: async () => ({ objects: [], folders, cursor: null }),
+      } as Response;
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(<Downloads demoMode={false} />);
+
+    fireEvent.click(screen.getByRole("button", { name: /PHANTOM Computational Phantom Library/i }));
+    fireEvent.click(await screen.findByRole("button", { name: /nci_size Folder/i }));
+    expect(await screen.findByRole("button", { name: /Up/i })).toBeInTheDocument();
+    expect(screen.getByText("armless_highres")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: /PHANTOM Computational Phantom Library/i }));
+
+    await waitFor(() => expect(screen.getByText("nci_size")).toBeInTheDocument());
+    expect(screen.queryByText("armless_highres")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Up/i })).not.toBeInTheDocument();
+    expect(fetchMock).toHaveBeenLastCalledWith("/api/files?prefix=PHANTOM%2F", { credentials: "include" });
   });
 
   it("shows the email used for the current sign-in in the portal header", () => {
