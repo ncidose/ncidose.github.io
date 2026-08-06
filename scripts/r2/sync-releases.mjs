@@ -27,7 +27,7 @@ const token = process.env.NCIDOSE_R2_UPLOAD_TOKEN || (() => {
 })();
 const partSize = 32 * 1024 * 1024;
 const fileConcurrency = 4;
-const excludedNames = new Set([".DS_Store", "upload_to_r2.py"]);
+const excludedNames = new Set([".DS_Store", "_archive", "upload_to_r2.py"]);
 const legacyBundleKeys = new Set([
   "PHANTOM/nci_size/arm_highres.zip",
   "PHANTOM/nci_size/arm_lowres.zip",

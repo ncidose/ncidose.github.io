@@ -26,7 +26,9 @@ byte size and SHA-256 metadata match. It also builds private folder-download
 archives for every nested folder under `PHANTOM/` and `DCC/`. The portal keeps
 those archives out of the file browser and presents a consistent **Download
 folder** action instead. It never deletes R2 objects. `.DS_Store` and the legacy
-`upload_to_r2.py` helper are excluded.
+`upload_to_r2.py` helper are excluded. The local `_release/_archive` directory
+is also excluded so historical installers remain only in the local archive and
+are not republished to R2.
 
 To rebuild and publish only the hidden PHANTOM and DCC folder downloads, run:
 
