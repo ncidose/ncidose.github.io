@@ -13,6 +13,7 @@
     "build:pages": "VITE_PUBLIC_SITE=true VITE_PORTAL_DEMO_MODE=false npm run build && node scripts/generate-seo-pages.mjs && touch dist/.nojekyll",
     "build:dev": "vite build --mode development",
     "literature:update": "node scripts/generate-literature-data.mjs",
+    "worldmap:update": "python3 scripts/generate-world-map-data.py",
     "discussions:import": "node scripts/import-github-discussions.mjs",
     "portal:members:check": "node scripts/portal/import-google-group.mjs --check",
     "portal:members:prepare": "node scripts/portal/build-member-import.mjs",
