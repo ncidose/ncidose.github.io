@@ -1181,6 +1181,18 @@ const announcementDate = (value: string | null) => {
   return new Intl.DateTimeFormat("en-US", { year: "numeric", month: "long", day: "numeric" }).format(new Date(normalized));
 };
 
+const portalTimestamp = (value: string) => {
+  const normalized = value.includes(" ") ? `${value.replace(" ", "T")}Z` : value;
+  const timestamp = Date.parse(normalized);
+  return Number.isNaN(timestamp) ? 0 : timestamp;
+};
+
+const latestPortalTimestamp = (left: string | null | undefined, right: string | null | undefined) => {
+  if (!left) return right || null;
+  if (!right) return left;
+  return portalTimestamp(right) > portalTimestamp(left) ? right : left;
+};
+
 const activityDate = (value: string) => {
   const normalized = value.includes(" ") ? `${value.replace(" ", "T")}Z` : value;
   return new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric", year: "numeric", hour: "numeric", minute: "2-digit" }).format(new Date(normalized));
@@ -1649,7 +1661,7 @@ type AdminActivityData = {
   };
   tools: Array<{ tool: string; downloads: number }>;
   files: Array<{ file: string; downloads: number }>;
-  recent: Array<{ id: string; eventType: "login" | "download"; file: string | null; occurredAt: string; name: string | null; email: string | null }>;
+  recent: Array<{ id: string; userId: string | null; eventType: "login" | "download"; file: string | null; occurredAt: string; name: string | null; email: string | null }>;
 };
 
 type EmailAudienceStatus = {
@@ -2060,16 +2072,36 @@ const Admin = ({ demoMode }: { demoMode: boolean }) => {
     }
   };
 
+  const latestLoginByUserId = useMemo(() => {
+    const latest = new Map<string, string>();
+    for (const managedUser of managedUsers) {
+      if (managedUser.lastLoginAt) latest.set(managedUser.id, managedUser.lastLoginAt);
+    }
+    for (const activity of activityData.recent) {
+      if (activity.eventType !== "login" || !activity.userId) continue;
+      const current = latest.get(activity.userId);
+      const newest = latestPortalTimestamp(current, activity.occurredAt);
+      if (newest) latest.set(activity.userId, newest);
+    }
+    return latest;
+  }, [activityData.recent, managedUsers]);
+
   const filteredUsers = useMemo(() => {
     const query = userSearch.trim().toLowerCase();
     const matchingUsers = query
       ? managedUsers.filter((entry) => [entry.name, entry.institution, entry.country, ...entry.identities.map((identity) => identity.email)].filter(Boolean).some((value) => String(value).toLowerCase().includes(query)))
       : managedUsers;
-    const sortValue = (entry: ManagedPortalUser) => {
+    const sortValue = (entry: ManagedPortalUser): string | number => {
       const primaryEmail = entry.identities.find((identity) => identity.primary)?.email || entry.identities[0]?.email || "";
       if (userSort.key === "email") return primaryEmail;
-      if (userSort.key === "joined") return entry.groupJoinedAt || entry.createdAt || "";
-      if (userSort.key === "lastLogin") return entry.lastLoginAt || "";
+      if (userSort.key === "joined") {
+        const joinedAt = entry.groupJoinedAt || entry.createdAt;
+        return joinedAt ? portalTimestamp(joinedAt) : "";
+      }
+      if (userSort.key === "lastLogin") {
+        const lastLoginAt = latestLoginByUserId.get(entry.id);
+        return lastLoginAt ? portalTimestamp(lastLoginAt) : "";
+      }
       return entry.name || primaryEmail;
     };
     return [...matchingUsers].sort((left, right) => {
@@ -2078,15 +2110,17 @@ const Admin = ({ demoMode }: { demoMode: boolean }) => {
       if (!leftValue && !rightValue) return 0;
       if (!leftValue) return 1;
       if (!rightValue) return -1;
-      const comparison = leftValue.localeCompare(rightValue, undefined, { numeric: true, sensitivity: "base" });
+      const comparison = typeof leftValue === "number" && typeof rightValue === "number"
+        ? leftValue - rightValue
+        : String(leftValue).localeCompare(String(rightValue), undefined, { numeric: true, sensitivity: "base" });
       return userSort.direction === "asc" ? comparison : -comparison;
     });
-  }, [managedUsers, userSearch, userSort]);
+  }, [latestLoginByUserId, managedUsers, userSearch, userSort]);
 
   const changeUserSort = (key: UserSortKey) => {
     setUserSort((current) => current.key === key
       ? { key, direction: current.direction === "asc" ? "desc" : "asc" }
-      : { key, direction: "asc" });
+      : { key, direction: key === "joined" || key === "lastLogin" ? "desc" : "asc" });
   };
 
   const sortHeader = (key: UserSortKey, label: string) => (
@@ -2236,7 +2270,7 @@ const Admin = ({ demoMode }: { demoMode: boolean }) => {
           <div><div className="font-mono text-xs uppercase tracking-widest text-primary">User management</div><h2 className="mt-2 text-xl font-light">Approved user directory</h2></div>
           <div className="relative w-full sm:w-80"><Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" /><Input value={userSearch} onChange={(event) => setUserSearch(event.target.value)} placeholder="Search name, email, or institution" className="rounded-none pl-9" /></div>
         </div>
-        {!loadingUsers && filteredUsers.length > 0 && <div className="hidden border-b border-border bg-slate-50 px-6 py-3 lg:grid lg:grid-cols-[minmax(0,1.1fr)_minmax(0,1.4fr)_150px_130px_auto] lg:items-center lg:gap-4">
+        {!loadingUsers && filteredUsers.length > 0 && <div className="hidden border-b border-border bg-slate-50 px-6 py-3 xl:grid xl:grid-cols-[minmax(0,1.1fr)_minmax(0,1.4fr)_9rem_10rem_20rem] xl:items-center xl:gap-4">
           {sortHeader("name", "Name")}
           {sortHeader("email", "Email")}
           {sortHeader("joined", "Joined")}
@@ -2252,13 +2286,14 @@ const Admin = ({ demoMode }: { demoMode: boolean }) => {
             {filteredUsers.map((managedUser) => {
               const primaryEmail = managedUser.identities.find((identity) => identity.primary)?.email || managedUser.identities[0]?.email || "No email";
               const additionalEmail = managedUser.identities.find((identity) => !identity.primary);
+              const lastLoginAt = latestLoginByUserId.get(managedUser.id);
               return (
-                <div key={managedUser.id} className="grid gap-4 px-6 py-5 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,1.4fr)_150px_130px_auto] lg:items-center">
+                <div key={managedUser.id} className="grid gap-4 px-6 py-5 xl:grid-cols-[minmax(0,1.1fr)_minmax(0,1.4fr)_9rem_10rem_20rem] xl:items-center">
                   <div className="min-w-0"><div className="flex flex-wrap items-center gap-2"><div className="truncate text-sm font-medium text-slate-800">{managedUser.name || primaryEmail.split("@")[0]}</div>{(managedUser.role === "admin" || managedUser.discussionRole === "team") && <span className="bg-sky-50 px-2 py-0.5 font-mono text-[10px] text-primary">NCI Dose Team{managedUser.discussionHandle ? ` · @${managedUser.discussionHandle}` : ""}</span>}</div><div className="mt-1 flex items-center gap-1.5 truncate text-xs text-muted-foreground"><Building2 className="h-3.5 w-3.5 shrink-0" /> {[managedUser.institution, managedUser.country].filter(Boolean).join(" · ") || "Profile not provided"}</div></div>
                   <div className="min-w-0"><div className="truncate text-sm text-slate-700">{primaryEmail}</div>{additionalEmail && <div className="mt-1 truncate text-xs text-muted-foreground">+ {additionalEmail.email} · {additionalEmail.verified ? "verified" : "pending"}</div>}</div>
-                  <div className="text-xs text-muted-foreground"><span className="lg:hidden">Joined </span>{announcementDate(managedUser.groupJoinedAt || managedUser.createdAt)}</div>
-                  <div className="text-xs text-muted-foreground"><span className="lg:hidden">Last login </span>{managedUser.lastLoginAt ? announcementDate(managedUser.lastLoginAt) : "—"}</div>
-                  <div className="flex flex-wrap items-center gap-2 lg:justify-end">{managedUser.role !== "admin" && <Button type="button" variant="outline" disabled={updatingUserId === managedUser.id || deletingUserId === managedUser.id} onClick={() => void changeDiscussionRole(managedUser)} className="rounded-none">{managedUser.discussionRole === "team" ? "Remove team role" : "Make team member"}</Button>}<Button type="button" variant="outline" disabled={updatingUserId === managedUser.id || deletingUserId === managedUser.id || managedUser.role === "admin"} onClick={() => void changeUserStatus(managedUser)} className="rounded-none">{updatingUserId === managedUser.id ? <Loader2 className="h-4 w-4 animate-spin" /> : managedUser.accessStatus === "active" ? "Suspend" : "Reactivate"}</Button>{managedUser.accessStatus === "suspended" && managedUser.role !== "admin" && <Button type="button" variant="outline" disabled={updatingUserId === managedUser.id || deletingUserId === managedUser.id} onClick={() => void deleteUser(managedUser)} className="rounded-none border-red-200 text-red-700 hover:bg-red-50 hover:text-red-800">{deletingUserId === managedUser.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />} Delete</Button>}</div>
+                  <div className="text-xs text-muted-foreground"><span className="xl:hidden">Joined </span>{announcementDate(managedUser.groupJoinedAt || managedUser.createdAt)}</div>
+                  <div className="text-xs text-muted-foreground"><span className="xl:hidden">Last login </span>{lastLoginAt ? activityDate(lastLoginAt) : "—"}</div>
+                  <div className="flex flex-wrap items-center gap-2 xl:justify-end">{managedUser.role !== "admin" && <Button type="button" variant="outline" disabled={updatingUserId === managedUser.id || deletingUserId === managedUser.id} onClick={() => void changeDiscussionRole(managedUser)} className="rounded-none">{managedUser.discussionRole === "team" ? "Remove team role" : "Make team member"}</Button>}<Button type="button" variant="outline" disabled={updatingUserId === managedUser.id || deletingUserId === managedUser.id || managedUser.role === "admin"} onClick={() => void changeUserStatus(managedUser)} className="rounded-none">{updatingUserId === managedUser.id ? <Loader2 className="h-4 w-4 animate-spin" /> : managedUser.accessStatus === "active" ? "Suspend" : "Reactivate"}</Button>{managedUser.accessStatus === "suspended" && managedUser.role !== "admin" && <Button type="button" variant="outline" disabled={updatingUserId === managedUser.id || deletingUserId === managedUser.id} onClick={() => void deleteUser(managedUser)} className="rounded-none border-red-200 text-red-700 hover:bg-red-50 hover:text-red-800">{deletingUserId === managedUser.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />} Delete</Button>}</div>
                 </div>
               );
             })}

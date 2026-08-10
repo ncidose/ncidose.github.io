@@ -1120,8 +1120,12 @@ export default {
             SELECT users.id, users.display_name, users.institution, users.country, users.role,
               users.discussion_role, users.discussion_handle, users.sta_status,
               users.access_status, users.approval_source, users.approved_at, users.group_joined_at, users.created_at,
-              (SELECT MAX(events.occurred_at) FROM access_events events
-                WHERE events.user_id=users.id AND events.event_type='login') AS last_login_at
+              NULLIF(MAX(
+                COALESCE((SELECT MAX(events.occurred_at) FROM access_events events
+                  WHERE events.user_id=users.id AND events.event_type='login'), ''),
+                COALESCE((SELECT MAX(sessions.created_at) FROM portal_sessions sessions
+                  WHERE sessions.user_id=users.id), '')
+              ), '') AS last_login_at
             FROM users
             ORDER BY COALESCE(users.display_name, '') COLLATE NOCASE, users.created_at DESC
             LIMIT 1000
@@ -1190,7 +1194,7 @@ export default {
             LIMIT 20
           `).all(),
           env.DB.prepare(`
-            SELECT events.id, events.event_type, events.object_key, events.occurred_at,
+            SELECT events.id, events.user_id, events.event_type, events.object_key, events.occurred_at,
               users.display_name,
               (SELECT identities.normalized_email FROM user_identities identities
                 WHERE identities.user_id=events.user_id
@@ -1214,6 +1218,7 @@ export default {
           files: fileResult.results.map((entry) => ({ file: entry.file, downloads: Number(entry.downloads) })),
           recent: recentResult.results.map((entry) => ({
             id: entry.id,
+            userId: entry.user_id,
             eventType: entry.event_type,
             file: entry.object_key,
             occurredAt: entry.occurred_at,
