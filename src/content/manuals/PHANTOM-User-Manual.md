@@ -23,33 +23,31 @@ simulations**, rather than patient-specific clinical modeling.
 
 ## Available Phantom Libraries
 
-The PHANTOM libraries currently available are summarized below.
-A cross mark (×) indicates availability in the current release folder.
+The PHANTOM libraries currently available in the release folder are summarized below.
 
-| File format | UF/NCI reference size phantoms | UF/NCI body size-dependent phantoms¹ | ICRP reference phantoms | UF/NCI pregnant women phantoms |
-|---|:---:|:---:|:---:|:---:|
-| Number of phantoms | 12 | 362 | 12 | 8 |
-| Arms² | w and w/o | w and w/o | w and w/o | w and w/o |
-| Binary voxel (legacy) | × | × (low res) | Available from ICRP 110 and 143 | |
-| NIfTI (`.nii.gz`) | × | × (incl. xy-low/z-high) |  | × |
-| DICOMRT³ | × |  | × | × |
-| MC input available | MCNP (w arms) |  | Geant4 (w/o arms) |  |
-| Reference | [Lee 2010](https://pubmed.ncbi.nlm.nih.gov/20019401/) | [Geyer 2014](https://pubmed.ncbi.nlm.nih.gov/25144322/) | [ICRP 110](https://www.icrp.org/publication.asp?id=icrp%20publication%20110), [ICRP 143](https://pubmed.ncbi.nlm.nih.gov/33000625/) | [Maynard 2014](https://pubmed.ncbi.nlm.nih.gov/25030913/) |
+| Release item        |            UF/NCI reference size phantoms            |          UF/NCI body size-dependent phantoms          |                                                       ICRP reference phantoms                                                       |              UF/NCI pregnant women phantoms              |
+| ------------------- | :--------------------------------------------------: | :----------------------------------------------------: | :---------------------------------------------------------------------------------------------------------------------------------: | :------------------------------------------------------: |
+| Distinct subjects   |                          12                          |                          362                          |                                                                 12                                                                 |                   8 gestational ages¹                   |
+| Arm variants²      |                   arms and armless                   |                    arms and armless                    |                                                          arms and armless                                                          |                     arms and armless                     |
+| NIfTI (`.nii.gz`) |                       48 files                       |                      1,448 files                      |                                                              24 files                                                              |                         64 files                         |
+| Organ metadata CSV  |                   per NIfTI folder                   |                    per NIfTI folder                    |                                                          per NIfTI folder                                                          |                     per NIfTI folder                     |
+| DICOMRT³           |                     not included                     |                      not included                      |                                                            armless only                                                            |                    arm singleres only                    |
+| Monte Carlo input   |                     not included                     |                      not included                      |                                                            not included                                                            |                MCNP, arm/armless multires                |
+| Reference           | [Lee 2010](https://pubmed.ncbi.nlm.nih.gov/20019401/) | [Geyer 2014](https://pubmed.ncbi.nlm.nih.gov/25144322/) | [ICRP 110](<https://www.icrp.org/publication.asp?id=icrp%20publication%20110>), [ICRP 143](https://pubmed.ncbi.nlm.nih.gov/33000625/) | [Maynard 2014](https://pubmed.ncbi.nlm.nih.gov/25030913/) |
 
-¹ The reference-size, body size–dependent, and pregnant woman phantom
-libraries are available in compressed NIfTI (`.nii.gz`) format, the recommended format
-for new downloads. Legacy binary voxel files are retained under each library's
-**bin/** folder for compatibility with existing Monte Carlo workflows.
+¹ The pregnant library includes 8 gestational ages. The singleres release includes
+cephalic and breech presentations where available. The multires release provides one
+mother grid and one cephalic finebox per gestational age, plus arm and armless
+breech fineboxes for 10, 15, 20, and 25 weeks.
 
 ² Phantoms with the arms removed are intended for imaging geometries in which
 the patient’s arms are raised.
 
-³ DICOMRT files are provided for selected supported libraries under each
-library's **dicomrt** folder, e.g.
-**nci_reference/armless_highres/dicomrt**, **icrp_reference/armless_highres/dicomrt**,
-and **nci_pregnant/arm_highres/dicomrt**. DICOM-CT and RT STRUCTURE files can be
-directly imported into Treatment Planning Systems (TPS).
-Recommended citation for DICOMRT files: [Griffin 2019](https://pubmed.ncbi.nlm.nih.gov/31158829/)
+³ DICOMRT files are provided only for selected supported libraries:
+**icrp-reference/armless/dicomrt** and **nci-pregnant/arm-singleres/dicomrt**.
+DICOM-CT and RT STRUCTURE files can be directly imported into Treatment Planning
+Systems (TPS). Recommended citation for DICOMRT files:
+[Griffin 2019](https://pubmed.ncbi.nlm.nih.gov/31158829/)
 
 ![Height and weight distribution of the NCI body size-dependent computational phantom library](images/phantoms-height-weight-map.png)
 
@@ -62,67 +60,90 @@ treatment-planning systems for visualization and supported research workflows.
 
 ## Folder Naming Convention
 
-The PHANTOM download directory uses a phantom-library folder first, then a
-posture/resolution subfolder, then a file-format subfolder:
+The PHANTOM download directory uses a phantom-library folder first, followed by
+the arm posture and resolution layout used by that library.
 
-**III_SSS/AAA_RRR/format**
+NCI reference-size and body size-dependent phantoms use:
 
-- **nci_size/arm_highres/niigz**, **nci_size/armless_lowres/{bin, niigz}**
-  Body size–dependent phantom folders. **armless_xylow_zhigh** is a mixed
-  resolution (xy-plane at low resolution, z-axis at high resolution).
+```text
+nci-reference/{arm-highres,arm-lowres,armless-highres,armless-lowres}
+nci-size/{arm-highres,arm-lowres,armless-highres,armless-lowres}
+```
 
-- **nci_reference/arm_highres/{bin, niigz, mc-input}**,
-  **nci_reference/armless_highres/{bin, dicomrt}**
-  Reference-size phantom folders.
+The NIfTI files and `organ-metadata.csv` are stored directly in each of these
+posture/resolution folders.
 
-- **nci_pregnant/arm_highres/{niigz, dicomrt}**
-  Pregnant woman phantom folders.
+The pregnant woman library uses:
 
-- **icrp_reference/armless_highres/{dicomrt, mc-input}**
-  ICRP reference phantom folders.
+```text
+nci-pregnant/arm-singleres
+nci-pregnant/armless-singleres
+nci-pregnant/arm-multires
+nci-pregnant/armless-multires
+```
 
-Not every posture/resolution folder includes every format; see **Available Phantom
-Libraries** above for what is available per library.
+The `singleres` folders contain one complete label map per phantom. The `multires`
+folders contain paired native grids: a complete coarse mother grid and native
+finebox grids for the fetus region. Cephalic fineboxes are named explicitly;
+both multires variants also include presentation-specific breech fineboxes for
+10, 15, 20, and 25 weeks.
 
-Monte Carlo input folders use code-specific names rather than the voxel-library
-naming pattern: **mcnp-nci-reference-arm** (under `nci_reference/arm_highres/mc-input`)
-and **geant4-icrp-noarm** (under `icrp_reference/armless_highres/mc-input`).
+The ICRP reference library uses:
 
-The naming fields are:
+```text
+icrp-reference/arm
+icrp-reference/armless
+icrp-reference/armless/dicomrt
+```
 
-- **III_SSS**: phantom library, one of **nci_size**, **nci_reference**,
-  **nci_pregnant**, **icrp_reference**
-- **AAA_RRR**: arm posture and voxel resolution, e.g. **arm_highres**,
-  **armless_lowres**, **armless_xylow_zhigh**
-- **format**: one of **bin**, **niigz**, **dicomrt**, **mc-input**
+The arms-present ICRP NIfTI files are stored directly under `icrp-reference/arm`.
+The armless ICRP NIfTI files are stored directly under `icrp-reference/armless`,
+and the armless DICOMRT ZIP files are stored under
+`icrp-reference/armless/dicomrt`.
+
+Not every library includes every format. Monte Carlo input folders in the current
+release are:
+
+```text
+nci-pregnant/arm-multires/mcnp-input
+nci-pregnant/armless-multires/mcnp-input
+```
 
 ---
 
 ## Master Table
 
-The file **_mastertable_ref&size.xlsx** contains anatomical and material data
-required for Monte Carlo radiation transport simulations. The file includes the
-following tabs:
+The release includes **phantom-mastertable.xlsx** at the root of the PHANTOM
+download folder. This workbook summarizes organ masses and shared material,
+marrow-fraction, and skeletal dose-response data for the current NCI reference,
+NCI body size-dependent, NCI pregnant, and ICRP reference releases.
 
-- **about**
-  Contents of this master table
+The workbook includes the following sheets:
 
-- **summary_arm**
-  Organ voxel tags, organ names, and material card identifiers for UF/NCI phantoms
-  with arms attached
+- **Information**
+  Library naming, units, metadata notes, and release conventions.
+- **Ref Arms High**, **Ref Arms Low**, **Ref Armless High**, **Ref Armless Low**
+  NCI reference-size organ masses by posture and resolution.
+- **Size Arms High**, **Size Arms Low**, **Size Armless High**, **Size Armless Low**
+  NCI body size-dependent organ masses by posture and resolution.
+- **Preg Ceph Arms**, **Preg Ceph Armless**, **Preg Breech Arms**,
+  **Preg Breech Armless**
+  NCI pregnant singleres organ masses by fetal presentation and arm status.
+- **ICRP Arms**, **ICRP Armless**
+  ICRP reference organ masses by arm status.
+- **Materials**, **Marrow Fractions**, **DRF Active Marrow**, **DRF Endosteum**
+  Shared material composition, skeletal marrow fraction, and skeletal dose-response
+  tables.
 
-- **density_reference**
-  Organ and tissue density for the reference size phantoms
+Each NIfTI folder also contains an **organ-metadata.csv** file with the per-organ
+tag, material, density, voxel count, volume, and mass values used to build the
+workbook. Machine-readable shared tables are stored under the **common/** folder:
 
-- **material**
-  Material identifiers, material types, elemental compositions, and mass fractions
-
-- **dose response function**
-  Photon dose response functions (absorbed dose per unit fluence) for active marrow
-  and endosteum
-
-- **marrow_fraction**
-  Fractions of active marrow and endosteum assigned to individual skeletal sites
+```text
+common/elemental-composition.csv
+common/marrow-fraction.csv
+common/skeletal-dose-response.csv
+```
 
 These tables ensure **consistent, reproducible mapping** between voxelized anatomy,
 material definitions, and dosimetric response functions across NCI dose tools.
@@ -131,21 +152,30 @@ material definitions, and dosimetric response functions across NCI dose tools.
 
 ## Monte Carlo Input Files
 
-Monte Carlo input files are available under an **mc-input** subfolder within the
-relevant library folder in the PHANTOM download directory. These files are
-code-specific resources for selected established reference workflows.
+Monte Carlo input files are included for the pregnant arm and armless multires
+libraries:
 
-The current release includes:
+```text
+nci-pregnant/arm-multires/mcnp-input
+nci-pregnant/armless-multires/mcnp-input
+```
 
-- **nci_reference/arm_highres/mc-input/mcnp-nci-reference-arm/**
-  MCNP input decks for the NCI reference-size phantoms with arms. This folder contains
-  12 numbered input files (`01`–`12`) and 12 corresponding lattice files (`*.lat`).
+The arm and armless folders both use one combined input deck per week plus
+explicit presentation lattice names:
 
-- **icrp_reference/armless_highres/mc-input/geant4-icrp-noarm/**
-  Geant4 input package for ICRP reference phantoms without arms. This folder contains
-  `Ref_noa_icrp_bin_G4.tar.gz`.
+```text
+XXwk.inp                # combined mother and fetal tallies
+XXwk-cephalic.lat       # default cephalic geometry
+XXwk-breech.lat         # 10, 15, 20, 25 weeks only
+```
 
-These inputs are provided as reference starting points for established Monte Carlo
+Each `.inp` file defaults to the cephalic lattice and includes commented
+`read file=` alternatives for cephalic and breech lattices where available.
+Change the active `read file=` line near the top of the deck to switch fetal
+presentation. Each `.lat` file contains the complete coarse mother lattice and
+the native finebox lattice used by the multires NIfTI release.
+
+These inputs are provided as reference starting points for established MCNP
 workflows. Users should review and modify local file paths, source definitions,
 scoring setup, compiler settings, and code-version assumptions before running
 simulations.
@@ -159,27 +189,75 @@ Each file is a gzip-compressed NIfTI image containing the 3D integer voxel-label
 for one phantom. The voxel values correspond to organ or tissue tag numbers used by
 the PHANTOM master table.
 
-The current NIfTI release is located under each library's **niigz** subfolder in the
-PHANTOM download directory:
+The current NIfTI release is organized as follows:
 
 Reference-size phantoms:
 
-- **nci_reference/arm_highres/niigz**
+- **nci-reference/arm-highres**
+- **nci-reference/arm-lowres**
+- **nci-reference/armless-highres**
+- **nci-reference/armless-lowres**
 
 Body size–dependent phantoms:
 
-- **nci_size/arm_highres/niigz**
-- **nci_size/arm_lowres/niigz**
-- **nci_size/armless_highres/niigz**
-- **nci_size/armless_lowres/niigz**
-- **nci_size/armless_xylow_zhigh/niigz** — xy-plane at low resolution, z-axis at high resolution
+- **nci-size/arm-highres**
+- **nci-size/arm-lowres**
+- **nci-size/armless-highres**
+- **nci-size/armless-lowres**
 
 Pregnant woman phantoms:
 
-- **nci_pregnant/arm_highres/niigz**
+- **nci-pregnant/arm-singleres**
+- **nci-pregnant/armless-singleres**
+- **nci-pregnant/arm-multires**
+- **nci-pregnant/armless-multires**
 
-Legacy binary voxel files are retained under each library's **bin** subfolder. NIfTI
-was adopted as the recommended distribution format for several reasons:
+ICRP reference phantoms:
+
+- **icrp-reference/arm**
+- **icrp-reference/armless**
+
+Current NIfTI counts by folder:
+
+```text
+nci-reference/arm-highres:       12
+nci-reference/arm-lowres:        12
+nci-reference/armless-highres:   12
+nci-reference/armless-lowres:    12
+
+nci-size/arm-highres:           362
+nci-size/arm-lowres:            362
+nci-size/armless-highres:       362
+nci-size/armless-lowres:        362
+
+icrp-reference/arm:              12
+icrp-reference/armless:          12
+
+nci-pregnant/arm-singleres:      12
+nci-pregnant/armless-singleres:  12
+nci-pregnant/arm-multires:       20
+nci-pregnant/armless-multires:   20
+```
+
+Current filename patterns:
+
+```text
+nci-reference:  {phantom_id}-{highres|lowres}-{arms|armless}.nii.gz
+nci-size:       {phantom_id}-{arms|armless}-{highres|lowres}.nii.gz
+icrp-reference: icrp-{age}{sex}-{arms|armless}.nii.gz
+nci-pregnant singleres: XXwk-{cephalic|breech}-{arm|armless}.nii.gz
+nci-pregnant multires mother:  XXwk-mother.nii.gz
+nci-pregnant multires fetus:   XXwk-fetus-{cephalic|breech}.nii.gz
+```
+
+For pregnant multires folders, the mother file is the complete coarse lattice.
+The fetus file is the native finebox lattice in the same world-coordinate frame.
+The finebox replaces the corresponding region of the coarse mother grid and
+should not be added as a separate full-phantom volume. Cephalic fineboxes are
+available for all gestational ages; breech fineboxes are available for 10, 15,
+20, and 25 weeks.
+
+NIfTI was adopted as the recommended distribution format for several reasons:
 
 - NIfTI is a standard medical-imaging format that can be opened directly by common
   tools such as 3D Slicer, ImageJ/Fiji, ITK-SNAP, MATLAB, and Python packages.
@@ -188,10 +266,9 @@ was adopted as the recommended distribution format for several reasons:
   correctly.
 - Compressed NIfTI files are smaller and easier to transfer than the corresponding
   raw binary voxel files.
-- The raw binary representation of the full high-resolution NCI body size–dependent
-  phantom library (**n = 362**) is extremely large. The compressed `.nii.gz` format
-  makes distribution through the secure User Portal practical while preserving the
-  integer organ-label voxel data.
+- The raw binary representation of a full high-resolution phantom library can be
+  extremely large. The compressed `.nii.gz` format makes distribution through the
+  secure User Portal practical while preserving the integer organ-label voxel data.
 
 ### What Information Is Included
 
@@ -200,25 +277,75 @@ Each NIfTI file stores:
 - **3D voxel-label data**
   The image array contains integer organ or tissue labels. A voxel value should be
   interpreted as a label ID, not as CT number, attenuation, or density.
-
 - **Image dimensions**
   The number of voxels along each image axis is stored in the NIfTI header.
-
 - **Voxel spacing**
   The physical voxel size is stored in the NIfTI header and can be read by standard
   NIfTI-compatible software.
-
 - **Data type**
   The label array is stored as an integer image. When processing the files, preserve
   the integer labels and avoid interpolation unless a label-preserving method is used.
-
 - **Spatial orientation information**
   NIfTI headers include affine/orientation information used by visualization and image
   processing software.
+- **Label-map intent**
+  Current files use NIfTI `label` intent names that identify the library family:
+  `NCI_PHANTOM` for NCI reference-size and body size-dependent files,
+  `NCI_PREGNANT` or `NCI_PREG_MRES` for pregnant files, and `ICRP_LABELS` for ICRP
+  files. Spatial units are millimeters, and qform and sform contain the
+  voxel-to-physical-space affine.
+- **Embedded JSON metadata**
+  Current NIfTI files contain a compact UTF-8 JSON extension. This structured
+  metadata identifies the library, phantom, arm status, resolution profile, subject
+  dimensions, metadata version, and label conventions. The filename repeats the
+  principal selection fields for human readability, but software should use the
+  embedded JSON rather than relying only on filename parsing.
 
-The NIfTI file does **not** replace the master table. Organ names, material
+For example, `00f050005-arms-highres.nii.gz` contains metadata equivalent to:
+
+```json
+{
+  "schema": "nci-phantom/1",
+  "metadata_id": "nci-size-2026.08",
+  "library": "nci-size",
+  "phantom_id": "00f050005",
+  "arm_status": "arms",
+  "resolution_profile": "highres",
+  "subject": {
+    "age_years": 0,
+    "sex": "female",
+    "height_cm": 50,
+    "weight_kg": 5
+  },
+  "labels": {
+    "background_tag": 0,
+    "skin_tag": 43
+  }
+}
+```
+
+The first two characters of an NCI phantom ID are the representative age in years.
+The canonical reference-adult code is **35**, following the ICRP reference-adult
+convention; for example, `35f165060` identifies the adult female phantom with a
+height of 165 cm and a weight of 60 kg. Previous adult codes are not used in the
+current release.
+
+The current metadata schemas are:
+
+```text
+nci-reference, nci-size: nci-phantom/1
+nci-pregnant:           nci-pregnant/1
+icrp-reference:         icrp-phantom/1
+```
+
+The NIfTI header is authoritative for dimensions, data type, voxel spacing, units,
+and affine transforms. The embedded JSON is authoritative for phantom identity and
+the versioned link to domain metadata.
+
+The NIfTI file does **not** replace the metadata tables. Organ names, material
 assignments, tissue densities, elemental compositions, and marrow or dose-response
-data should be obtained from **_mastertable_ref&size.xlsx**.
+data should be obtained from each folder's **organ-metadata.csv** file,
+**phantom-mastertable.xlsx**, and the shared **common/** CSV files.
 
 ### Reading NIfTI Files
 
@@ -259,7 +386,7 @@ The recommended Python package for reading NIfTI files is `nibabel`.
 import nibabel as nib
 import numpy as np
 
-nii_path = "30f165060_armless_highres.nii.gz"
+nii_path = "35f165060-armless-highres.nii.gz"
 img = nib.load(nii_path)
 
 # Preserve integer labels. Avoid get_fdata() unless floating-point data are desired.
@@ -271,7 +398,7 @@ print("data type:", labels.dtype)
 print("affine:")
 print(img.affine)
 
-organ_id = 125
+organ_id = 43
 organ_mask = labels == organ_id
 print("organ voxel count:", int(organ_mask.sum()))
 ```
@@ -282,24 +409,25 @@ MATLAB can read NIfTI files with `niftiread` and inspect header metadata with
 `niftiinfo`.
 
 ```matlab
-info = niftiinfo("30f165060_armless_highres.nii.gz");
+info = niftiinfo("35f165060-armless-highres.nii.gz");
 labels = niftiread(info);
 
 disp(size(labels))
 disp(info.PixelDimensions)
 disp(class(labels))
 
-organ_id = 125;
+organ_id = 43;
 organ_mask = labels == organ_id;
 nnz(organ_mask)
 ```
 
 ### Converting Legacy Binary Voxel Files to NIfTI
 
-Legacy binary voxel files are retained under each library's **bin** folder for users
-who need to reproduce previous workflows. These files are raw arrays and do not carry their own
-metadata. To convert a binary file to NIfTI, the following information must be known
-from the phantom documentation or master table:
+Legacy binary voxel files are not included in the current PHANTOM release folder.
+Users who have older raw binary phantom files can still convert them to NIfTI if the
+required geometry metadata are known. These files are raw arrays and do not carry
+their own metadata. To convert a binary file to NIfTI, the following information must
+be known from the phantom documentation or master table:
 
 - array dimensions, e.g., number of voxels in x, y, and z
 - voxel spacing in physical units
@@ -354,7 +482,7 @@ labels.tofile("phantom.raw")
 ```
 
 After conversion, confirm the voxel count, unique label values, and organ-label
-mapping against **_mastertable_ref&size.xlsx** before using the file for dose
+mapping against **phantom-mastertable.xlsx** before using the file for dose
 calculation.
 
 ---

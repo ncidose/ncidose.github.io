@@ -2,28 +2,56 @@
 
 _Public release and maintenance record for the NCI computational phantom libraries._
 
-Latest update: **July 1, 2026**
+Latest update: **August 11, 2026**
 Latest official release: **December 10, 2025**
 Record begins: **2010**
 
 ## 2026
 
+### August 11, 2026
+
+- Renamed and reorganized PHANTOM folders so the main libraries are easier to
+  browse: `nci-reference`, `nci-size`, `nci-pregnant`, and `icrp-reference`.
+- Standardized release filenames across NIfTI, DICOMRT, Monte Carlo input files,
+  and the master workbook, now named `phantom-mastertable.xlsx`.
+- Updated the pregnant phantom release so arm/armless and single-/multi-resolution
+  folders use a consistent naming pattern. Cephalic presentations are included for
+  all gestational ages, with breech presentations included where available.
+- Added starting MCNP input files for the pregnant multi-resolution phantoms, with
+  one input file per gestational age and clear options for available fetal
+  presentations.
+- Simplified the ICRP armless folder so NIfTI files are stored directly in
+  `icrp-reference/armless`, while DICOMRT files remain in the `dicomrt` subfolder.
+- Consolidated folder-level notes into the PHANTOM user manual so the release
+  package is cleaner and easier to navigate.
+- Improved the NIfTI files so common imaging and analysis software can recognize
+  them more consistently as label-map phantoms.
+- Placed NCI reference-size NIfTI files directly in their arm/resolution folders,
+  matching the layout used by the NCI size-dependent library.
+- Updated adult phantom naming to use the `35` reference-adult age code, consistent
+  with the ICRP adult reference convention.
+
 ### July 1, 2026
 
-- Added a new NCI size-dependent armless NIfTI dataset at **xy-low / z-high resolution** (`nci_size/armless_xylow_zhigh/niigz`, **362 phantoms**), voxelized from the source mesh library.
-- Reorganized the download folder from a format-first layout (`niigz/`, `dicomrt/`, `mc-input/`, `_archive/`) to a **phantom-library-first** layout (`nci_size/`, `nci_reference/`, `nci_pregnant/`, `icrp_reference`), with format subfolders (`bin`, `niigz`, `dicomrt`, `mc-input`) nested under each posture and resolution folder. The `_archive` folder no longer exists as a separate top-level category.
-- Unified the smallest neonate phantom identifiers to **00f050005** and **00m050005** across the master table and all size-dependent libraries. These were previously labeled **00f051004** and **00m051004** in some size-dependent tables.
-- Corrected a voxel-count error in the `arm_lowres` and `armless_lowres` libraries for phantoms `00f050005` and `00m050005`, where the z-axis voxel count had not been recomputed for low resolution and resulted in doubled phantom height. Both libraries were revoxelized at the correct low-resolution spacing.
-- Filled in previously missing `bin` files for `00f050005` and `00m050005` in `nci_size/arm_highres` and `nci_size/arm_lowres`.
+- Added an additional armless NCI size-dependent NIfTI set with a lower in-plane
+  resolution and a higher slice resolution, covering all 362 size-dependent
+  phantoms.
+- Reorganized the download folder so users first choose the phantom library and
+  then choose the available format or posture.
+- Standardized the names of the smallest newborn size-dependent phantoms across
+  the files and master table.
+- Corrected the low-resolution newborn files so their body height and voxel spacing
+  are consistent with the rest of the library.
+- Added missing legacy binary files for the two smallest newborn phantoms.
 
 ### May 31, 2026
 
 - Added compressed NIfTI (`.nii.gz`) versions of the NCI reference-size, size-dependent, and pregnant phantom libraries.
 - Released NIfTI datasets for NCI reference-size phantoms with arms at high resolution; NCI pregnant woman phantoms at high resolution; and NCI size-dependent phantoms with and without arms at high and low resolution.
 - The reference-size dataset includes **12 phantoms**, each size-dependent dataset includes **362 phantoms**, and the pregnant dataset includes **8 phantoms**.
-- All NIfTI datasets preserve the voxelized organ-label data from the corresponding phantom library.
-- Moved legacy binary voxel files to the `_archive` folder for compatibility with existing workflows at the time of this release.
-- Recommended NIfTI for new downloads because it is smaller, contains header metadata, and can be read directly by common medical-imaging software.
+- All NIfTI datasets preserve the organ-label information from the corresponding phantom library.
+- Moved legacy binary voxel files to the archive area for compatibility with existing workflows at the time of this release.
+- Recommended NIfTI for new downloads because it is smaller, easier to share, and can be read directly by common medical-imaging software.
 - Compressed NIfTI made release of the full high-resolution NCI size-dependent library practical despite the size of the corresponding raw binary files.
 
 ## 2025
@@ -33,31 +61,21 @@ Record begins: **2010**
 - Expanded anatomical detail across the NCI reference-size and body size-dependent phantom libraries.
 - Added refined cardiac substructures, including heart chambers, myocardium, coronary arteries, cardiac valves, and conduction nodes.
 - Incorporated the full **362-phantom** body size-dependent library, including the 11 small pediatric phantoms added in the January 27, 2024 update.
-- Unified the reference-size and body size-dependent organ master tables to improve consistency in organ definitions, IDs, and metadata.
-- Recomputed voxel counts, organ volumes, and organ masses using a standardized workflow.
-- Updated skeletal dose-response functions for marrow and endosteum dose estimation using the latest ICRP-approved data.
+- Unified the reference-size and body size-dependent master tables to improve consistency in organ names, organ IDs, and supporting information.
+- Recalculated organ volumes and masses using a consistent workflow.
+- Updated skeletal dose-response data used for marrow and endosteum dose estimation.
 
 ## 2024
 
 ### December 14, 2024 — Official Release
 
-- Released the **362 size-specific phantoms** voxelized at low resolution.
+- Released the **362 size-specific phantoms** at low resolution.
 - Released DICOM-RT datasets containing DICOM CT and RT Structure data for ICRP reference pediatric and adult phantoms, UF/NCI pregnant women with fetus phantoms, and UF/NCI reference-size phantoms.
 
 ### January 27, 2024
 
-- Added 11 phantoms to the size-specific phantom library, bringing the total to **362**:
-  - `00f050005.3dm`
-  - `00f065005.3dm`
-  - `00m050005.3dm`
-  - `00m065005.3dm`
-  - `01f065010.3dm`
-  - `01f075010.3dm`
-  - `01f095010.3dm`
-  - `01m065010.3dm`
-  - `01m075010.3dm`
-  - `01m095010.3dm`
-  - `05f115015.3dm`
+- Added 11 pediatric phantoms to the size-specific phantom library, bringing the
+  total to **362**.
 
 ## 2022
 
@@ -80,20 +98,22 @@ Record begins: **2010**
 
 ### January 1, 2019
 
-- Developed methods to convert binary voxel phantoms to DICOM CT and DICOM Structure.
+- Developed methods to convert binary voxel phantoms to DICOM CT images and DICOM
+  structure sets.
 - Converted the reference-size and body size-dependent libraries.
 
 ## 2018
 
 ### November 13, 2018
 
-- Adjusted gamma to 1.0 for the following phantoms: `05f105020`, `05f105025`, `05m095020`, `30f165050`, `30f165100`, `30f170080`, `30m160055`, `30m160060`, `30m165080`, `30m165085`, `30m165090`, `30m170055`, `30m175055`, `30m175060`, `30m175070`, `30m175075`, `30m175085`, `30m175090`, and `30m190075`.
+- Updated the body-shape adjustment factor for selected size-dependent phantoms to
+  improve consistency across the library.
 
 ### Selected updates, 2014–2018
 
-- Separated and revoxelized arm structures for armless phantoms.
-- Refined skeletal layers, including cortical bone and spongiosa.
-- Corrected organ-overlap issues involving the ovaries, uterus, and colon.
+- Separated arm structures to support armless phantom versions.
+- Refined bone and marrow-related anatomy.
+- Corrected overlap issues involving the ovaries, uterus, and colon.
 - Completed the body size-dependent phantom library in collaboration with the University of Florida.
 
 ## 2010
