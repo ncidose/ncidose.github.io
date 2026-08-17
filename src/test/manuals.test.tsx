@@ -48,7 +48,7 @@ describe("public manuals", () => {
     );
 
     expect(screen.getByRole("heading", { name: "NCICT Release History" })).toBeInTheDocument();
-    expect(screen.getAllByText("July 13, 2026")).toHaveLength(2);
+    expect(screen.getAllByText("August 12, 2026")).toHaveLength(2);
     expect(screen.getByText("4.20260415")).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: /April 15, 2026/ })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /Download approved releases/i })).toHaveAttribute(
