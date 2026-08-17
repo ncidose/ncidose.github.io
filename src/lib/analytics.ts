@@ -30,7 +30,17 @@ export const trackPageView = (path: string) => {
 
   window.gtag("event", "page_view", {
     page_title: document.title,
-    page_location: `${window.location.origin}${window.location.pathname}#${path}`,
+    page_location: new URL(path, window.location.origin).href,
     page_path: path,
+  });
+};
+
+export const trackPageNotFound = (path: string) => {
+  if (!measurementId || typeof window.gtag !== "function") return;
+
+  window.gtag("event", "page_not_found", {
+    page_location: new URL(path, window.location.origin).href,
+    page_path: path,
+    page_referrer: document.referrer,
   });
 };

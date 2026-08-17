@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useLayoutEffect } from "react";
 import { useLocation } from "react-router-dom";
 import { findSeoRoute } from "@/data/seoRoutes";
 import { applyPageSeo } from "@/lib/seo";
@@ -6,7 +6,7 @@ import { applyPageSeo } from "@/lib/seo";
 export const Seo = () => {
   const { pathname } = useLocation();
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     const route = findSeoRoute(pathname);
     if (!route) {
       applyPageSeo({
@@ -24,6 +24,7 @@ export const Seo = () => {
       heading: route.heading,
       description: route.description,
       schemaType: route.schemaType,
+      noindex: route.noindex,
     });
   }, [pathname]);
 

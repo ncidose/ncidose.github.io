@@ -32,8 +32,8 @@ const App = () => (
       <Toaster />
       <Sonner />
       <BrowserRouter>
-        <Analytics />
         <Seo />
+        <Analytics />
         <div onContextMenu={(event) => event.preventDefault()} onDragStart={(event) => event.preventDefault()}>
           <ScrollToTop />
           <Routes>

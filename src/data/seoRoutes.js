@@ -192,6 +192,25 @@ export const seoRoutes = [
   },
 ];
 
+export const portalSeoRoutes = [
+  {
+    path: "/portal",
+    title: "NCI Dose Tools User Portal",
+    heading: "NCI Dose Tools User Portal",
+    description: "Secure access for approved NCI Dose Tools users.",
+    schemaType: "WebPage",
+    noindex: true,
+  },
+  {
+    path: "/portal/request-access",
+    title: "Request Access | NCI Dose Tools User Portal",
+    heading: "Request NCI Dose Tools Access",
+    description: "Check eligibility and prepare a Software Transfer Agreement request for NCI Dose Tools access.",
+    schemaType: "WebPage",
+    noindex: true,
+  },
+];
+
 const normalizePath = (pathname) => {
   if (!pathname || pathname === "/") return "/";
   return pathname.replace(/\/+$/, "");
@@ -199,8 +218,9 @@ const normalizePath = (pathname) => {
 
 export const findSeoRoute = (pathname) => {
   const normalized = normalizePath(pathname);
-  const exact = seoRoutes.find((route) => route.path === normalized);
+  const exact = [...seoRoutes, ...portalSeoRoutes].find((route) => route.path === normalized);
   if (exact) return exact;
+  if (/^\/portal(?:\/.*)?$/.test(normalized)) return portalSeoRoutes[0];
   if (/^\/discussions\/[^/]+$/.test(normalized)) {
     return {
       path: normalized,

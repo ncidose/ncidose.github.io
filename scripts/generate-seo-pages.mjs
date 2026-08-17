@@ -8,6 +8,7 @@ import remarkGfm from "remark-gfm";
 import {
   canonicalUrl,
   manualSeoPages,
+  portalSeoRoutes,
   seoRoutes,
   siteName,
   siteOrigin,
@@ -377,19 +378,12 @@ const main = async () => {
     await writeRoute(template, route, discussionContent(question));
   }
 
-  const portalRoute = {
-    path: "/portal",
-    title: "NCI Dose Tools User Portal",
-    heading: "NCI Dose Tools User Portal",
-    description: "Secure access for approved NCI Dose Tools users.",
-    schemaType: "WebPage",
-  };
-  await writeRoute(
-    template,
-    portalRoute,
-    "<p>Continue to the secure <a href=\"https://portal.ncidosetools.com\">NCI Dose Tools User Portal</a>.</p>",
-    true,
-  );
+  for (const route of portalSeoRoutes) {
+    const content = route.path === "/portal"
+      ? "<p>Continue to the secure <a href=\"https://portal.ncidosetools.com\">NCI Dose Tools User Portal</a>.</p>"
+      : "<p>Use this page to check eligibility and prepare a Software Transfer Agreement request.</p>";
+    await writeRoute(template, route, content, true);
+  }
 
   const notFoundRoute = {
     path: "/404",
@@ -403,7 +397,7 @@ const main = async () => {
     renderDocument(template, notFoundRoute, "<p>Return to the <a href=\"/\">NCI Dose Tools home page</a>.</p>", true),
   );
   await writeFile(path.join(distRoot, "sitemap.xml"), sitemapXml([...seoRoutes, ...discussionRoutes]));
-  console.log(`Generated ${seoRoutes.length} public SEO routes, ${discussionRoutes.length} discussion routes, and sitemap.xml.`);
+  console.log(`Generated ${seoRoutes.length} public SEO routes, ${portalSeoRoutes.length} portal routes, ${discussionRoutes.length} discussion routes, and sitemap.xml.`);
 };
 
 await main();

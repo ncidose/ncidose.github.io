@@ -1,4 +1,4 @@
-import { canonicalUrl, findSeoRoute, seoRoutes } from "@/data/seoRoutes";
+import { canonicalUrl, findSeoRoute, portalSeoRoutes, seoRoutes } from "@/data/seoRoutes";
 import { applyPageSeo } from "@/lib/seo";
 
 describe("public-site SEO", () => {
@@ -16,6 +16,14 @@ describe("public-site SEO", () => {
     expect(canonicalUrl("/")).toBe("https://ncidose.github.io/");
     expect(canonicalUrl("/manuals/ncict")).toBe("https://ncidose.github.io/manuals/ncict/");
     expect(findSeoRoute("/manuals/ncict/")?.title).toContain("NCICT 4 User Manual");
+  });
+
+  it("recognizes public portal screens without indexing them as public content", () => {
+    expect(portalSeoRoutes.every((route) => route.noindex)).toBe(true);
+    expect(findSeoRoute("/portal")?.title).toBe("NCI Dose Tools User Portal");
+    expect(findSeoRoute("/portal/request-access")?.title).toContain("Request Access");
+    expect(findSeoRoute("/portal/downloads")?.title).toBe("NCI Dose Tools User Portal");
+    expect(findSeoRoute("/missing-page")).toBeNull();
   });
 
   it("updates document metadata without changing page markup", () => {
