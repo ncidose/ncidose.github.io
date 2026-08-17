@@ -44,3 +44,13 @@ export const trackPageNotFound = (path: string) => {
     page_referrer: document.referrer,
   });
 };
+
+export const trackLicensingEmailClick = (path: string) => {
+  if (!measurementId || typeof window.gtag !== "function") return;
+
+  window.gtag("event", "licensing_email_click", {
+    page_location: new URL(path, window.location.origin).href,
+    page_path: path,
+    contact_type: "commercial_licensing",
+  });
+};
