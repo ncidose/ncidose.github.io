@@ -2,34 +2,11 @@
 
 _Public release and maintenance record for the National Cancer Institute dosimetry system for Computed Tomography._
 
-Latest update: **August 12, 2026**
+Latest update: **May 2, 2026**
 Latest official release: **4.20260415**
 Record begins: **2011**
 
 ## 2026
-
-### August 12, 2026
-
-#### macOS security and distribution
-
-- Signed both the macOS application and distribution disk image (DMG) with the National Cancer Institute's Apple-issued Developer ID Application certificate.
-- Enabled the Hardened Runtime, notarized the signed DMG through Apple's notarization service, and stapled the notarization ticket to the DMG.
-- Both the DMG and application can be verified by macOS Gatekeeper and no longer trigger the usual unidentified-developer blocking message when the distributed files are unmodified.
-
-#### User interface
-
-- Added full scan-range repositioning by dragging the center of the scan coverage overlay while preserving scan length.
-- Constrained full-range dragging to the selected phantom's anatomical boundaries.
-- Highlighted both scan start and end boundaries together when the pointer is over the draggable scan-range center, while retaining individual boundary adjustment.
-
-#### Keyboard handling
-
-- Added support for the Windows numeric keypad Enter key in scan and exposure parameter fields.
-- Consumed both main and numeric keypad Enter events after handling to prevent the Windows alert sound.
-
-#### Documentation and support
-
-- Updated the in-application User Manual and User Forum links to the current NCI Dose Tools website pages.
 
 ### May 2, 2026
 
