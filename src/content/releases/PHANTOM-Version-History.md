@@ -2,11 +2,21 @@
 
 _Public release and maintenance record for the NCI computational phantom libraries._
 
-Latest update: **August 11, 2026**
+Latest update: **August 20, 2026**
 Latest official release: **December 10, 2025**
 Record begins: **2010**
 
 ## 2026
+
+### August 20, 2026
+
+- Corrected the 20- and 25-week breech fetal models after manual review found
+  small portions of the fetal anatomy extending outside the uterus.
+- Manually adjusted the affected fetal surfaces to remain within the uterine
+  boundary and regenerated the corresponding arm and armless, single- and
+  multi-resolution NIfTI phantoms.
+- This maintenance correction affects only the 20- and 25-week breech
+  presentations; other gestational ages and cephalic presentations are unchanged.
 
 ### August 11, 2026
 
