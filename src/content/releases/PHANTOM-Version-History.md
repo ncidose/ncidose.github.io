@@ -3,7 +3,7 @@
 _Public release and maintenance record for the NCI computational phantom libraries._
 
 Latest update: **August 20, 2026**
-Latest official release: **December 10, 2025**
+Latest official release: **August 11, 2026**
 Record begins: **2010**
 
 ## 2026
@@ -18,7 +18,7 @@ Record begins: **2010**
 - This maintenance correction affects only the 20- and 25-week breech
   presentations; other gestational ages and cephalic presentations are unchanged.
 
-### August 11, 2026
+### August 11, 2026 — Official Release
 
 - Renamed and reorganized PHANTOM folders so the main libraries are easier to
   browse: `nci-reference`, `nci-size`, `nci-pregnant`, and `icrp-reference`.
