@@ -124,6 +124,20 @@ describe("announcement email template", () => {
     expect(html).not.toContain("RESEND_UNSUBSCRIBE_URL");
   });
 
+  it("turns plain announcement URLs into safe email links", () => {
+    const url = "https://ncidose.github.io/versions/phantom";
+    const html = announcementEmailHtml({
+      title: "PHANTOM maintenance",
+      body: `Read the details at ${url}.\n\n<script>alert(1)</script>`,
+      category: "Maintenance",
+    });
+
+    expect(html).toContain(`href="${url}"`);
+    expect(html).toContain(`>${url}</a>.`);
+    expect(html).not.toContain("<script>");
+    expect(html).toContain("&lt;script&gt;alert(1)&lt;/script&gt;");
+  });
+
   it("renders a transactional welcome without an unsubscribe link", () => {
     const html = welcomeEmailHtml("Test Researcher", "researcher@example.org");
 

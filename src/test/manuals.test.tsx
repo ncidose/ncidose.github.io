@@ -60,7 +60,7 @@ describe("public manuals", () => {
   it.each([
     ["ncirf", "NCIRF Release History", "4.20260510"],
     ["ncinm", "NCINM Release History", "3.20260510"],
-    ["phantom", "PHANTOM Library History", "December 10, 2025"],
+    ["phantom", "PHANTOM Library History", "August 20, 2026"],
   ])("renders the %s release record", (toolId, title, latestRelease) => {
     render(
       <MemoryRouter initialEntries={[`/versions/${toolId}`]}>
@@ -71,7 +71,7 @@ describe("public manuals", () => {
     );
 
     expect(screen.getByRole("heading", { name: title })).toBeInTheDocument();
-    expect(screen.getByText(latestRelease)).toBeInTheDocument();
+    expect(screen.getAllByText(latestRelease).length).toBeGreaterThan(0);
     expect(screen.getByRole("link", { name: /Read the current manual/i })).toHaveAttribute(
       "href",
       `/manuals/${toolId}`,

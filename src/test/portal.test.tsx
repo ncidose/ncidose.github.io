@@ -2,7 +2,7 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { getPortalHeaderEmail, selectPrimaryPortalIdentity } from "@/lib/portalUser";
-import { Downloads, Portal } from "@/pages/Portal";
+import { AnnouncementBody, Downloads, Portal } from "@/pages/Portal";
 
 describe("portal migration experience", () => {
   beforeEach(() => {
@@ -11,6 +11,15 @@ describe("portal migration experience", () => {
 
   afterEach(() => {
     vi.unstubAllGlobals();
+  });
+
+  it("turns URLs in announcement bodies into external links", () => {
+    const url = "https://ncidose.github.io/versions/phantom";
+    render(<AnnouncementBody>{`For details, visit ${url}`}</AnnouncementBody>);
+
+    expect(screen.getByRole("link", { name: url })).toHaveAttribute("href", url);
+    expect(screen.getByRole("link", { name: url })).toHaveAttribute("target", "_blank");
+    expect(screen.getByRole("link", { name: url })).toHaveAttribute("rel", "noopener noreferrer");
   });
 
   it("returns to the selected tool root when its card is clicked from a subfolder", async () => {

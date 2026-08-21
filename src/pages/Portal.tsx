@@ -1,5 +1,7 @@
 import { type FormEvent, useEffect, useMemo, useState } from "react";
 import { Link, Navigate, useLocation, useNavigate } from "react-router-dom";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 import {
   ArrowLeft,
   ArrowUpDown,
@@ -83,6 +85,23 @@ const portalNav = [
 ] satisfies Array<{ id: PortalSection; label: string; icon: typeof LayoutDashboard }>;
 
 const publicSiteUrl = "https://ncidose.github.io/";
+
+export const AnnouncementBody = ({ children }: { children: string }) => (
+  <ReactMarkdown
+    remarkPlugins={[remarkGfm]}
+    components={{
+      a: ({ children: label, ...props }) => (
+        <a {...props} target="_blank" rel="noopener noreferrer" className="break-words text-primary underline underline-offset-4">
+          {label}
+        </a>
+      ),
+      p: ({ children: paragraph }) => <p className="whitespace-pre-wrap">{paragraph}</p>,
+    }}
+  >
+    {children}
+  </ReactMarkdown>
+);
+
 const portalResources = [
   { label: "Manuals", href: `${publicSiteUrl}manuals`, icon: BookOpen },
   { label: "Tool information", href: `${publicSiteUrl}tools`, icon: ClipboardCheck },
@@ -1284,7 +1303,7 @@ const Announcements = ({ demoMode }: { demoMode: boolean }) => {
               {selected && <article id="announcement-detail" className="scroll-mt-24 border border-border bg-white p-6 sm:p-8 xl:sticky xl:top-24">
                 <div className="flex flex-wrap items-center gap-3 font-mono text-xs uppercase tracking-wider text-muted-foreground"><span>{dateLabel(selected)}</span><span className="border border-primary/20 bg-primary/5 px-2 py-1 text-primary">{selected.category}</span></div>
                 <h2 className="mt-5 text-2xl font-light leading-tight text-slate-900 sm:text-3xl">{selected.title}</h2>
-                <div className="mt-6 border-t border-border pt-6"><p className="whitespace-pre-wrap text-sm leading-7 text-slate-700">{selected.body}</p></div>
+                <div className="mt-6 space-y-4 border-t border-border pt-6 text-sm leading-7 text-slate-700"><AnnouncementBody>{selected.body}</AnnouncementBody></div>
                 <div className="mt-8 flex flex-wrap items-center gap-4 border-t border-border pt-5 font-mono text-xs uppercase tracking-wider text-slate-400"><span>{selected.audience === "approved_users" ? "Approved users" : "Public"}</span>{selected.sourceUrl && <a href={selected.sourceUrl} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-primary hover:underline">Original Google Groups post <ExternalLink className="h-3 w-3" /></a>}</div>
               </article>}
             </div>}
