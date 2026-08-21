@@ -1,19 +1,24 @@
 import { createHash } from "node:crypto";
-import { createReadStream, readFileSync } from "node:fs";
+import { createReadStream } from "node:fs";
 import { mkdtemp, open, readdir, rm, stat } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { execFileSync } from "node:child_process";
+import { fileURLToPath } from "node:url";
 
 const profile = process.env.NCIDOSE_R2_SYNC_PROFILE === "phantom" ? "phantom" : "releases";
+const scriptDirectory = path.dirname(fileURLToPath(import.meta.url));
+const frontendRoot = path.resolve(scriptDirectory, "../../..");
 const defaultSource = profile === "phantom"
-  ? path.join(os.homedir(), "ncidose_frontend/phantom")
-  : path.join(os.homedir(), "ncidose_frontend/_release");
+  ? path.join(frontendRoot, "_release/PHANTOM")
+  : path.join(frontendRoot, "_release");
 const source = path.resolve(process.argv[2] || process.env.NCIDOSE_RELEASE_DIR || defaultSource);
 const keyPrefix = profile === "phantom" ? "PHANTOM" : "";
 const bundlesOnly = process.env.NCIDOSE_R2_BUNDLES_ONLY === "true";
+const mirror = process.env.NCIDOSE_R2_MIRROR === "true";
+if (mirror && profile !== "phantom") throw new Error("mirror mode is restricted to the PHANTOM profile");
+if (mirror && bundlesOnly) throw new Error("mirror mode cannot be combined with bundles-only mode");
 const workerUrl = (process.env.NCIDOSE_R2_WORKER_URL || "https://ncidosetools-storage-admin.ncidosetools-614ade55.workers.dev").replace(/\/$/, "");
-const tokenFile = path.join(os.homedir(), "Library/Application Support/NCI Dose Tools/r2-upload-token");
 const token = process.env.NCIDOSE_R2_UPLOAD_TOKEN || (() => {
   try {
     return execFileSync(
@@ -22,7 +27,9 @@ const token = process.env.NCIDOSE_R2_UPLOAD_TOKEN || (() => {
       { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] },
     ).trim();
   } catch {
-    return readFileSync(tokenFile, "utf8").trim();
+    throw new Error(
+      "R2 upload token not found in this Mac's Keychain. See scripts/r2/README.md.",
+    );
   }
 })();
 const partSize = 32 * 1024 * 1024;
@@ -175,6 +182,18 @@ async function listRemote(prefix = "") {
   return objects;
 }
 
+async function deleteRemote(keys) {
+  for (let index = 0; index < keys.length; index += 1000) {
+    const batch = keys.slice(index, index + 1000);
+    await requestJson("/objects", {
+      method: "DELETE",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ keys: batch }),
+    });
+    console.log(`Deleted ${Math.min(index + batch.length, keys.length)}/${keys.length} stale objects`);
+  }
+}
+
 const bundleTempDirectory = await mkdtemp(path.join(os.tmpdir(), "ncidose-r2-bundles-"));
 try {
 const bundleFiles = [];
@@ -235,7 +254,21 @@ const missing = files.filter((file) => remoteMap.get(file.key) !== file.size);
 const matchedBytes = files.reduce((sum, file) => sum + (remoteMap.get(file.key) === file.size ? file.size : 0), 0);
 console.log(`SUMMARY uploaded=${uploaded} skipped=${skipped} failed=${errors.length}`);
 console.log(`VERIFY local_files=${files.length} matched_files=${files.length - missing.length} local_bytes=${totalBytes} matched_bytes=${matchedBytes} remote_objects=${remote.length}`);
-if (errors.length || missing.length) process.exitCode = 1;
+if (errors.length || missing.length) {
+  process.exitCode = 1;
+} else if (mirror) {
+  const localKeys = new Set(files.map((file) => file.key));
+  const staleKeys = remote.filter((object) => !localKeys.has(object.key)).map((object) => object.key);
+  console.log(`MIRROR stale_objects=${staleKeys.length}`);
+  if (staleKeys.length) await deleteRemote(staleKeys);
+
+  const mirrored = [...(await listRemote("PHANTOM")), ...(await listRemote("_folder-downloads/PHANTOM"))];
+  const mirroredMap = new Map(mirrored.map((object) => [object.key, object.size]));
+  const mismatched = files.filter((file) => mirroredMap.get(file.key) !== file.size);
+  const unexpected = mirrored.filter((object) => !localKeys.has(object.key));
+  console.log(`MIRROR_VERIFY local_objects=${files.length} remote_objects=${mirrored.length} mismatched=${mismatched.length} unexpected=${unexpected.length}`);
+  if (mismatched.length || unexpected.length || mirrored.length !== files.length) process.exitCode = 1;
+}
 } finally {
   await rm(bundleTempDirectory, { recursive: true, force: true });
 }

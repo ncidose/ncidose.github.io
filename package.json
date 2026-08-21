@@ -24,6 +24,7 @@
     "r2:sync-folder-downloads": "NCIDOSE_R2_BUNDLES_ONLY=true node scripts/r2/sync-releases.mjs",
     "r2:deploy-uploader": "npx --yes wrangler@latest deploy --config scripts/r2/wrangler.jsonc",
     "phantom:push": "NCIDOSE_R2_SYNC_PROFILE=phantom node scripts/r2/sync-releases.mjs",
+    "phantom:replace": "NCIDOSE_R2_SYNC_PROFILE=phantom NCIDOSE_R2_MIRROR=true node scripts/r2/sync-releases.mjs",
     "lint": "eslint .",
     "preview": "vite preview",
     "test": "vitest run",

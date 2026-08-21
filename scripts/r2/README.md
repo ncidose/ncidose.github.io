@@ -2,23 +2,41 @@
 
 This directory contains the private R2 upload service and the Mac-side sync client.
 
-## Routine release sync
+## Local Mac setup
 
-The upload token is stored in the macOS Keychain under the service name
-`ncidosetools-r2-uploader`. Remote sessions that cannot unlock the Keychain use
-the owner-only fallback file at
-`~/Library/Application Support/NCI Dose Tools/r2-upload-token`. From the
-repository root, run:
+Run all Cloudflare and R2 operations from the local Mac. NIH Helix, NIH VPN,
+and remote shell sessions are not part of this workflow and must not be used as
+deployment fallbacks.
+
+The repository includes a macOS helper that uses an existing local Node.js
+installation when available. Otherwise, it downloads the pinned official
+Node.js archive, verifies its SHA-256 checksum, and keeps it under the user's
+cache directory without installing system-wide packages:
 
 ```bash
-npm run r2:sync
+./scripts/macos-node.sh npm ci
+./scripts/macos-node.sh npx --yes wrangler@latest login
 ```
 
-By default the command syncs `~/ncidose_frontend/_release`. Pass another folder
-after `--` when needed:
+Wrangler login opens a browser and stores Cloudflare authentication locally.
+It does not require NIH VPN access.
+
+## Routine release sync
+
+The upload token is stored only in the local macOS Keychain under the service
+name `ncidosetools-r2-uploader`. The sync client deliberately has no remote-file
+fallback. From the repository root, run:
 
 ```bash
-npm run r2:sync -- /absolute/path/to/releases
+./scripts/macos-node.sh npm run r2:sync
+```
+
+By default the command finds `_release` as the sibling of this website
+repository, including when the frontend workspace path contains spaces. Pass
+another folder after `--` when needed:
+
+```bash
+./scripts/macos-node.sh npm run r2:sync -- /absolute/path/to/releases
 ```
 
 The sync is additive: it uploads new or changed files and skips objects whose
@@ -33,23 +51,34 @@ are not republished to R2.
 To rebuild and publish only the hidden PHANTOM and DCC folder downloads, run:
 
 ```bash
-npm run r2:sync-folder-downloads
+./scripts/macos-node.sh npm run r2:sync-folder-downloads
 ```
 
 ## Security
 
 - The `ncidosetools` bucket remains private.
 - The Worker rejects requests without the `UPLOAD_TOKEN` bearer secret.
-- The token is stored only in Cloudflare Worker secrets and either the macOS
-  Keychain or the owner-only remote-session fallback file described above.
+- The token is stored only in the Cloudflare Worker secret and this Mac's
+  Keychain.
 - Do not add the token to this repository or to shell history.
+
+To rotate the credential without exposing it in shell history, run locally:
+
+```bash
+./scripts/r2/rotate-upload-token.sh
+```
+
+The command updates this Mac's Keychain and the Worker secret together. It
+refuses to run through SSH and restores the prior Keychain value if the
+Cloudflare update fails. A successful rotation invalidates every older token,
+including copies that may remain on remote hosts.
 
 ## Deploy an uploader update
 
 After editing `worker.js`, deploy it with:
 
 ```bash
-npm run r2:deploy-uploader
+./scripts/macos-node.sh npm run r2:deploy-uploader
 ```
 
 The deployed service is `ncidosetools-storage-admin` and is bound only to the
@@ -57,19 +86,30 @@ The deployed service is `ncidosetools-storage-admin` and is bound only to the
 
 ## PHANTOM working folder
 
-The editable local copy of the R2 `PHANTOM/` folder is:
+The release-ready local copy of the R2 `PHANTOM/` folder is:
 
 ```text
-~/ncidose_frontend/phantom
+/Users/leechoonsik/ choonsikdrive/ncidose_frontend/_release/PHANTOM
 ```
 
 After updating the local folder, publish its new and changed files with:
 
 ```bash
-npm run phantom:push
+./scripts/macos-node.sh npm run phantom:push
 ```
 
 The push maps the local folder root to R2 `PHANTOM/`. It rebuilds the hidden
-folder-download archives and does not delete remote objects. Deleting a
-file locally therefore does not delete it from R2; remote removal should always
-be handled as a separate, deliberate maintenance operation.
+folder-download archives and does not delete remote objects.
+
+When a PHANTOM release reorganizes or removes files, replace the remote folder
+with an exact mirror of the local release:
+
+```bash
+./scripts/macos-node.sh npm run phantom:replace
+```
+
+Replacement uploads and verifies every local file and folder-download archive
+before deleting stale objects under `PHANTOM/` and
+`_folder-downloads/PHANTOM/`. The delete API is restricted to those two
+prefixes. The command finishes with a second listing that verifies the remote
+object set and byte sizes exactly match the local release.

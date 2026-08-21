@@ -2,6 +2,22 @@
 
 The Google Group export is transition data for the private portal. It must never be committed or shipped in the frontend bundle.
 
+## Local deployment
+
+Portal builds and Cloudflare Worker deployments run from the local Mac. NIH
+Helix, NIH VPN, and remote shell sessions are not required or supported as
+fallbacks. From the repository root:
+
+```bash
+./scripts/macos-node.sh npm ci
+./scripts/macos-node.sh npx --yes wrangler@latest login
+./scripts/macos-node.sh npm run portal:api:deploy
+```
+
+Wrangler authentication is stored locally after the browser login. Keep Worker
+secrets in Cloudflare and local credentials in the macOS Keychain; do not copy
+them to remote hosts.
+
 ## Local storage
 
 Save the current export as:
