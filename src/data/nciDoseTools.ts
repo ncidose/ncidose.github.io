@@ -1,6 +1,6 @@
-import ncictImage from "../../gui/ncict.png";
-import ncinmImage from "../../gui/ncinm.png";
-import ncirfImage from "../../gui/ncirf.png";
+const ncictImage = "/manuals/images/ncict4-main-window.png";
+const ncinmImage = "/manuals/images/ncinm3-main-window.png";
+const ncirfImage = "/manuals/images/ncirf4-main-window.png";
 
 export { portalLinks } from "./portalLinks";
 
