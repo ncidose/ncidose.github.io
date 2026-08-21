@@ -10,13 +10,11 @@ Record begins: **2010**
 
 ### August 20, 2026
 
-- Corrected the 20- and 25-week breech fetal models after manual review found
-  small portions of the fetal anatomy extending outside the uterus.
-- Manually adjusted the affected fetal surfaces to remain within the uterine
-  boundary and regenerated the corresponding arm and armless, single- and
-  multi-resolution NIfTI phantoms.
-- This maintenance correction affects only the 20- and 25-week breech
-  presentations; other gestational ages and cephalic presentations are unchanged.
+- Corrected the 20- and 25-week breech fetal surfaces to remain within the uterus.
+- Fixed pregnant-phantom volume clipping by sizing single-resolution grids from
+  the anatomical mesh bounds with padding, then regenerated all affected arm and
+  armless NIfTI phantoms.
+- Updated and validated the related metadata, MCNP files, and master workbook.
 
 ### August 11, 2026 — Official Release
 
