@@ -5,14 +5,14 @@ Static Vite/React website for NCI Dose Tools.
 ## Local Development
 
 ```sh
-npm install
-npm run dev
+./scripts/macos-node.sh npm ci
+./scripts/macos-node.sh npm run dev
 ```
 
 ## Build
 
 ```sh
-npm run build
+./scripts/macos-node.sh npm run build
 ```
 
 ## Google Analytics 4
