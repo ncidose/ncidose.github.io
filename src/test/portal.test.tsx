@@ -2,7 +2,7 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { getPortalHeaderEmail, selectPrimaryPortalIdentity } from "@/lib/portalUser";
-import { AnnouncementBody, Downloads, Portal } from "@/pages/Portal";
+import { AnnouncementBody, Downloads, Portal, PortalSignIn } from "@/pages/Portal";
 
 describe("portal migration experience", () => {
   beforeEach(() => {
@@ -86,6 +86,34 @@ describe("portal migration experience", () => {
     expect(screen.getByText(/Newly approved users/i)).toBeInTheDocument();
     expect(screen.getByText(/secure User Portal verifies the email with a one-time code/i)).toBeInTheDocument();
     expect(screen.getByText(/Email verification alone does not grant software access/i)).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /Commercial or clinical use: email Dr. Kevin Chang/i })).toHaveAttribute("href", expect.stringContaining("mailto:kevin.chang@nih.gov"));
+  });
+
+  it("does not imply that an unrecognized email received a code", async () => {
+    const fetchMock = vi.fn(async () => ({
+      ok: true,
+      json: async () => ({ challengeId: "privacy-safe-challenge" }),
+    } as Response));
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(
+      <PortalSignIn
+        demoMode={false}
+        accessDenied={false}
+        onSignIn={vi.fn()}
+        selfHostedAuth
+      />,
+    );
+
+    fireEvent.change(screen.getByPlaceholderText("name@institution.edu"), { target: { value: "random@example.org" } });
+    fireEvent.click(screen.getByRole("button", { name: /send sign-in code/i }));
+
+    expect(await screen.findByText(/This screen does not mean that a code was sent/i)).toBeInTheDocument();
+    expect(screen.getByText(/portal shows the same screen for every email address/i)).toBeInTheDocument();
+    expect(screen.getByText(/do not keep waiting or repeatedly request one/i)).toBeInTheDocument();
+    expect(screen.getByText(/you do not yet have a registered portal account/i)).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /Prepare and submit an STA/i })).toHaveAttribute("href", "https://ncidose.github.io/#/portal/request-access");
+    expect(screen.getByRole("link", { name: /Commercial or clinical use: email Dr. Kevin Chang/i })).toHaveAttribute("href", expect.stringContaining("mailto:kevin.chang@nih.gov"));
   });
 
   it("opens an approved account without a new registration step", () => {
@@ -170,6 +198,7 @@ describe("portal migration experience", () => {
 
     expect(screen.getByRole("heading", { name: /add an approved user/i })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: /approved user directory/i })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /unmatched sign-in requests/i })).toBeInTheDocument();
     expect(screen.getByText("approved.user@gmail.com")).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: /announcements/i }));

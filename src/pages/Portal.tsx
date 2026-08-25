@@ -85,6 +85,7 @@ const portalNav = [
 ] satisfies Array<{ id: PortalSection; label: string; icon: typeof LayoutDashboard }>;
 
 const publicSiteUrl = "https://ncidose.github.io/";
+const commercialLicensingEmail = "mailto:kevin.chang@nih.gov?subject=NCI%20Dose%20Tools%20Licensing%20Inquiry";
 
 export const AnnouncementBody = ({ children }: { children: string }) => (
   <ReactMarkdown
@@ -316,7 +317,7 @@ export const Portal = ({ publicLanding = false }: { publicLanding?: boolean }) =
   );
 };
 
-const PortalSignIn = ({
+export const PortalSignIn = ({
   demoMode,
   accessDenied,
   deniedEmail,
@@ -475,6 +476,12 @@ const PortalSignIn = ({
               >
                 Prepare and submit an STA <ChevronRight className="h-4 w-4" />
               </a>
+              <a
+                href={commercialLicensingEmail}
+                className="flex items-center justify-center gap-2 border border-primary px-4 py-3 text-sm font-medium text-primary transition-colors hover:bg-primary hover:text-white"
+              >
+                Commercial or clinical use: email Dr. Kevin Chang <Mail className="h-4 w-4" />
+              </a>
               <Button
                 variant="outline"
                 className="h-12 w-full rounded-none"
@@ -488,7 +495,7 @@ const PortalSignIn = ({
               {!challengeId ? (
                 <form onSubmit={requestCode} className="space-y-4">
                   <label className="block">
-                    <span className="font-mono text-xs uppercase tracking-wider text-slate-600">Approved email</span>
+                    <span className="font-mono text-xs uppercase tracking-wider text-slate-600">Approved account email</span>
                     <Input
                       type="email"
                       value={email}
@@ -508,10 +515,11 @@ const PortalSignIn = ({
               ) : (
                 <form onSubmit={verifyCode} className="space-y-4">
                   <div className="border-l-2 border-primary/30 bg-primary/5 px-4 py-3 text-sm leading-relaxed text-slate-700">
-                    If <strong className="break-all">{email.trim().toLowerCase()}</strong> is linked to an active approved account, a six-digit code has been sent. The code expires in 10 minutes.
+                    <p><strong>This screen does not mean that a code was sent.</strong> For account privacy, the portal shows the same screen for every email address.</p>
+                    <p className="mt-2">A code is generated only when <strong className="break-all">{email.trim().toLowerCase()}</strong> exactly matches an email linked to an active approved account. When generated, it expires in 10 minutes.</p>
                   </div>
                   <label className="block">
-                    <span className="font-mono text-xs uppercase tracking-wider text-slate-600">Six-digit code</span>
+                    <span className="font-mono text-xs uppercase tracking-wider text-slate-600">Six-digit code, if received</span>
                     <Input
                       type="text"
                       inputMode="numeric"
@@ -537,8 +545,8 @@ const PortalSignIn = ({
 
               <div className="mt-5 space-y-2 border-l-2 border-primary/20 pl-3 text-xs leading-relaxed text-muted-foreground">
                 <p><span className="font-medium text-slate-700">Previous Google Group users:</span> use the Gmail address registered with the group.</p>
-                <p><span className="font-medium text-slate-700">Newly approved users:</span> use the email in the User Portal welcome message.</p>
-                <p>Only an email already linked to an active approved account receives a sign-in code.</p>
+                <p><span className="font-medium text-slate-700">Newly approved users:</span> enter the exact email address shown in the User Portal welcome message.</p>
+                <p>Only that address, or a secondary email already linked to the account, receives a sign-in code.</p>
               </div>
 
               <div className="mt-5 flex items-start gap-2 bg-slate-50 p-3 text-xs leading-relaxed text-slate-600">
@@ -548,7 +556,7 @@ const PortalSignIn = ({
 
               {challengeId && (
                 <div className="mt-5 border-t border-border pt-5 text-center text-xs leading-relaxed text-muted-foreground">
-                  No code? Check spam, confirm that you used an approved email, or <button type="button" onClick={changeEmail} className="text-primary underline">try another email</button>.
+                  If no code arrives within a few minutes, do not keep waiting or repeatedly request one. If you received a welcome message, <button type="button" onClick={changeEmail} className="text-primary underline">enter the exact email shown there</button>. If you never received a welcome message, use the New User access process below.
                 </div>
               )}
             </>
@@ -563,7 +571,7 @@ const PortalSignIn = ({
               </Button>
               <div className="mt-4 space-y-2 border-l-2 border-primary/20 pl-3 text-xs leading-relaxed text-muted-foreground">
                 <p><span className="font-medium text-slate-700">Previous Google Group users:</span> use the Gmail address registered with the group.</p>
-                <p><span className="font-medium text-slate-700">Newly approved users:</span> use the email where you received the User Portal invitation—usually your institutional email.</p>
+                <p><span className="font-medium text-slate-700">Newly approved users:</span> enter the exact email address shown in the User Portal welcome message—usually your institutional email.</p>
                 <p>The secure User Portal verifies the email with a one-time code. Email verification alone does not grant software access.</p>
               </div>
 
@@ -575,7 +583,7 @@ const PortalSignIn = ({
               <div className="mt-7 border-t border-border pt-6">
                 <div className="font-mono text-xs uppercase tracking-wider text-primary">New user</div>
                 <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
-                  Start here to check eligibility, prepare the STA request, and follow the approval steps.
+                  If you have not received a User Portal welcome message and were not an eligible Google Group user, you do not yet have a registered portal account.
                 </p>
               </div>
 
@@ -594,14 +602,16 @@ const PortalSignIn = ({
                   Prepare and submit an STA <ChevronRight className="h-4 w-4" />
                 </Link>
               )}
+              <a href={commercialLicensingEmail} className="mt-3 flex items-center justify-center gap-2 border border-slate-300 px-4 py-3 text-sm font-medium text-slate-700 transition-colors hover:border-primary hover:text-primary">Commercial or clinical use: email Dr. Kevin Chang <Mail className="h-4 w-4" /></a>
             </>
           )}
 
           {selfHostedAuth && !demoMode && (
             <div className="mt-7 border-t border-border pt-6">
               <div className="font-mono text-xs uppercase tracking-wider text-primary">New user</div>
-              <p className="mt-2 text-sm leading-relaxed text-muted-foreground">Need access? Check eligibility, prepare the STA request, and follow the approval steps.</p>
+              <p className="mt-2 text-sm leading-relaxed text-muted-foreground">If you have not received a User Portal welcome message and were not an eligible Google Group user, you do not yet have a registered portal account.</p>
               <a href={`${publicSiteUrl}#/portal/request-access`} className="mt-5 flex items-center justify-center gap-2 border border-primary px-4 py-3 text-sm font-medium text-primary transition-colors hover:bg-primary hover:text-white">Prepare and submit an STA <ChevronRight className="h-4 w-4" /></a>
+              <a href={commercialLicensingEmail} className="mt-3 flex items-center justify-center gap-2 border border-slate-300 px-4 py-3 text-sm font-medium text-slate-700 transition-colors hover:border-primary hover:text-primary">Commercial or clinical use: email Dr. Kevin Chang <Mail className="h-4 w-4" /></a>
             </div>
           )}
 
@@ -1670,6 +1680,13 @@ type ManagedPortalUser = {
   identities: PortalIdentity[];
 };
 
+type UnmatchedLoginAttempt = {
+  email: string;
+  requestCount: number;
+  firstRequestedAt: string;
+  latestRequestedAt: string;
+};
+
 type AdminActivityData = {
   summary: {
     downloadsToday: number;
@@ -1843,6 +1860,7 @@ const Admin = ({ demoMode }: { demoMode: boolean }) => {
   const [adminAnnouncements, setAdminAnnouncements] = useState<LiveAnnouncement[]>([]);
   const [loadingAdminAnnouncements, setLoadingAdminAnnouncements] = useState(!demoMode);
   const [managedUsers, setManagedUsers] = useState<ManagedPortalUser[]>([]);
+  const [unmatchedLoginAttempts, setUnmatchedLoginAttempts] = useState<UnmatchedLoginAttempt[]>([]);
   const [loadingUsers, setLoadingUsers] = useState(!demoMode);
   const [userSearch, setUserSearch] = useState("");
   const [userSort, setUserSort] = useState<{ key: UserSortKey; direction: "asc" | "desc" }>({ key: "name", direction: "asc" });
@@ -1882,6 +1900,14 @@ const Admin = ({ demoMode }: { demoMode: boolean }) => {
           identities: demoApprovedUser.identities,
         },
       ]);
+      setUnmatchedLoginAttempts([
+        {
+          email: "unlinked.researcher@example.org",
+          requestCount: 2,
+          firstRequestedAt: "2026-08-25T14:40:00Z",
+          latestRequestedAt: "2026-08-25T14:43:00Z",
+        },
+      ]);
       return;
     }
     fetch("/api/admin/users", { credentials: "include" })
@@ -1889,6 +1915,7 @@ const Admin = ({ demoMode }: { demoMode: boolean }) => {
         if (!response.ok) throw new Error("Approved users could not be loaded.");
         const body = await response.json();
         setManagedUsers(body.users);
+        setUnmatchedLoginAttempts(body.unmatchedLoginAttempts || []);
       })
       .catch((error) => toast({ title: "Unable to load approved users", description: error instanceof Error ? error.message : undefined, variant: "destructive" }))
       .finally(() => setLoadingUsers(false));
@@ -2261,11 +2288,33 @@ const Admin = ({ demoMode }: { demoMode: boolean }) => {
 
       {adminSection === "questions" && <AdminQuestions demoMode={demoMode} />}
 
-      {adminSection === "users" && <div className="grid gap-4 md:grid-cols-3">
+      {adminSection === "users" && <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <StatusCard icon={Users} label="Approved users" value={loadingUsers ? "—" : String(managedUsers.length)} note="All portal accounts" />
         <StatusCard icon={UserRoundCheck} label="Active" value={loadingUsers ? "—" : String(managedUsers.filter((entry) => entry.accessStatus === "active").length)} note="Can access downloads" />
         <StatusCard icon={ShieldCheck} label="Suspended" value={loadingUsers ? "—" : String(managedUsers.filter((entry) => entry.accessStatus === "suspended").length)} note="Access retained but disabled" />
+        <StatusCard icon={Mail} label="Unmatched sign-ins" value={loadingUsers ? "—" : String(unmatchedLoginAttempts.reduce((total, entry) => total + entry.requestCount, 0))} note="Code requests in 30 days" />
       </div>}
+
+      {adminSection === "users" && <section className="border border-amber-200 bg-amber-50/40">
+        <div className="border-b border-amber-200 px-6 py-5">
+          <div className="font-mono text-xs uppercase tracking-widest text-amber-700">Sign-in support</div>
+          <h2 className="mt-2 text-xl font-light text-slate-800">Unmatched sign-in requests</h2>
+          <p className="mt-2 text-sm text-slate-600">No verification code was created for these addresses because they were not linked to an active account. Compare each address with the approved user directory before contacting the user.</p>
+        </div>
+        {loadingUsers ? (
+          <div className="flex items-center gap-3 px-6 py-6 text-sm text-muted-foreground"><Loader2 className="h-4 w-4 animate-spin" /> Loading sign-in requests…</div>
+        ) : unmatchedLoginAttempts.length === 0 ? (
+          <div className="px-6 py-6 text-sm text-slate-600">No unmatched sign-in requests were recorded in the last 30 days.</div>
+        ) : (
+          <div className="divide-y divide-amber-200">{unmatchedLoginAttempts.map((entry) => (
+            <div key={entry.email} className="grid gap-2 px-6 py-4 sm:grid-cols-[minmax(0,1fr)_8rem_12rem] sm:items-center">
+              <div className="break-all font-mono text-sm text-slate-800">{entry.email}</div>
+              <div className="text-xs text-slate-600">{entry.requestCount} request{entry.requestCount === 1 ? "" : "s"}</div>
+              <div className="text-xs text-slate-600">Latest: {activityDate(entry.latestRequestedAt)}</div>
+            </div>
+          ))}</div>
+        )}
+      </section>}
 
       {adminSection === "users" && <section className="border border-border bg-white p-6 sm:p-8">
         <div className="flex items-start gap-4">

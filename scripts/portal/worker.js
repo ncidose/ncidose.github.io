@@ -569,7 +569,7 @@ export const announcementEmailHtml = (announcement, options = {}) => {
 export const welcomeEmailHtml = (displayName, email) => announcementEmailHtml({
   title: "Welcome to the NCI Dose Tools User Portal",
   category: "Approved access",
-  body: `Hello ${displayName || "NCI Dose Tools user"},\n\nYour approved access to the NCI Dose Tools User Portal is ready.\n\nSign in using ${email}. A one-time verification code will be sent to that address.\n\nUse the User Portal to download approved software releases, review announcements, and manage your account email.`,
+  body: `Hello ${displayName || "NCI Dose Tools user"},\n\nYour approved access to the NCI Dose Tools User Portal is ready.\n\nSign in using this exact email address: ${email}. A one-time verification code will be sent to that address. Other email addresses will not receive a code unless they are already linked to this account.\n\nUse the User Portal to download approved software releases, review announcements, and manage your account email.`,
 }, { includeUnsubscribe: false, headerLabel: "Approved User Access" });
 
 export const secondaryEmailAddedHtml = (displayName, email) => announcementEmailHtml({
@@ -620,7 +620,7 @@ async function sendDiscussionReplyNotifications(env, context, { question, replyi
   }
 }
 
-const welcomeEmailText = (displayName, email) => `Hello ${displayName || "NCI Dose Tools user"},\n\nYour approved access to the NCI Dose Tools User Portal is ready.\n\nSign in using ${email}. A one-time verification code will be sent to that address.\n\nOpen User Portal: https://portal.ncidosetools.com\n\nSincerely,\nNCI Dose Team\nNCI Dose Tools portal: https://ncidose.github.io/\nNational Cancer Institute`;
+const welcomeEmailText = (displayName, email) => `Hello ${displayName || "NCI Dose Tools user"},\n\nYour approved access to the NCI Dose Tools User Portal is ready.\n\nSign in using this exact email address: ${email}. A one-time verification code will be sent to that address. Other email addresses will not receive a code unless they are already linked to this account.\n\nOpen User Portal: https://portal.ncidosetools.com\n\nSincerely,\nNCI Dose Team\nNCI Dose Tools portal: https://ncidose.github.io/\nNational Cancer Institute`;
 
 const secondaryEmailAddedText = (displayName, email) => `Hello ${displayName || "NCI Dose Tools user"},\n\n${email} has been successfully linked to your approved NCI Dose Tools User Portal account.\n\nTo verify this address, sign out and sign in again using ${email}. After verification, you can sign in with either email.\n\nIf you did not make this change, please contact the NCI Dose Team.\n\nOpen User Portal: https://portal.ncidosetools.com\n\nSincerely,\nNCI Dose Team\nNCI Dose Tools portal: https://ncidose.github.io/\nNational Cancer Institute`;
 
@@ -680,7 +680,7 @@ async function requestLoginCode(request, env, context, cors) {
     }
   }
 
-  context.waitUntil(env.DB.prepare("DELETE FROM login_challenges WHERE created_at < datetime('now', '-1 day')").run());
+  context.waitUntil(env.DB.prepare("DELETE FROM login_challenges WHERE created_at < datetime('now', '-30 days')").run());
   return json({ challengeId, expiresIn: loginCodeLifetimeMinutes * 60 }, 200, cors);
 }
 
@@ -1144,7 +1144,7 @@ export default {
 
       if (request.method === "GET" && url.pathname === "/api/admin/users") {
         if (user.role !== "admin") return json({ error: "administrator_required" }, 403, cors);
-        const [usersResult, identitiesResult] = await Promise.all([
+        const [usersResult, identitiesResult, unmatchedLoginResult] = await Promise.all([
           env.DB.prepare(`
             SELECT users.id, users.display_name, users.institution, users.country, users.role,
               users.discussion_role, users.discussion_handle, users.sta_status,
@@ -1165,6 +1165,15 @@ export default {
             FROM user_identities identities
             JOIN users ON users.id=identities.user_id
             ORDER BY identities.is_primary DESC, identities.created_at ASC
+          `).all(),
+          env.DB.prepare(`
+            SELECT normalized_email, COUNT(*) AS request_count,
+              MIN(created_at) AS first_requested_at, MAX(created_at) AS latest_requested_at
+            FROM login_challenges
+            WHERE user_id IS NULL AND created_at >= datetime('now', '-30 days')
+            GROUP BY normalized_email
+            ORDER BY latest_requested_at DESC
+            LIMIT 100
           `).all(),
         ]);
         const identitiesByUser = new Map();
@@ -1191,6 +1200,13 @@ export default {
             lastLoginAt: entry.last_login_at,
             identities: identitiesByUser.get(entry.id) || [],
           })),
+          unmatchedLoginAttempts: unmatchedLoginResult.results.map((entry) => ({
+            email: entry.normalized_email,
+            requestCount: Number(entry.request_count || 0),
+            firstRequestedAt: entry.first_requested_at,
+            latestRequestedAt: entry.latest_requested_at,
+          })),
+          unmatchedLoginRetentionDays: 30,
         }, 200, cors);
       }
 

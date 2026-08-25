@@ -144,6 +144,8 @@ describe("announcement email template", () => {
     expect(html).toContain("Welcome to the NCI Dose Tools User Portal");
     expect(html).toContain("Approved User Access");
     expect(html).toContain("researcher@example.org");
+    expect(html).toContain("Sign in using this exact email address");
+    expect(html).toContain("Other email addresses will not receive a code unless they are already linked");
     expect(html).toContain("NCI Dose Team");
     expect(html).not.toContain("RESEND_UNSUBSCRIBE_URL");
   });
