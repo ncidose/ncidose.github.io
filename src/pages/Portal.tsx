@@ -1885,6 +1885,8 @@ const Admin = ({ demoMode }: { demoMode: boolean }) => {
   const [editingInstitution, setEditingInstitution] = useState("");
   const [editingCountry, setEditingCountry] = useState("");
   const [editingSecondaryEmail, setEditingSecondaryEmail] = useState("");
+  const [editingAccessStatus, setEditingAccessStatus] = useState<ManagedPortalUser["accessStatus"]>("active");
+  const [editingDiscussionRole, setEditingDiscussionRole] = useState<ManagedPortalUser["discussionRole"]>("community");
   const [deletingUserId, setDeletingUserId] = useState<string | null>(null);
   const [activityData, setActivityData] = useState<AdminActivityData>(emptyAdminActivity);
   const [loadingActivity, setLoadingActivity] = useState(!demoMode);
@@ -2058,6 +2060,8 @@ const Admin = ({ demoMode }: { demoMode: boolean }) => {
     setEditingInstitution(managedUser.institution || "");
     setEditingCountry(managedUser.country || "");
     setEditingSecondaryEmail("");
+    setEditingAccessStatus(managedUser.accessStatus);
+    setEditingDiscussionRole(managedUser.discussionRole);
   };
 
   const cancelEditingUser = () => {
@@ -2065,6 +2069,8 @@ const Admin = ({ demoMode }: { demoMode: boolean }) => {
     setEditingInstitution("");
     setEditingCountry("");
     setEditingSecondaryEmail("");
+    setEditingAccessStatus("active");
+    setEditingDiscussionRole("community");
   };
 
   const saveUserDetails = async (managedUser: ManagedPortalUser) => {
@@ -2077,6 +2083,8 @@ const Admin = ({ demoMode }: { demoMode: boolean }) => {
       ...entry,
       institution: editingInstitution.trim() || null,
       country: editingCountry.trim() || null,
+      accessStatus: managedUser.role === "admin" ? entry.accessStatus : editingAccessStatus,
+      discussionRole: managedUser.role === "admin" ? entry.discussionRole : editingDiscussionRole,
       identities: identity ? [...entry.identities, identity] : entry.identities,
     } : entry));
 
@@ -2096,6 +2104,8 @@ const Admin = ({ demoMode }: { demoMode: boolean }) => {
         body: JSON.stringify({
           institution: editingInstitution,
           country: editingCountry,
+          ...(managedUser.role !== "admin" && editingAccessStatus !== managedUser.accessStatus ? { accessStatus: editingAccessStatus } : {}),
+          ...(managedUser.role !== "admin" && editingDiscussionRole !== managedUser.discussionRole ? { discussionRole: editingDiscussionRole } : {}),
           ...(secondaryEmail ? { secondaryEmail } : {}),
         }),
       });
@@ -2116,6 +2126,9 @@ const Admin = ({ demoMode }: { demoMode: boolean }) => {
         ...entry,
         institution: body.institution,
         country: body.country,
+        accessStatus: body.accessStatus,
+        discussionRole: body.discussionRole,
+        discussionHandle: body.discussionHandle,
         identities: body.identity ? [...entry.identities, body.identity] : entry.identities,
       } : entry));
       cancelEditingUser();
@@ -2132,59 +2145,9 @@ const Admin = ({ demoMode }: { demoMode: boolean }) => {
           : undefined,
         variant: emailWasAdded && !emailWasSent ? "destructive" : undefined,
       });
+      if (managedUser.accessStatus !== body.accessStatus) window.setTimeout(() => void loadEmailAudience(), 500);
     } catch (error) {
       toast({ title: "Unable to update user", description: error instanceof Error ? error.message : undefined, variant: "destructive" });
-    } finally {
-      setUpdatingUserId(null);
-    }
-  };
-
-  const changeUserStatus = async (managedUser: ManagedPortalUser) => {
-    const accessStatus = managedUser.accessStatus === "active" ? "suspended" : "active";
-    if (demoMode) {
-      setManagedUsers((current) => current.map((entry) => entry.id === managedUser.id ? { ...entry, accessStatus } : entry));
-      return;
-    }
-    setUpdatingUserId(managedUser.id);
-    try {
-      const response = await fetch(`/api/admin/users/${managedUser.id}`, {
-        method: "PATCH",
-        credentials: "include",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ accessStatus }),
-      });
-      if (!response.ok) throw new Error("The access status could not be changed.");
-      setManagedUsers((current) => current.map((entry) => entry.id === managedUser.id ? { ...entry, accessStatus } : entry));
-      toast({ title: accessStatus === "active" ? "User reactivated" : "User suspended" });
-      window.setTimeout(() => void loadEmailAudience(), 500);
-    } catch (error) {
-      toast({ title: "Unable to update user", description: error instanceof Error ? error.message : undefined, variant: "destructive" });
-    } finally {
-      setUpdatingUserId(null);
-    }
-  };
-
-  const changeDiscussionRole = async (managedUser: ManagedPortalUser) => {
-    if (managedUser.role === "admin") return;
-    const discussionRole = managedUser.discussionRole === "team" ? "community" : "team";
-    if (demoMode) {
-      setManagedUsers((current) => current.map((entry) => entry.id === managedUser.id ? { ...entry, discussionRole } : entry));
-      return;
-    }
-    setUpdatingUserId(managedUser.id);
-    try {
-      const response = await fetch(`/api/admin/users/${managedUser.id}`, {
-        method: "PATCH",
-        credentials: "include",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ discussionRole }),
-      });
-      const payload = await response.json();
-      if (!response.ok) throw new Error("The discussion role could not be changed.");
-      setManagedUsers((current) => current.map((entry) => entry.id === managedUser.id ? { ...entry, discussionRole: payload.discussionRole, discussionHandle: payload.discussionHandle } : entry));
-      toast({ title: discussionRole === "team" ? "NCI Dose Team role assigned" : "Community role restored", description: discussionRole === "team" ? `New posts will display as NCI Dose Team · @${payload.discussionHandle}.` : "New posts will display as User Community." });
-    } catch (error) {
-      toast({ title: "Unable to update discussion role", description: error instanceof Error ? error.message : undefined, variant: "destructive" });
     } finally {
       setUpdatingUserId(null);
     }
@@ -2438,7 +2401,7 @@ const Admin = ({ demoMode }: { demoMode: boolean }) => {
           <div><div className="font-mono text-xs uppercase tracking-widest text-primary">User management</div><h2 className="mt-2 text-xl font-light">Approved user directory</h2></div>
           <div className="relative w-full sm:w-80"><Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" /><Input value={userSearch} onChange={(event) => setUserSearch(event.target.value)} placeholder="Search name, email, or institution" className="rounded-none pl-9" /></div>
         </div>
-        {!loadingUsers && filteredUsers.length > 0 && <div className="hidden border-b border-border bg-slate-50 px-6 py-3 xl:grid xl:grid-cols-[minmax(0,1.1fr)_minmax(0,1.4fr)_9rem_10rem_20rem] xl:items-center xl:gap-4">
+        {!loadingUsers && filteredUsers.length > 0 && <div className="hidden border-b border-border bg-slate-50 px-6 py-3 xl:grid xl:grid-cols-[minmax(0,1.1fr)_minmax(0,1.4fr)_9rem_10rem_8rem] xl:items-center xl:gap-4">
           {sortHeader("name", "Name")}
           {sortHeader("email", "Email")}
           {sortHeader("joined", "Joined")}
@@ -2457,16 +2420,16 @@ const Admin = ({ demoMode }: { demoMode: boolean }) => {
               const lastLoginAt = latestLoginByUserId.get(managedUser.id);
               return (
                 <div key={managedUser.id}>
-                  <div className="grid gap-4 px-6 py-5 xl:grid-cols-[minmax(0,1.1fr)_minmax(0,1.4fr)_9rem_10rem_20rem] xl:items-center">
+                  <div className="grid gap-4 px-6 py-5 xl:grid-cols-[minmax(0,1.1fr)_minmax(0,1.4fr)_9rem_10rem_8rem] xl:items-center">
                     <div className="min-w-0"><div className="flex flex-wrap items-center gap-2"><div className="truncate text-sm font-medium text-slate-800">{managedUser.name || primaryEmail.split("@")[0]}</div>{(managedUser.role === "admin" || managedUser.discussionRole === "team") && <span className="bg-sky-50 px-2 py-0.5 font-mono text-[10px] text-primary">NCI Dose Team{managedUser.discussionHandle ? ` · @${managedUser.discussionHandle}` : ""}</span>}</div><div className="mt-1 flex items-center gap-1.5 truncate text-xs text-muted-foreground"><Building2 className="h-3.5 w-3.5 shrink-0" /> {[managedUser.institution, managedUser.country].filter(Boolean).join(" · ") || "Profile not provided"}</div></div>
                     <div className="min-w-0"><div className="truncate text-sm text-slate-700">{primaryEmail}</div>{additionalEmail && <div className="mt-1 truncate text-xs text-muted-foreground">+ {additionalEmail.email} · {additionalEmail.verified ? "verified" : "pending"}</div>}</div>
                     <div className="text-xs text-muted-foreground"><span className="xl:hidden">Joined </span>{announcementDate(managedUser.groupJoinedAt || managedUser.createdAt)}</div>
                     <div className="text-xs text-muted-foreground"><span className="xl:hidden">Last login </span>{lastLoginAt ? activityDate(lastLoginAt) : "—"}</div>
-                    <div className="flex flex-wrap items-center gap-2 xl:justify-end"><Button type="button" variant="outline" disabled={updatingUserId === managedUser.id || deletingUserId === managedUser.id} onClick={() => editingUserId === managedUser.id ? cancelEditingUser() : beginEditingUser(managedUser)} className="rounded-none">{editingUserId === managedUser.id ? "Close edit" : "Edit details"}</Button>{managedUser.role !== "admin" && <Button type="button" variant="outline" disabled={updatingUserId === managedUser.id || deletingUserId === managedUser.id} onClick={() => void changeDiscussionRole(managedUser)} className="rounded-none">{managedUser.discussionRole === "team" ? "Remove team role" : "Make team member"}</Button>}<Button type="button" variant="outline" disabled={updatingUserId === managedUser.id || deletingUserId === managedUser.id || managedUser.role === "admin"} onClick={() => void changeUserStatus(managedUser)} className="rounded-none">{updatingUserId === managedUser.id ? <Loader2 className="h-4 w-4 animate-spin" /> : managedUser.accessStatus === "active" ? "Suspend" : "Reactivate"}</Button>{managedUser.accessStatus === "suspended" && managedUser.role !== "admin" && <Button type="button" variant="outline" disabled={updatingUserId === managedUser.id || deletingUserId === managedUser.id} onClick={() => void deleteUser(managedUser)} className="rounded-none border-red-200 text-red-700 hover:bg-red-50 hover:text-red-800">{deletingUserId === managedUser.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />} Delete</Button>}</div>
+                    <div className="flex items-center xl:justify-end"><Button type="button" variant="outline" disabled={updatingUserId === managedUser.id || deletingUserId === managedUser.id} onClick={() => editingUserId === managedUser.id ? cancelEditingUser() : beginEditingUser(managedUser)} className="rounded-none">{editingUserId === managedUser.id ? "Close" : "Edit"}</Button></div>
                   </div>
                   {editingUserId === managedUser.id && <div className="border-t border-sky-100 bg-sky-50/40 px-6 py-5">
                     <div className="font-mono text-xs uppercase tracking-widest text-primary">Edit user details</div>
-                    <p className="mt-2 text-sm text-slate-600">Update profile information and, if available, link one secondary sign-in email.</p>
+                    <p className="mt-2 text-sm text-slate-600">Update profile information, account access, team role, and an optional secondary sign-in email.</p>
                     <div className="mt-4 grid gap-4 lg:grid-cols-3">
                       <label className="block"><span className="text-xs font-medium text-slate-700">Institution</span><Input aria-label={`Institution for ${managedUser.name || primaryEmail}`} value={editingInstitution} onChange={(event) => setEditingInstitution(event.target.value)} placeholder="Institution" className="mt-2 rounded-none bg-white" /></label>
                       <label className="block"><span className="text-xs font-medium text-slate-700">Country</span><Input aria-label={`Country for ${managedUser.name || primaryEmail}`} value={editingCountry} onChange={(event) => setEditingCountry(event.target.value)} placeholder="Country" className="mt-2 rounded-none bg-white" /></label>
@@ -2474,7 +2437,14 @@ const Admin = ({ demoMode }: { demoMode: boolean }) => {
                         ? <div className="mt-2 border border-border bg-white px-3 py-2 text-sm text-slate-600">{additionalEmail.email}<div className="mt-1 text-xs text-muted-foreground">This account already has a secondary email.</div></div>
                         : <><Input type="email" aria-label={`Secondary email for ${managedUser.name || primaryEmail}`} value={editingSecondaryEmail} onChange={(event) => setEditingSecondaryEmail(event.target.value)} placeholder="Secondary email (optional)" className="mt-2 rounded-none bg-white" /><p className="mt-2 text-xs leading-relaxed text-muted-foreground">A welcome message will be sent to the new address. It remains pending until the user signs in with it and verifies a code.</p></>}</div>
                     </div>
-                    <div className="mt-5 flex justify-end gap-2"><Button type="button" variant="outline" disabled={updatingUserId === managedUser.id} onClick={cancelEditingUser} className="rounded-none">Cancel</Button><Button type="button" disabled={updatingUserId === managedUser.id || Boolean(editingSecondaryEmail.trim() && !editingSecondaryEmail.includes("@"))} onClick={() => void saveUserDetails(managedUser)} className="rounded-none">{updatingUserId === managedUser.id && <Loader2 className="h-4 w-4 animate-spin" />} Save user details</Button></div>
+                    <div className="mt-5 grid gap-4 sm:grid-cols-2">
+                      <label className="block"><span className="text-xs font-medium text-slate-700">Account access</span><select aria-label={`Account access for ${managedUser.name || primaryEmail}`} value={editingAccessStatus} onChange={(event) => setEditingAccessStatus(event.target.value as ManagedPortalUser["accessStatus"])} disabled={managedUser.role === "admin"} className="mt-2 h-10 w-full rounded-none border border-input bg-white px-3 text-sm disabled:cursor-not-allowed disabled:bg-slate-100"><option value="active">Active</option><option value="suspended">Suspended</option></select><p className="mt-2 text-xs text-muted-foreground">Suspended users cannot sign in or download files.</p></label>
+                      <label className="block"><span className="text-xs font-medium text-slate-700">Portal role</span><select aria-label={`Portal role for ${managedUser.name || primaryEmail}`} value={editingDiscussionRole} onChange={(event) => setEditingDiscussionRole(event.target.value as ManagedPortalUser["discussionRole"])} disabled={managedUser.role === "admin"} className="mt-2 h-10 w-full rounded-none border border-input bg-white px-3 text-sm disabled:cursor-not-allowed disabled:bg-slate-100"><option value="community">Community user</option><option value="team">NCI Dose Team member</option></select><p className="mt-2 text-xs text-muted-foreground">Team members can respond to private discussions as the NCI Dose Team.</p></label>
+                    </div>
+                    <div className="mt-5 flex flex-wrap items-center justify-between gap-3">
+                      <div>{managedUser.accessStatus === "suspended" && managedUser.role !== "admin" && <Button type="button" variant="outline" disabled={updatingUserId === managedUser.id || deletingUserId === managedUser.id} onClick={() => void deleteUser(managedUser)} className="rounded-none border-red-200 text-red-700 hover:bg-red-50 hover:text-red-800">{deletingUserId === managedUser.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />} Delete user</Button>}</div>
+                      <div className="flex gap-2"><Button type="button" variant="outline" disabled={updatingUserId === managedUser.id} onClick={cancelEditingUser} className="rounded-none">Cancel</Button><Button type="button" disabled={updatingUserId === managedUser.id || Boolean(editingSecondaryEmail.trim() && !editingSecondaryEmail.includes("@"))} onClick={() => void saveUserDetails(managedUser)} className="rounded-none">{updatingUserId === managedUser.id && <Loader2 className="h-4 w-4 animate-spin" />} Save changes</Button></div>
+                    </div>
                   </div>}
                 </div>
               );

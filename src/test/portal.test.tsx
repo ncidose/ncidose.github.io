@@ -235,14 +235,22 @@ describe("portal migration experience", () => {
       </MemoryRouter>,
     );
 
-    fireEvent.click(screen.getByRole("button", { name: /edit details/i }));
+    expect(screen.queryByRole("button", { name: /make team member/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /^suspend$/i })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: /^edit$/i }));
     fireEvent.change(screen.getByLabelText("Institution for Approved Researcher"), { target: { value: "University of Utah" } });
     fireEvent.change(screen.getByLabelText("Country for Approved Researcher"), { target: { value: "United States" } });
     fireEvent.change(screen.getByLabelText("Secondary email for Approved Researcher"), { target: { value: "seth.streitmatter@gmail.com" } });
-    fireEvent.click(screen.getByRole("button", { name: /save user details/i }));
+    fireEvent.change(screen.getByLabelText("Account access for Approved Researcher"), { target: { value: "suspended" } });
+    fireEvent.change(screen.getByLabelText("Portal role for Approved Researcher"), { target: { value: "team" } });
+    fireEvent.click(screen.getByRole("button", { name: /save changes/i }));
 
     expect(screen.getByText("University of Utah · United States")).toBeInTheDocument();
     expect(screen.getByText(/seth\.streitmatter@gmail\.com · pending/i)).toBeInTheDocument();
     expect(screen.queryByLabelText("Secondary email for Approved Researcher")).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: /^edit$/i }));
+    expect(screen.getByLabelText("Account access for Approved Researcher")).toHaveValue("suspended");
+    expect(screen.getByLabelText("Portal role for Approved Researcher")).toHaveValue("team");
+    expect(screen.getByRole("button", { name: /delete user/i })).toBeInTheDocument();
   });
 });

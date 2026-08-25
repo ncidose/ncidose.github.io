@@ -1436,10 +1436,14 @@ export default {
         if (accessStatus === "suspended") {
           statements.push(env.DB.prepare("UPDATE portal_sessions SET revoked_at=CURRENT_TIMESTAMP WHERE user_id=? AND revoked_at IS NULL").bind(adminUserMatch[1]));
         }
-        if (accessStatus || nextDiscussionRole) {
-          statements.push(env.DB.prepare("INSERT INTO access_events (id, user_id, event_type, metadata_json) VALUES (?, ?, ?, ?)").bind(
-            crypto.randomUUID(), adminUserMatch[1], nextDiscussionRole ? "discussion_role_changed" : "access_status_changed",
-            JSON.stringify({ accessStatus, discussionRole: nextDiscussionRole, discussionHandle: nextHandle, changedBy: user.id }),
+        if (accessStatus) {
+          statements.push(env.DB.prepare("INSERT INTO access_events (id, user_id, event_type, metadata_json) VALUES (?, ?, 'access_status_changed', ?)").bind(
+            crypto.randomUUID(), adminUserMatch[1], JSON.stringify({ accessStatus, changedBy: user.id }),
+          ));
+        }
+        if (nextDiscussionRole) {
+          statements.push(env.DB.prepare("INSERT INTO access_events (id, user_id, event_type, metadata_json) VALUES (?, ?, 'discussion_role_changed', ?)").bind(
+            crypto.randomUUID(), adminUserMatch[1], JSON.stringify({ discussionRole: nextDiscussionRole, discussionHandle: nextHandle, changedBy: user.id }),
           ));
         }
         try {
