@@ -86,7 +86,7 @@ describe("portal migration experience", () => {
     expect(screen.getByText(/Newly approved users/i)).toBeInTheDocument();
     expect(screen.getByText(/secure User Portal verifies the email with a one-time code/i)).toBeInTheDocument();
     expect(screen.getByText(/Email verification alone does not grant software access/i)).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /Commercial or clinical use: email Dr. Kevin Chang/i })).toHaveAttribute("href", expect.stringContaining("mailto:kevin.chang@nih.gov"));
+    expect(screen.getByRole("link", { name: /Commercial user.*Email Dr. Kevin Chang/i })).toHaveAttribute("href", expect.stringContaining("mailto:kevin.chang@nih.gov"));
   });
 
   it("does not imply that an unrecognized email received a code", async () => {
@@ -111,9 +111,9 @@ describe("portal migration experience", () => {
     expect(await screen.findByText(/This screen does not mean that a code was sent/i)).toBeInTheDocument();
     expect(screen.getByText(/portal shows the same screen for every email address/i)).toBeInTheDocument();
     expect(screen.getByText(/do not keep waiting or repeatedly request one/i)).toBeInTheDocument();
-    expect(screen.getByText(/you do not yet have a registered portal account/i)).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /Prepare and submit an STA/i })).toHaveAttribute("href", "https://ncidose.github.io/portal/request-access/");
-    expect(screen.getByRole("link", { name: /Commercial or clinical use: email Dr. Kevin Chang/i })).toHaveAttribute("href", expect.stringContaining("mailto:kevin.chang@nih.gov"));
+    expect(screen.getByText(/Choose the access type that matches your intended use/i)).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /Research user.*Prepare and submit an STA/i })).toHaveAttribute("href", "https://ncidose.github.io/portal/request-access/");
+    expect(screen.getByRole("link", { name: /Commercial user.*Email Dr. Kevin Chang/i })).toHaveAttribute("href", expect.stringContaining("mailto:kevin.chang@nih.gov"));
   });
 
   it("opens an approved account without a new registration step", () => {

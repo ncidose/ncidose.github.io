@@ -318,6 +318,24 @@ export const Portal = ({ publicLanding = false }: { publicLanding?: boolean }) =
   );
 };
 
+const NewUserAccessOptions = ({ internalStaLink = false }: { internalStaLink?: boolean }) => {
+  const optionClassName = "flex items-center justify-between gap-4 border border-primary px-4 py-3 text-left text-primary transition-colors hover:bg-primary hover:text-white";
+  const researchContent = <><span><span className="block text-sm font-medium">Research user</span><span className="mt-0.5 block text-xs">Prepare and submit an STA</span></span><ChevronRight className="h-4 w-4 shrink-0" /></>;
+
+  return (
+    <div className="mt-5 space-y-3">
+      {internalStaLink ? (
+        <Link to="/portal/request-access" className={optionClassName}>{researchContent}</Link>
+      ) : (
+        <a href={publicAccessRequestUrl} className={optionClassName}>{researchContent}</a>
+      )}
+      <a href={commercialLicensingEmail} className="flex items-center justify-between gap-4 border border-slate-300 px-4 py-3 text-left text-slate-700 transition-colors hover:border-primary hover:text-primary">
+        <span><span className="block text-sm font-medium">Commercial user</span><span className="mt-0.5 block text-xs">Email Dr. Kevin Chang</span></span><Mail className="h-4 w-4 shrink-0" />
+      </a>
+    </div>
+  );
+};
+
 export const PortalSignIn = ({
   demoMode,
   accessDenied,
@@ -475,13 +493,13 @@ export const PortalSignIn = ({
                 href={publicAccessRequestUrl}
                 className="flex items-center justify-center gap-2 bg-primary px-4 py-3 text-sm font-medium text-white transition-colors hover:bg-primary/90"
               >
-                Prepare and submit an STA <ChevronRight className="h-4 w-4" />
+                Research user: prepare and submit an STA <ChevronRight className="h-4 w-4" />
               </a>
               <a
                 href={commercialLicensingEmail}
                 className="flex items-center justify-center gap-2 border border-primary px-4 py-3 text-sm font-medium text-primary transition-colors hover:bg-primary hover:text-white"
               >
-                Commercial or clinical use: email Dr. Kevin Chang <Mail className="h-4 w-4" />
+                Commercial user: email Dr. Kevin Chang <Mail className="h-4 w-4" />
               </a>
               <Button
                 variant="outline"
@@ -583,36 +601,17 @@ export const PortalSignIn = ({
 
               <div className="mt-7 border-t border-border pt-6">
                 <div className="font-mono text-xs uppercase tracking-wider text-primary">New user</div>
-                <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
-                  If you have not received a User Portal welcome message and were not an eligible Google Group user, you do not yet have a registered portal account.
-                </p>
+                <p className="mt-2 text-sm leading-relaxed text-muted-foreground">Choose the access type that matches your intended use.</p>
               </div>
-
-              {standalonePortalBuild ? (
-                <a
-                  href={publicAccessRequestUrl}
-                  className="mt-5 flex items-center justify-center gap-2 border border-primary px-4 py-3 text-sm font-medium text-primary transition-colors hover:bg-primary hover:text-white"
-                >
-                  Prepare and submit an STA <ChevronRight className="h-4 w-4" />
-                </a>
-              ) : (
-                <Link
-                  to="/portal/request-access"
-                  className="mt-5 flex items-center justify-center gap-2 border border-primary px-4 py-3 text-sm font-medium text-primary transition-colors hover:bg-primary hover:text-white"
-                >
-                  Prepare and submit an STA <ChevronRight className="h-4 w-4" />
-                </Link>
-              )}
-              <a href={commercialLicensingEmail} className="mt-3 flex items-center justify-center gap-2 border border-slate-300 px-4 py-3 text-sm font-medium text-slate-700 transition-colors hover:border-primary hover:text-primary">Commercial or clinical use: email Dr. Kevin Chang <Mail className="h-4 w-4" /></a>
+              <NewUserAccessOptions internalStaLink={!standalonePortalBuild} />
             </>
           )}
 
           {selfHostedAuth && !demoMode && (
             <div className="mt-7 border-t border-border pt-6">
               <div className="font-mono text-xs uppercase tracking-wider text-primary">New user</div>
-              <p className="mt-2 text-sm leading-relaxed text-muted-foreground">If you have not received a User Portal welcome message and were not an eligible Google Group user, you do not yet have a registered portal account.</p>
-              <a href={publicAccessRequestUrl} className="mt-5 flex items-center justify-center gap-2 border border-primary px-4 py-3 text-sm font-medium text-primary transition-colors hover:bg-primary hover:text-white">Prepare and submit an STA <ChevronRight className="h-4 w-4" /></a>
-              <a href={commercialLicensingEmail} className="mt-3 flex items-center justify-center gap-2 border border-slate-300 px-4 py-3 text-sm font-medium text-slate-700 transition-colors hover:border-primary hover:text-primary">Commercial or clinical use: email Dr. Kevin Chang <Mail className="h-4 w-4" /></a>
+              <p className="mt-2 text-sm leading-relaxed text-muted-foreground">Choose the access type that matches your intended use.</p>
+              <NewUserAccessOptions />
             </div>
           )}
 
