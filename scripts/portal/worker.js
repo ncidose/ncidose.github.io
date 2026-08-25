@@ -184,6 +184,22 @@ export const normalizePortalEmail = (value) => {
   return emailPattern.test(email) ? email : "";
 };
 
+export const normalizeAdminUserDetails = (input = {}) => {
+  const hasInstitution = Object.prototype.hasOwnProperty.call(input, "institution");
+  const hasCountry = Object.prototype.hasOwnProperty.call(input, "country");
+  const secondaryEmailValue = typeof input.secondaryEmail === "string" ? input.secondaryEmail.trim() : "";
+  const secondaryEmail = secondaryEmailValue ? normalizePortalEmail(secondaryEmailValue) : "";
+  return {
+    hasInstitution,
+    institution: hasInstitution ? cleanText(input.institution, 300) || null : undefined,
+    hasCountry,
+    country: hasCountry ? cleanText(input.country, 120) || null : undefined,
+    hasSecondaryEmail: Boolean(secondaryEmailValue),
+    secondaryEmail,
+    invalidSecondaryEmail: Boolean(secondaryEmailValue && !secondaryEmail),
+  };
+};
+
 const identityFromRow = (identity) => ({
   id: identity.id,
   provider: identity.provider,
@@ -578,6 +594,12 @@ export const secondaryEmailAddedHtml = (displayName, email) => announcementEmail
   body: `Hello ${displayName || "NCI Dose Tools user"},\n\n${email} has been successfully linked to your approved NCI Dose Tools User Portal account.\n\nTo verify this address, sign out of the portal and sign in again using ${email}. The NCI Dose Tools User Portal will send a one-time verification code to this address. After verification, you can sign in with either email.\n\nIf you did not make this change, please contact the NCI Dose Team.`,
 }, { includeUnsubscribe: false, headerLabel: "Account Confirmation" });
 
+export const linkedEmailWelcomeHtml = (displayName, email) => announcementEmailHtml({
+  title: "Welcome to the NCI Dose Tools User Portal",
+  category: "Approved access",
+  body: `Hello ${displayName || "NCI Dose Tools user"},\n\nAn NCI Dose Tools administrator linked ${email} to your existing approved User Portal account. Your approval and download history are unchanged.\n\nSign in using this exact email address: ${email}. A one-time verification code will be sent to this address. After verification, you can sign in with either linked email.\n\nIf you did not expect this change, please contact the NCI Dose Team.`,
+}, { includeUnsubscribe: false, headerLabel: "Approved User Access" });
+
 export const loginCodeEmailHtml = (code) => announcementEmailHtml({
   title: "Your NCI Dose Tools sign-in code",
   category: "Secure sign-in",
@@ -623,6 +645,8 @@ async function sendDiscussionReplyNotifications(env, context, { question, replyi
 const welcomeEmailText = (displayName, email) => `Hello ${displayName || "NCI Dose Tools user"},\n\nYour approved access to the NCI Dose Tools User Portal is ready.\n\nSign in using this exact email address: ${email}. A one-time verification code will be sent to that address. Other email addresses will not receive a code unless they are already linked to this account.\n\nOpen User Portal: https://portal.ncidosetools.com\n\nSincerely,\nNCI Dose Team\nNCI Dose Tools portal: https://ncidose.github.io/\nNational Cancer Institute`;
 
 const secondaryEmailAddedText = (displayName, email) => `Hello ${displayName || "NCI Dose Tools user"},\n\n${email} has been successfully linked to your approved NCI Dose Tools User Portal account.\n\nTo verify this address, sign out and sign in again using ${email}. After verification, you can sign in with either email.\n\nIf you did not make this change, please contact the NCI Dose Team.\n\nOpen User Portal: https://portal.ncidosetools.com\n\nSincerely,\nNCI Dose Team\nNCI Dose Tools portal: https://ncidose.github.io/\nNational Cancer Institute`;
+
+const linkedEmailWelcomeText = (displayName, email) => `Hello ${displayName || "NCI Dose Tools user"},\n\nAn NCI Dose Tools administrator linked ${email} to your existing approved User Portal account. Your approval and download history are unchanged.\n\nSign in using this exact email address: ${email}. A one-time verification code will be sent to this address. After verification, you can sign in with either linked email.\n\nIf you did not expect this change, please contact the NCI Dose Team.\n\nOpen User Portal: https://portal.ncidosetools.com\n\nSincerely,\nNCI Dose Team\nNCI Dose Tools portal: https://ncidose.github.io/\nNational Cancer Institute`;
 
 const loginCodeEmailText = (code) => `Your NCI Dose Tools sign-in code is ${code}.\n\nThis code expires in ${loginCodeLifetimeMinutes} minutes and can be used only once. If you did not request this code, you can ignore this message.\n\nOpen User Portal: https://portal.ncidosetools.com\n\nNCI Dose Team\nNational Cancer Institute`;
 
@@ -1355,19 +1379,48 @@ export default {
         const input = await request.json();
         const accessStatus = input.accessStatus === undefined ? null : input.accessStatus === "active" ? "active" : input.accessStatus === "suspended" ? "suspended" : "";
         const nextDiscussionRole = input.discussionRole === undefined ? null : input.discussionRole === "team" ? "team" : input.discussionRole === "community" ? "community" : "";
-        if (accessStatus === "" || nextDiscussionRole === "") return json({ error: "valid_user_update_required" }, 400, cors);
-        if (!accessStatus && !nextDiscussionRole) return json({ error: "user_update_required" }, 400, cors);
+        const details = normalizeAdminUserDetails(input);
+        if (accessStatus === "" || nextDiscussionRole === "" || details.invalidSecondaryEmail) return json({ error: "valid_user_update_required" }, 400, cors);
+        if (!accessStatus && !nextDiscussionRole && !details.hasInstitution && !details.hasCountry && !details.hasSecondaryEmail) return json({ error: "user_update_required" }, 400, cors);
         if (adminUserMatch[1] === user.id && accessStatus === "suspended") return json({ error: "cannot_suspend_current_admin" }, 409, cors);
         const existing = await env.DB.prepare(`
-          SELECT users.id, users.display_name, users.role, users.access_status, users.discussion_role,
+          SELECT users.id, users.display_name, users.institution, users.country, users.role, users.access_status, users.discussion_role,
             users.discussion_handle, identities.normalized_email AS primary_email
           FROM users
           LEFT JOIN user_identities identities ON identities.user_id=users.id AND identities.is_primary=1
           WHERE users.id=?
         `).bind(adminUserMatch[1]).first();
         if (!existing) return json({ error: "user_not_found" }, 404, cors);
+
+        if (details.hasSecondaryEmail) {
+          const linkedIdentity = await env.DB.prepare("SELECT id, user_id FROM user_identities WHERE normalized_email=?").bind(details.secondaryEmail).first();
+          if (linkedIdentity) return json({ error: linkedIdentity.user_id === existing.id ? "email_already_linked" : "email_in_use" }, 409, cors);
+          const identityCount = await env.DB.prepare("SELECT COUNT(*) AS total FROM user_identities WHERE user_id=?").bind(existing.id).first();
+          if (Number(identityCount.total) >= 2) return json({ error: "additional_email_limit" }, 409, cors);
+        }
+
         const statements = [];
         if (accessStatus) statements.push(env.DB.prepare("UPDATE users SET access_status=?, updated_at=CURRENT_TIMESTAMP WHERE id=?").bind(accessStatus, adminUserMatch[1]));
+        const nextInstitution = details.hasInstitution ? details.institution : existing.institution;
+        const nextCountry = details.hasCountry ? details.country : existing.country;
+        if (details.hasInstitution || details.hasCountry) {
+          statements.push(env.DB.prepare("UPDATE users SET institution=?, country=?, updated_at=CURRENT_TIMESTAMP WHERE id=?").bind(nextInstitution, nextCountry, existing.id));
+          statements.push(env.DB.prepare("INSERT INTO access_events (id, user_id, event_type, metadata_json) VALUES (?, ?, 'admin_profile_updated', ?)").bind(
+            crypto.randomUUID(), existing.id, JSON.stringify({ institution: nextInstitution, country: nextCountry, changedBy: user.id }),
+          ));
+        }
+        let newIdentity = null;
+        if (details.hasSecondaryEmail) {
+          const identityId = crypto.randomUUID();
+          newIdentity = { id: identityId, provider: "admin_added", email: details.secondaryEmail, verified: false, primary: false };
+          statements.push(env.DB.prepare(`
+            INSERT INTO user_identities (id, user_id, provider, normalized_email, email_verified, is_primary)
+            VALUES (?, ?, 'admin_added', ?, 0, 0)
+          `).bind(identityId, existing.id, details.secondaryEmail));
+          statements.push(env.DB.prepare("INSERT INTO access_events (id, user_id, event_type, metadata_json) VALUES (?, ?, 'email_added', ?)").bind(
+            crypto.randomUUID(), existing.id, JSON.stringify({ email: details.secondaryEmail, addedBy: user.id, source: "admin" }),
+          ));
+        }
         let nextHandle = existing.discussion_handle || null;
         if (nextDiscussionRole) {
           nextHandle = nextDiscussionRole === "team"
@@ -1383,11 +1436,42 @@ export default {
         if (accessStatus === "suspended") {
           statements.push(env.DB.prepare("UPDATE portal_sessions SET revoked_at=CURRENT_TIMESTAMP WHERE user_id=? AND revoked_at IS NULL").bind(adminUserMatch[1]));
         }
-        await env.DB.batch(statements);
-        context.waitUntil(env.DB.prepare("INSERT INTO access_events (id, user_id, event_type, metadata_json) VALUES (?, ?, ?, ?)").bind(
-          crypto.randomUUID(), adminUserMatch[1], nextDiscussionRole ? "discussion_role_changed" : "access_status_changed",
-          JSON.stringify({ accessStatus, discussionRole: nextDiscussionRole, discussionHandle: nextHandle, changedBy: user.id }),
-        ).run());
+        if (accessStatus || nextDiscussionRole) {
+          statements.push(env.DB.prepare("INSERT INTO access_events (id, user_id, event_type, metadata_json) VALUES (?, ?, ?, ?)").bind(
+            crypto.randomUUID(), adminUserMatch[1], nextDiscussionRole ? "discussion_role_changed" : "access_status_changed",
+            JSON.stringify({ accessStatus, discussionRole: nextDiscussionRole, discussionHandle: nextHandle, changedBy: user.id }),
+          ));
+        }
+        try {
+          await env.DB.batch(statements);
+        } catch (error) {
+          if (details.hasSecondaryEmail && String(error?.message || error).toLowerCase().includes("unique constraint")) {
+            return json({ error: "email_in_use" }, 409, cors);
+          }
+          throw error;
+        }
+
+        let welcomeEmail = null;
+        if (newIdentity) {
+          welcomeEmail = { status: "not_configured", sentTo: newIdentity.email };
+          if (env.RESEND_API_KEY && env.RESEND_FROM) {
+            try {
+              welcomeEmail = await sendPortalAccountEmail(env, {
+                to: newIdentity.email,
+                subject: "Welcome to the NCI Dose Tools User Portal",
+                html: linkedEmailWelcomeHtml(existing.display_name, newIdentity.email),
+                text: linkedEmailWelcomeText(existing.display_name, newIdentity.email),
+              });
+            } catch (error) {
+              welcomeEmail = { status: "failed", sentTo: newIdentity.email, error: String(error?.message || error) };
+            }
+          }
+          context.waitUntil(env.DB.prepare("INSERT INTO access_events (id, user_id, event_type, metadata_json) VALUES (?, ?, ?, ?)").bind(
+            crypto.randomUUID(), existing.id,
+            welcomeEmail.status === "sent" ? "welcome_email_sent" : "welcome_email_failed",
+            JSON.stringify({ email: newIdentity.email, status: welcomeEmail.status, reason: "admin_added_secondary_email" }),
+          ).run());
+        }
         if (accessStatus && existing.primary_email && env.RESEND_API_KEY && env.RESEND_SEGMENT_ID) {
           const syncContact = accessStatus === "active"
             ? addResendContactToAudience(env, existing.primary_email)
@@ -1399,6 +1483,10 @@ export default {
           accessStatus: accessStatus || existing.access_status,
           discussionRole: existing.role === "admin" ? "team" : (nextDiscussionRole || existing.discussion_role),
           discussionHandle: nextHandle,
+          institution: nextInstitution,
+          country: nextCountry,
+          identity: newIdentity,
+          welcomeEmail,
         }, 200, cors);
       }
 

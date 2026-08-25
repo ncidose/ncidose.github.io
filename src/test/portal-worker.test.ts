@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { announcementEmailHtml, canPublishQuestion, canViewDiscussion, discussionAuthorForUser, folderArchiveKeys, generateLoginCode, isFolderDownloadPrefix, loginCodeEmailHtml, normalizePortalEmail, normalizeQuestionVisibility, portalSessionCookieHeader, qaAttachmentValidationError, secondaryEmailAddedHtml, shouldNotifyDiscussionReplyRecipient, shouldNotifyNewDiscussionRecipient, welcomeEmailHtml } from "../../scripts/portal/worker.js";
+import { announcementEmailHtml, canPublishQuestion, canViewDiscussion, discussionAuthorForUser, folderArchiveKeys, generateLoginCode, isFolderDownloadPrefix, linkedEmailWelcomeHtml, loginCodeEmailHtml, normalizeAdminUserDetails, normalizePortalEmail, normalizeQuestionVisibility, portalSessionCookieHeader, qaAttachmentValidationError, secondaryEmailAddedHtml, shouldNotifyDiscussionReplyRecipient, shouldNotifyNewDiscussionRecipient, welcomeEmailHtml } from "../../scripts/portal/worker.js";
 
 describe("portal email normalization", () => {
   it("normalizes a valid approved email", () => {
@@ -24,6 +24,23 @@ describe("portal email normalization", () => {
   it("rejects malformed email values", () => {
     expect(normalizePortalEmail("not-an-email")).toBe("");
     expect(normalizePortalEmail("person@example")).toBe("");
+  });
+
+  it("normalizes editable admin user details and an optional secondary email", () => {
+    expect(normalizeAdminUserDetails({
+      institution: "  University of Utah  ",
+      country: "  United States ",
+      secondaryEmail: " Seth.Streitmatter@Gmail.com ",
+    })).toEqual({
+      hasInstitution: true,
+      institution: "University of Utah",
+      hasCountry: true,
+      country: "United States",
+      hasSecondaryEmail: true,
+      secondaryEmail: "seth.streitmatter@gmail.com",
+      invalidSecondaryEmail: false,
+    });
+    expect(normalizeAdminUserDetails({ secondaryEmail: "not-an-email" }).invalidSecondaryEmail).toBe(true);
   });
 });
 
@@ -157,6 +174,16 @@ describe("announcement email template", () => {
     expect(html).toContain("Account Confirmation");
     expect(html).toContain("secondary@example.org");
     expect(html).toContain("you can sign in with either email");
+    expect(html).not.toContain("RESEND_UNSUBSCRIBE_URL");
+  });
+
+  it("welcomes an administrator-linked secondary email without changing approval history", () => {
+    const html = linkedEmailWelcomeHtml("Test Researcher", "secondary@example.org");
+
+    expect(html).toContain("Welcome to the NCI Dose Tools User Portal");
+    expect(html).toContain("administrator linked secondary@example.org");
+    expect(html).toContain("approval and download history are unchanged");
+    expect(html).toContain("sign in with either linked email");
     expect(html).not.toContain("RESEND_UNSUBSCRIBE_URL");
   });
 

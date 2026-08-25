@@ -1881,6 +1881,10 @@ const Admin = ({ demoMode }: { demoMode: boolean }) => {
   const [newUserApprovedAt, setNewUserApprovedAt] = useState(() => new Date().toISOString().slice(0, 10));
   const [creatingUser, setCreatingUser] = useState(false);
   const [updatingUserId, setUpdatingUserId] = useState<string | null>(null);
+  const [editingUserId, setEditingUserId] = useState<string | null>(null);
+  const [editingInstitution, setEditingInstitution] = useState("");
+  const [editingCountry, setEditingCountry] = useState("");
+  const [editingSecondaryEmail, setEditingSecondaryEmail] = useState("");
   const [deletingUserId, setDeletingUserId] = useState<string | null>(null);
   const [activityData, setActivityData] = useState<AdminActivityData>(emptyAdminActivity);
   const [loadingActivity, setLoadingActivity] = useState(!demoMode);
@@ -2046,6 +2050,92 @@ const Admin = ({ demoMode }: { demoMode: boolean }) => {
       toast({ title: "Unable to add user", description: error instanceof Error ? error.message : undefined, variant: "destructive" });
     } finally {
       setCreatingUser(false);
+    }
+  };
+
+  const beginEditingUser = (managedUser: ManagedPortalUser) => {
+    setEditingUserId(managedUser.id);
+    setEditingInstitution(managedUser.institution || "");
+    setEditingCountry(managedUser.country || "");
+    setEditingSecondaryEmail("");
+  };
+
+  const cancelEditingUser = () => {
+    setEditingUserId(null);
+    setEditingInstitution("");
+    setEditingCountry("");
+    setEditingSecondaryEmail("");
+  };
+
+  const saveUserDetails = async (managedUser: ManagedPortalUser) => {
+    const secondaryEmail = editingSecondaryEmail.trim();
+    if (secondaryEmail && !secondaryEmail.includes("@")) {
+      toast({ title: "Enter a valid secondary email", variant: "destructive" });
+      return;
+    }
+    const updateUser = (identity?: PortalIdentity) => setManagedUsers((current) => current.map((entry) => entry.id === managedUser.id ? {
+      ...entry,
+      institution: editingInstitution.trim() || null,
+      country: editingCountry.trim() || null,
+      identities: identity ? [...entry.identities, identity] : entry.identities,
+    } : entry));
+
+    if (demoMode) {
+      updateUser(secondaryEmail ? { id: `demo-admin-added-${Date.now()}`, provider: "admin_added", email: secondaryEmail.toLowerCase(), verified: false, primary: false } : undefined);
+      cancelEditingUser();
+      toast({ title: secondaryEmail ? "User details updated and welcome email sent" : "User details updated" });
+      return;
+    }
+
+    setUpdatingUserId(managedUser.id);
+    try {
+      const response = await fetch(`/api/admin/users/${managedUser.id}`, {
+        method: "PATCH",
+        credentials: "include",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          institution: editingInstitution,
+          country: editingCountry,
+          ...(secondaryEmail ? { secondaryEmail } : {}),
+        }),
+      });
+      const body = await response.json();
+      if (!response.ok) {
+        const message = body.error === "email_in_use"
+          ? "That email is already linked to another portal account."
+          : body.error === "email_already_linked"
+            ? "That email is already linked to this user."
+            : body.error === "additional_email_limit"
+              ? "This user already has a secondary email."
+              : body.error === "valid_user_update_required"
+                ? "Enter a valid secondary email."
+                : "The user details could not be updated.";
+        throw new Error(message);
+      }
+      setManagedUsers((current) => current.map((entry) => entry.id === managedUser.id ? {
+        ...entry,
+        institution: body.institution,
+        country: body.country,
+        identities: body.identity ? [...entry.identities, body.identity] : entry.identities,
+      } : entry));
+      cancelEditingUser();
+      const emailWasAdded = Boolean(body.identity);
+      const emailWasSent = body.welcomeEmail?.status === "sent";
+      toast({
+        title: emailWasAdded
+          ? emailWasSent ? "User details updated and welcome email sent" : "User details updated, but welcome email was not sent"
+          : "User details updated",
+        description: emailWasAdded
+          ? emailWasSent
+            ? `The new address ${body.identity.email} can now be used to sign in and verify.`
+            : `${body.identity.email} is linked and can be used to sign in, but its welcome message failed.`
+          : undefined,
+        variant: emailWasAdded && !emailWasSent ? "destructive" : undefined,
+      });
+    } catch (error) {
+      toast({ title: "Unable to update user", description: error instanceof Error ? error.message : undefined, variant: "destructive" });
+    } finally {
+      setUpdatingUserId(null);
     }
   };
 
@@ -2329,7 +2419,7 @@ const Admin = ({ demoMode }: { demoMode: boolean }) => {
       {adminSection === "users" && <section className="border border-border bg-white p-6 sm:p-8">
         <div className="flex items-start gap-4">
           <div className="flex h-10 w-10 shrink-0 items-center justify-center border border-primary text-primary"><UserRoundCheck className="h-5 w-5" /></div>
-          <div><div className="font-mono text-xs uppercase tracking-widest text-primary">New STA approval</div><h2 className="mt-2 text-xl font-light">Add an approved user</h2><p className="mt-2 text-sm text-muted-foreground">Use the email address included in the NCI Technology Transfer approval message. The user can add one alternate email after signing in.</p></div>
+          <div><div className="font-mono text-xs uppercase tracking-widest text-primary">New STA approval</div><h2 className="mt-2 text-xl font-light">Add an approved user</h2><p className="mt-2 text-sm text-muted-foreground">Use the email address included in the NCI Technology Transfer approval message. The user or an administrator can later link one alternate email.</p></div>
         </div>
         <div className="mt-6 grid gap-3 md:grid-cols-2 xl:grid-cols-5">
           <Input value={newUserName} onChange={(event) => setNewUserName(event.target.value)} placeholder="Full name" className="rounded-none" />
@@ -2366,12 +2456,26 @@ const Admin = ({ demoMode }: { demoMode: boolean }) => {
               const additionalEmail = managedUser.identities.find((identity) => !identity.primary);
               const lastLoginAt = latestLoginByUserId.get(managedUser.id);
               return (
-                <div key={managedUser.id} className="grid gap-4 px-6 py-5 xl:grid-cols-[minmax(0,1.1fr)_minmax(0,1.4fr)_9rem_10rem_20rem] xl:items-center">
-                  <div className="min-w-0"><div className="flex flex-wrap items-center gap-2"><div className="truncate text-sm font-medium text-slate-800">{managedUser.name || primaryEmail.split("@")[0]}</div>{(managedUser.role === "admin" || managedUser.discussionRole === "team") && <span className="bg-sky-50 px-2 py-0.5 font-mono text-[10px] text-primary">NCI Dose Team{managedUser.discussionHandle ? ` · @${managedUser.discussionHandle}` : ""}</span>}</div><div className="mt-1 flex items-center gap-1.5 truncate text-xs text-muted-foreground"><Building2 className="h-3.5 w-3.5 shrink-0" /> {[managedUser.institution, managedUser.country].filter(Boolean).join(" · ") || "Profile not provided"}</div></div>
-                  <div className="min-w-0"><div className="truncate text-sm text-slate-700">{primaryEmail}</div>{additionalEmail && <div className="mt-1 truncate text-xs text-muted-foreground">+ {additionalEmail.email} · {additionalEmail.verified ? "verified" : "pending"}</div>}</div>
-                  <div className="text-xs text-muted-foreground"><span className="xl:hidden">Joined </span>{announcementDate(managedUser.groupJoinedAt || managedUser.createdAt)}</div>
-                  <div className="text-xs text-muted-foreground"><span className="xl:hidden">Last login </span>{lastLoginAt ? activityDate(lastLoginAt) : "—"}</div>
-                  <div className="flex flex-wrap items-center gap-2 xl:justify-end">{managedUser.role !== "admin" && <Button type="button" variant="outline" disabled={updatingUserId === managedUser.id || deletingUserId === managedUser.id} onClick={() => void changeDiscussionRole(managedUser)} className="rounded-none">{managedUser.discussionRole === "team" ? "Remove team role" : "Make team member"}</Button>}<Button type="button" variant="outline" disabled={updatingUserId === managedUser.id || deletingUserId === managedUser.id || managedUser.role === "admin"} onClick={() => void changeUserStatus(managedUser)} className="rounded-none">{updatingUserId === managedUser.id ? <Loader2 className="h-4 w-4 animate-spin" /> : managedUser.accessStatus === "active" ? "Suspend" : "Reactivate"}</Button>{managedUser.accessStatus === "suspended" && managedUser.role !== "admin" && <Button type="button" variant="outline" disabled={updatingUserId === managedUser.id || deletingUserId === managedUser.id} onClick={() => void deleteUser(managedUser)} className="rounded-none border-red-200 text-red-700 hover:bg-red-50 hover:text-red-800">{deletingUserId === managedUser.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />} Delete</Button>}</div>
+                <div key={managedUser.id}>
+                  <div className="grid gap-4 px-6 py-5 xl:grid-cols-[minmax(0,1.1fr)_minmax(0,1.4fr)_9rem_10rem_20rem] xl:items-center">
+                    <div className="min-w-0"><div className="flex flex-wrap items-center gap-2"><div className="truncate text-sm font-medium text-slate-800">{managedUser.name || primaryEmail.split("@")[0]}</div>{(managedUser.role === "admin" || managedUser.discussionRole === "team") && <span className="bg-sky-50 px-2 py-0.5 font-mono text-[10px] text-primary">NCI Dose Team{managedUser.discussionHandle ? ` · @${managedUser.discussionHandle}` : ""}</span>}</div><div className="mt-1 flex items-center gap-1.5 truncate text-xs text-muted-foreground"><Building2 className="h-3.5 w-3.5 shrink-0" /> {[managedUser.institution, managedUser.country].filter(Boolean).join(" · ") || "Profile not provided"}</div></div>
+                    <div className="min-w-0"><div className="truncate text-sm text-slate-700">{primaryEmail}</div>{additionalEmail && <div className="mt-1 truncate text-xs text-muted-foreground">+ {additionalEmail.email} · {additionalEmail.verified ? "verified" : "pending"}</div>}</div>
+                    <div className="text-xs text-muted-foreground"><span className="xl:hidden">Joined </span>{announcementDate(managedUser.groupJoinedAt || managedUser.createdAt)}</div>
+                    <div className="text-xs text-muted-foreground"><span className="xl:hidden">Last login </span>{lastLoginAt ? activityDate(lastLoginAt) : "—"}</div>
+                    <div className="flex flex-wrap items-center gap-2 xl:justify-end"><Button type="button" variant="outline" disabled={updatingUserId === managedUser.id || deletingUserId === managedUser.id} onClick={() => editingUserId === managedUser.id ? cancelEditingUser() : beginEditingUser(managedUser)} className="rounded-none">{editingUserId === managedUser.id ? "Close edit" : "Edit details"}</Button>{managedUser.role !== "admin" && <Button type="button" variant="outline" disabled={updatingUserId === managedUser.id || deletingUserId === managedUser.id} onClick={() => void changeDiscussionRole(managedUser)} className="rounded-none">{managedUser.discussionRole === "team" ? "Remove team role" : "Make team member"}</Button>}<Button type="button" variant="outline" disabled={updatingUserId === managedUser.id || deletingUserId === managedUser.id || managedUser.role === "admin"} onClick={() => void changeUserStatus(managedUser)} className="rounded-none">{updatingUserId === managedUser.id ? <Loader2 className="h-4 w-4 animate-spin" /> : managedUser.accessStatus === "active" ? "Suspend" : "Reactivate"}</Button>{managedUser.accessStatus === "suspended" && managedUser.role !== "admin" && <Button type="button" variant="outline" disabled={updatingUserId === managedUser.id || deletingUserId === managedUser.id} onClick={() => void deleteUser(managedUser)} className="rounded-none border-red-200 text-red-700 hover:bg-red-50 hover:text-red-800">{deletingUserId === managedUser.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />} Delete</Button>}</div>
+                  </div>
+                  {editingUserId === managedUser.id && <div className="border-t border-sky-100 bg-sky-50/40 px-6 py-5">
+                    <div className="font-mono text-xs uppercase tracking-widest text-primary">Edit user details</div>
+                    <p className="mt-2 text-sm text-slate-600">Update profile information and, if available, link one secondary sign-in email.</p>
+                    <div className="mt-4 grid gap-4 lg:grid-cols-3">
+                      <label className="block"><span className="text-xs font-medium text-slate-700">Institution</span><Input aria-label={`Institution for ${managedUser.name || primaryEmail}`} value={editingInstitution} onChange={(event) => setEditingInstitution(event.target.value)} placeholder="Institution" className="mt-2 rounded-none bg-white" /></label>
+                      <label className="block"><span className="text-xs font-medium text-slate-700">Country</span><Input aria-label={`Country for ${managedUser.name || primaryEmail}`} value={editingCountry} onChange={(event) => setEditingCountry(event.target.value)} placeholder="Country" className="mt-2 rounded-none bg-white" /></label>
+                      <div><span className="text-xs font-medium text-slate-700">Secondary email</span>{additionalEmail
+                        ? <div className="mt-2 border border-border bg-white px-3 py-2 text-sm text-slate-600">{additionalEmail.email}<div className="mt-1 text-xs text-muted-foreground">This account already has a secondary email.</div></div>
+                        : <><Input type="email" aria-label={`Secondary email for ${managedUser.name || primaryEmail}`} value={editingSecondaryEmail} onChange={(event) => setEditingSecondaryEmail(event.target.value)} placeholder="Secondary email (optional)" className="mt-2 rounded-none bg-white" /><p className="mt-2 text-xs leading-relaxed text-muted-foreground">A welcome message will be sent to the new address. It remains pending until the user signs in with it and verifies a code.</p></>}</div>
+                    </div>
+                    <div className="mt-5 flex justify-end gap-2"><Button type="button" variant="outline" disabled={updatingUserId === managedUser.id} onClick={cancelEditingUser} className="rounded-none">Cancel</Button><Button type="button" disabled={updatingUserId === managedUser.id || Boolean(editingSecondaryEmail.trim() && !editingSecondaryEmail.includes("@"))} onClick={() => void saveUserDetails(managedUser)} className="rounded-none">{updatingUserId === managedUser.id && <Loader2 className="h-4 w-4 animate-spin" />} Save user details</Button></div>
+                  </div>}
                 </div>
               );
             })}
@@ -2379,7 +2483,7 @@ const Admin = ({ demoMode }: { demoMode: boolean }) => {
         )}
       </section>}
 
-      {adminSection === "users" && <section className="border border-border bg-white p-6"><div className="flex items-center justify-between"><div><div className="font-mono text-xs uppercase tracking-widest text-primary">New approvals</div><h2 className="mt-2 text-xl font-light">Simple activation workflow</h2></div><Users className="h-5 w-5 text-primary" /></div><div className="mt-6 grid gap-3 sm:grid-cols-2">{["Receive the executed STA approval email from NCI Technology Transfer", "Add the approved email in the form above", "Send the User Portal link to the recipient", "The recipient may verify one secondary email"].map((item, index) => <div key={item} className="flex items-center gap-3 border border-border p-3"><div className="flex h-6 w-6 shrink-0 items-center justify-center bg-primary/10 font-mono text-xs text-primary">{index + 1}</div><span className="text-sm text-slate-700">{item}</span></div>)}</div></section>}
+      {adminSection === "users" && <section className="border border-border bg-white p-6"><div className="flex items-center justify-between"><div><div className="font-mono text-xs uppercase tracking-widest text-primary">New approvals</div><h2 className="mt-2 text-xl font-light">Simple activation workflow</h2></div><Users className="h-5 w-5 text-primary" /></div><div className="mt-6 grid gap-3 sm:grid-cols-2">{["Receive the executed STA approval email from NCI Technology Transfer", "Add the approved email in the form above", "Send the User Portal link to the recipient", "The user or an administrator may link one secondary email"].map((item, index) => <div key={item} className="flex items-center gap-3 border border-border p-3"><div className="flex h-6 w-6 shrink-0 items-center justify-center bg-primary/10 font-mono text-xs text-primary">{index + 1}</div><span className="text-sm text-slate-700">{item}</span></div>)}</div></section>}
 
       {adminSection === "activity" && (loadingActivity ? (
         <div className="flex items-center justify-center gap-3 border border-border bg-white p-12 text-sm text-muted-foreground"><Loader2 className="h-5 w-5 animate-spin text-primary" /> Loading activity…</div>

@@ -226,4 +226,23 @@ describe("portal migration experience", () => {
     expect(screen.getByRole("heading", { name: /recent logins and downloads/i })).toBeInTheDocument();
     expect(screen.getByText(/No activity recorded/i)).toBeInTheDocument();
   });
+
+  it("lets an administrator update institution and country and add a secondary email", () => {
+    window.sessionStorage.setItem("ncidose-portal-demo-user", "admin");
+    render(
+      <MemoryRouter initialEntries={["/portal/admin"]}>
+        <Portal />
+      </MemoryRouter>,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: /edit details/i }));
+    fireEvent.change(screen.getByLabelText("Institution for Approved Researcher"), { target: { value: "University of Utah" } });
+    fireEvent.change(screen.getByLabelText("Country for Approved Researcher"), { target: { value: "United States" } });
+    fireEvent.change(screen.getByLabelText("Secondary email for Approved Researcher"), { target: { value: "seth.streitmatter@gmail.com" } });
+    fireEvent.click(screen.getByRole("button", { name: /save user details/i }));
+
+    expect(screen.getByText("University of Utah · United States")).toBeInTheDocument();
+    expect(screen.getByText(/seth\.streitmatter@gmail\.com · pending/i)).toBeInTheDocument();
+    expect(screen.queryByLabelText("Secondary email for Approved Researcher")).not.toBeInTheDocument();
+  });
 });
