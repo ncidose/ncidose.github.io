@@ -114,6 +114,10 @@ describe("portal migration experience", () => {
     expect(screen.getByText(/Choose the access type that matches your intended use/i)).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /Research user.*Prepare and submit an STA/i })).toHaveAttribute("href", "https://ncidose.github.io/portal/request-access/");
     expect(screen.getByRole("link", { name: /Commercial user.*Email Dr. Kevin Chang/i })).toHaveAttribute("href", expect.stringContaining("mailto:kevin.chang@nih.gov"));
+    expect(screen.getByRole("link", { name: /NCI Dose Team.*choonsik.lee@nih.gov/i })).toHaveAttribute(
+      "href",
+      "mailto:choonsik.lee@nih.gov?subject=NCI%20Dose%20Tools%20User%20Portal%20Help",
+    );
   });
 
   it("opens an approved account without a new registration step", () => {

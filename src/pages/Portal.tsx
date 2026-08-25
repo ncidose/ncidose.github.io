@@ -87,6 +87,7 @@ const portalNav = [
 const publicSiteUrl = "https://ncidose.github.io/";
 const publicAccessRequestUrl = `${publicSiteUrl}portal/request-access/`;
 const commercialLicensingEmail = "mailto:kevin.chang@nih.gov?subject=NCI%20Dose%20Tools%20Licensing%20Inquiry";
+const portalSupportEmail = "mailto:choonsik.lee@nih.gov?subject=NCI%20Dose%20Tools%20User%20Portal%20Help";
 
 export const AnnouncementBody = ({ children }: { children: string }) => (
   <ReactMarkdown
@@ -612,6 +613,15 @@ export const PortalSignIn = ({
               <div className="font-mono text-xs uppercase tracking-wider text-primary">New user</div>
               <p className="mt-2 text-sm leading-relaxed text-muted-foreground">Choose the access type that matches your intended use.</p>
               <NewUserAccessOptions />
+            </div>
+          )}
+
+          {!demoMode && (
+            <div className="mt-6 border-t border-border pt-5 text-center text-xs leading-relaxed text-muted-foreground">
+              Still need help? Email the{" "}
+              <a href={portalSupportEmail} className="font-medium text-primary underline underline-offset-4">
+                NCI Dose Team (choonsik.lee@nih.gov)
+              </a>.
             </div>
           )}
 
