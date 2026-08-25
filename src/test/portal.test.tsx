@@ -112,7 +112,7 @@ describe("portal migration experience", () => {
     expect(screen.getByText(/portal shows the same screen for every email address/i)).toBeInTheDocument();
     expect(screen.getByText(/do not keep waiting or repeatedly request one/i)).toBeInTheDocument();
     expect(screen.getByText(/you do not yet have a registered portal account/i)).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /Prepare and submit an STA/i })).toHaveAttribute("href", "https://ncidose.github.io/#/portal/request-access");
+    expect(screen.getByRole("link", { name: /Prepare and submit an STA/i })).toHaveAttribute("href", "https://ncidose.github.io/portal/request-access/");
     expect(screen.getByRole("link", { name: /Commercial or clinical use: email Dr. Kevin Chang/i })).toHaveAttribute("href", expect.stringContaining("mailto:kevin.chang@nih.gov"));
   });
 
@@ -169,6 +169,17 @@ describe("portal migration experience", () => {
     expect(screen.queryByText("DCC")).not.toBeInTheDocument();
     expect(screen.getByText(/If the answer is NO, please do not continue with the Software Transfer Agreement/i)).toBeInTheDocument();
     expect(screen.getAllByText(/If the answer is YES, please do not continue with the Software Transfer Agreement/i)).toHaveLength(2);
+  });
+
+  it("opens the STA workflow directly for the generated trailing-slash URL", () => {
+    render(
+      <MemoryRouter initialEntries={["/portal/request-access/"]}>
+        <Portal publicLanding />
+      </MemoryRouter>,
+    );
+
+    expect(screen.getByRole("heading", { name: /clearer path from STA to downloads/i })).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: /^sign in$/i })).not.toBeInTheDocument();
   });
 
   it("lets an approved user add one optional email for verification", () => {

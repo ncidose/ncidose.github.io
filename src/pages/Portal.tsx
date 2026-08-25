@@ -85,6 +85,7 @@ const portalNav = [
 ] satisfies Array<{ id: PortalSection; label: string; icon: typeof LayoutDashboard }>;
 
 const publicSiteUrl = "https://ncidose.github.io/";
+const publicAccessRequestUrl = `${publicSiteUrl}portal/request-access/`;
 const commercialLicensingEmail = "mailto:kevin.chang@nih.gov?subject=NCI%20Dose%20Tools%20Licensing%20Inquiry";
 
 export const AnnouncementBody = ({ children }: { children: string }) => (
@@ -163,7 +164,7 @@ export const Portal = ({ publicLanding = false }: { publicLanding?: boolean }) =
   const pathSection = location.pathname.split("/")[2] as PortalSection | undefined;
   const validSections: PortalSection[] = ["overview", "downloads", "announcements", "questions", "account", "admin"];
   const section: PortalSection = pathSection && validSections.includes(pathSection) ? pathSection : "overview";
-  const isAccessRequest = location.pathname === "/portal/request-access";
+  const isAccessRequest = location.pathname.replace(/\/+$/, "") === "/portal/request-access";
 
   useEffect(() => {
     if (demoMode || publicLanding || isAccessRequest) return;
@@ -471,7 +472,7 @@ export const PortalSignIn = ({
           {accessDenied ? (
             <div className="space-y-3">
               <a
-                href={`${publicSiteUrl}#/portal/request-access`}
+                href={publicAccessRequestUrl}
                 className="flex items-center justify-center gap-2 bg-primary px-4 py-3 text-sm font-medium text-white transition-colors hover:bg-primary/90"
               >
                 Prepare and submit an STA <ChevronRight className="h-4 w-4" />
@@ -589,7 +590,7 @@ export const PortalSignIn = ({
 
               {standalonePortalBuild ? (
                 <a
-                  href={`${publicSiteUrl}#/portal/request-access`}
+                  href={publicAccessRequestUrl}
                   className="mt-5 flex items-center justify-center gap-2 border border-primary px-4 py-3 text-sm font-medium text-primary transition-colors hover:bg-primary hover:text-white"
                 >
                   Prepare and submit an STA <ChevronRight className="h-4 w-4" />
@@ -610,7 +611,7 @@ export const PortalSignIn = ({
             <div className="mt-7 border-t border-border pt-6">
               <div className="font-mono text-xs uppercase tracking-wider text-primary">New user</div>
               <p className="mt-2 text-sm leading-relaxed text-muted-foreground">If you have not received a User Portal welcome message and were not an eligible Google Group user, you do not yet have a registered portal account.</p>
-              <a href={`${publicSiteUrl}#/portal/request-access`} className="mt-5 flex items-center justify-center gap-2 border border-primary px-4 py-3 text-sm font-medium text-primary transition-colors hover:bg-primary hover:text-white">Prepare and submit an STA <ChevronRight className="h-4 w-4" /></a>
+              <a href={publicAccessRequestUrl} className="mt-5 flex items-center justify-center gap-2 border border-primary px-4 py-3 text-sm font-medium text-primary transition-colors hover:bg-primary hover:text-white">Prepare and submit an STA <ChevronRight className="h-4 w-4" /></a>
               <a href={commercialLicensingEmail} className="mt-3 flex items-center justify-center gap-2 border border-slate-300 px-4 py-3 text-sm font-medium text-slate-700 transition-colors hover:border-primary hover:text-primary">Commercial or clinical use: email Dr. Kevin Chang <Mail className="h-4 w-4" /></a>
             </div>
           )}
