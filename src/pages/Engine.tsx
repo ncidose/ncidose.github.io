@@ -3,7 +3,7 @@ import { motion } from "framer-motion";
 import { Link } from "react-router-dom";
 import { Header } from "@/components/Header";
 import { Footer } from "@/components/Footer";
-import { tools } from "@/data/nciDoseTools";
+import { portalLinks, tools } from "@/data/nciDoseTools";
 import {
   ArrowRight,
   Building2,
@@ -196,6 +196,9 @@ const Engine = () => {
               <div className="mt-8 flex flex-wrap gap-3">
                 <a href="mailto:kevin.chang@nih.gov" className="btn-precision">
                   Request REST API Trial
+                </a>
+                <a href={portalLinks.userPortal} className="btn-precision-outline inline-flex items-center gap-2">
+                  Approved User Portal <ExternalLink className="h-4 w-4" />
                 </a>
                 <Link to="/vendors#components" className="btn-precision-outline">
                   View Components
@@ -429,22 +432,37 @@ const Engine = () => {
                   ))}
                 </div>
 
-                <div className="mt-10 border-t border-border pt-8">
-                  <h3 className="mb-6 flex items-center gap-3 font-medium text-slate-900">
-                    <Building2 className="h-5 w-5 text-primary" />
-                    Contact for licensing inquiries
-                  </h3>
-                  <div className="border border-primary/30 bg-primary/5 p-6">
-                    <p className="font-medium text-slate-900">Dr. Kevin Chang</p>
-                    <p className="mt-1 text-sm text-muted-foreground">
-                      Licensing and Technology Transfer Officer, NCI Technology Transfer Center
+                <div className="mt-10 grid gap-5 border-t border-border pt-8 md:grid-cols-2">
+                  <div className="border border-border p-6">
+                    <h3 className="flex items-center gap-3 font-medium text-slate-900">
+                      <Building2 className="h-5 w-5 text-primary" />
+                      New or evaluating commercial user
+                    </h3>
+                    <p className="mt-4 text-sm leading-relaxed text-muted-foreground">
+                      Contact Dr. Kevin Chang at the NCI Technology Transfer Center to discuss evaluation, licensing, or commercial integration.
                     </p>
                     <a
                       href="mailto:kevin.chang@nih.gov"
-                      className="mt-4 inline-flex items-center gap-2 font-mono text-sm text-primary hover:underline"
+                      className="mt-5 inline-flex items-center gap-2 font-mono text-sm text-primary hover:underline"
                     >
-                      kevin.chang@nih.gov
+                      Email Dr. Kevin Chang
                       <ArrowRight className="h-3.5 w-3.5" />
+                    </a>
+                  </div>
+
+                  <div className="flex flex-col border border-primary bg-primary/5 p-6">
+                    <h3 className="flex items-center gap-3 font-medium text-slate-900">
+                      <ShieldCheck className="h-5 w-5 text-primary" />
+                      Approved commercial user
+                    </h3>
+                    <p className="mt-4 text-sm leading-relaxed text-muted-foreground">
+                      If your commercial access has already been approved and you received a User Portal welcome email, sign in with the email linked to that approved account.
+                    </p>
+                    <a
+                      href={portalLinks.userPortal}
+                      className="btn-precision mt-6 inline-flex items-center justify-center gap-2 md:mt-auto"
+                    >
+                      Open User Portal <ExternalLink className="h-4 w-4" />
                     </a>
                   </div>
                 </div>
