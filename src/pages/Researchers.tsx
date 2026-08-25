@@ -4,7 +4,7 @@ import { Link } from "react-router-dom";
 import { Header } from "@/components/Header";
 import { Footer } from "@/components/Footer";
 import { portalLinks } from "@/data/nciDoseTools";
-import { ExternalLink, MessageSquare } from "lucide-react";
+import { ArrowRight, ExternalLink, MessageSquare } from "lucide-react";
 
 const FeatureCard = ({ icon, title, description, delay = 0 }: { icon: React.ReactNode; title: string; description: string; delay?: number }) => {
   const ref = useRef<HTMLDivElement>(null);
@@ -186,16 +186,59 @@ const Researchers = () => {
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
               transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
-              className="mx-auto max-w-4xl border border-border bg-white p-8 text-center sm:p-12"
+              className="mx-auto max-w-5xl border border-border bg-white p-8 sm:p-12"
             >
-              <span className="font-mono text-xs uppercase tracking-widest text-primary">Research access</span>
-              <h2 className="mt-4 text-section-md">One place for access and downloads</h2>
-              <p className="mx-auto mt-5 max-w-2xl leading-relaxed text-muted-foreground">
-                NCI Dose Tools are available at no cost for approved non-commercial research use. Existing users sign in through the User Portal, and new users start their request from the same page.
+              <div className="text-center">
+                <span className="font-mono text-xs uppercase tracking-widest text-primary">Research access</span>
+                <h2 className="mt-4 text-section-md">Free for approved non-commercial research</h2>
+                <p className="mx-auto mt-5 max-w-2xl leading-relaxed text-muted-foreground">
+                  NCI Dose Tools are available at no cost for approved non-commercial research use. New users must complete the Software Transfer Agreement process before receiving User Portal access.
+                </p>
+              </div>
+
+              <div className="mt-10 grid gap-6 text-left md:grid-cols-2">
+                <div className="flex flex-col border border-primary bg-primary/5 p-6 sm:p-7">
+                  <div className="font-mono text-xs uppercase tracking-widest text-primary">New research user</div>
+                  <h3 className="mt-3 text-xl font-medium text-foreground">Prepare a Software Transfer Agreement</h3>
+                  <p className="mt-4 text-sm leading-relaxed text-muted-foreground">
+                    An executed NCI Software Transfer Agreement (STA) is required before download access can be activated.
+                  </p>
+                  <ol className="mt-5 space-y-3 text-sm text-slate-700">
+                    {[
+                      "Confirm that your planned use is eligible non-commercial research.",
+                      "Enter your institutional and authorized-official information to prepare the STA.",
+                      "Review and sign the PDF, then email the signed agreement for NCI review.",
+                      "After approval, use the welcome email to sign in to the User Portal.",
+                    ].map((step, index) => (
+                      <li key={step} className="grid grid-cols-[28px_1fr] gap-3">
+                        <span className="font-mono text-xs text-primary">0{index + 1}</span>
+                        <span>{step}</span>
+                      </li>
+                    ))}
+                  </ol>
+                  <Link to="/portal/request-access/" className="btn-precision mt-7 inline-flex items-center justify-center gap-2">
+                    Prepare STA request <ArrowRight className="h-4 w-4" />
+                  </Link>
+                </div>
+
+                <div className="flex flex-col border border-border p-6 sm:p-7">
+                  <div className="font-mono text-xs uppercase tracking-widest text-primary">Existing approved user</div>
+                  <h3 className="mt-3 text-xl font-medium text-foreground">Sign in to the User Portal</h3>
+                  <p className="mt-4 text-sm leading-relaxed text-muted-foreground">
+                    Use the email already linked to your approved account: the Gmail address previously registered with the Google Group, or the exact address in your User Portal welcome email.
+                  </p>
+                  <p className="mt-4 text-sm leading-relaxed text-muted-foreground">
+                    The User Portal will repeat the sign-in and new-user guidance if you need help choosing the correct path.
+                  </p>
+                  <a href={portalLinks.userPortal} className="btn-precision mt-7 inline-flex items-center justify-center gap-2 md:mt-auto">
+                    Open User Portal <ExternalLink className="h-4 w-4" />
+                  </a>
+                </div>
+              </div>
+
+              <p className="mt-7 text-center text-xs leading-relaxed text-muted-foreground">
+                STA submission does not itself grant access. NCI activates the portal account after the agreement is reviewed and approved.
               </p>
-              <a href={portalLinks.userPortal} className="btn-precision mt-8 inline-flex items-center gap-2">
-                Open User Portal <ExternalLink className="h-4 w-4" />
-              </a>
             </motion.div>
           </div>
         </section>
