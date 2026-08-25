@@ -620,7 +620,7 @@ export const PortalSignIn = ({
             <div className="mt-6 border-t border-border pt-5 text-center text-xs leading-relaxed text-muted-foreground">
               Still need help? Email the{" "}
               <a href={portalSupportEmail} className="font-medium text-primary underline underline-offset-4">
-                NCI Dose Team (choonsik.lee@nih.gov)
+                NCI Dose Team
               </a>.
             </div>
           )}
