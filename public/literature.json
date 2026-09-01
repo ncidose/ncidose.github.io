@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-08-10T13:00:12.894Z",
+  "generatedAt": "2026-09-01T03:09:30.202Z",
   "source": "NCBI E-utilities PubMed and PubMed Central searches",
   "note": "Searches combine tool-specific identifiers with modality terms to reduce unrelated full-text matches.",
   "tools": [
@@ -2924,12 +2924,12 @@
         "pmcFullText": "https://pmc.ncbi.nlm.nih.gov/search/?term=%28%22NCI%2FUF%22%5Bbody%5D+OR+%22NCI-UF%22%5Bbody%5D+OR+%22National+Cancer+Institute%2FUniversity+of+Florida%22%5Bbody%5D+OR+%22reference+hybrid+phantom%22%5Bbody%5D+OR+%22reference+hybrid+phantoms%22%5Bbody%5D+OR+%28%22UF+family%22%5Bbody%5D+AND+%28phantom%5Bbody%5D+OR+phantoms%5Bbody%5D%29+AND+%28dosimetry%5Bbody%5D+OR+radiation%5Bbody%5D%29%29+OR+%28%28%22hybrid+computational+phantom%22%5Bbody%5D+OR+%22hybrid+computational+phantoms%22%5Bbody%5D%29+AND+%28%22National+Cancer+Institute%22%5Bbody%5D+OR+NCI%5Bbody%5D+OR+%22University+of+Florida%22%5Bbody%5D+OR+UF%5Bbody%5D%29%29%29"
       },
       "counts": {
-        "pubmedTitleAbstract": 28,
-        "pmcFullTextRecords": 66,
-        "pmcMappedPmids": 66,
+        "pubmedTitleAbstract": 31,
+        "pmcFullTextRecords": 68,
+        "pmcMappedPmids": 68,
         "pmcWithoutPmid": 0,
-        "combinedUniquePmids": 46,
-        "displayedArticles": 46
+        "combinedUniquePmids": 49,
+        "displayedArticles": 49
       },
       "years": [
         {
@@ -3415,8 +3415,32 @@
         },
         {
           "year": "2016",
-          "count": 2,
+          "count": 3,
           "articles": [
+            {
+              "pmid": "27798410",
+              "pmcid": null,
+              "title": "Comparison of the effective dose rate to aircrew members using hybrid computational phantoms in standing and sitting postures",
+              "journal": "Journal of radiological protection : official journal of the Society for Radiological Protection",
+              "pubdate": "2016 Dec",
+              "publicationDate": "2016-12-01",
+              "year": "2016",
+              "authors": [
+                "Alves MC",
+                "Galeano DC",
+                "Santos WS",
+                "Lee C",
+                "Bolch WE",
+                "Hunt JG"
+              ],
+              "nciTeamAuthored": true,
+              "doi": "10.1088/0952-4746/36/4/885",
+              "sources": [
+                "PubMed title/abstract"
+              ],
+              "pubmedUrl": "https://pubmed.ncbi.nlm.nih.gov/27798410/",
+              "pmcUrl": null
+            },
             {
               "pmid": "26910030",
               "pmcid": null,
@@ -4043,8 +4067,31 @@
         },
         {
           "year": "2009",
-          "count": 1,
+          "count": 3,
           "articles": [
+            {
+              "pmid": "42583189",
+              "pmcid": "PMC13460034",
+              "title": "An Algorithm for Lymphatic Node Placement in Hybrid Computational Phantoms-Applications to Radionuclide Therapy Dosimetry: An automated procedure is designed to improve the ability of computer models to realistically evaluate radiation treatment of lymphoma patients",
+              "journal": "Proceedings of the IEEE. Institute of Electrical and Electronics Engineers",
+              "pubdate": "2009 Dec",
+              "publicationDate": "2009-12-01",
+              "year": "2009",
+              "authors": [
+                "Lee C",
+                "Kaufman K",
+                "Pafundi DH",
+                "Bolch WE"
+              ],
+              "nciTeamAuthored": true,
+              "doi": "10.1109/JPROC.2009.2025399",
+              "sources": [
+                "PubMed title/abstract",
+                "PMC full text"
+              ],
+              "pubmedUrl": "https://pubmed.ncbi.nlm.nih.gov/42583189/",
+              "pmcUrl": "https://pmc.ncbi.nlm.nih.gov/articles/PMC13460034/"
+            },
             {
               "pmid": "19692982",
               "pmcid": "PMC5720556",
@@ -4067,6 +4114,31 @@
               ],
               "pubmedUrl": "https://pubmed.ncbi.nlm.nih.gov/19692982/",
               "pmcUrl": "https://pmc.ncbi.nlm.nih.gov/articles/PMC5720556/"
+            },
+            {
+              "pmid": "42626600",
+              "pmcid": "PMC13492501",
+              "title": "Hybrid Patient-Dependent Phantoms Covering Statistical Distributions of Body Morphometry in the U.S. Adult and Pediatric Population: Age, gender, and size are used to organize a library of computer models to determine the cumulative effects of medical radiation on patients",
+              "journal": "Proceedings of the IEEE. Institute of Electrical and Electronics Engineers",
+              "pubdate": "2009 Dec",
+              "publicationDate": "2009-12-01",
+              "year": "2009",
+              "authors": [
+                "Johnson PB",
+                "Whalen SR",
+                "Wayson M",
+                "Juneja B",
+                "Lee C",
+                "Bolch WE"
+              ],
+              "nciTeamAuthored": true,
+              "doi": "10.1109/JPROC.2009.2032855",
+              "sources": [
+                "PubMed title/abstract",
+                "PMC full text"
+              ],
+              "pubmedUrl": "https://pubmed.ncbi.nlm.nih.gov/42626600/",
+              "pmcUrl": "https://pmc.ncbi.nlm.nih.gov/articles/PMC13492501/"
             }
           ]
         },
