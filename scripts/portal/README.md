@@ -67,6 +67,20 @@ Only country-level totals are generated in `src/data/worldMap.ts`; workbook
 names, email addresses, institutions, and agreement numbers are not shipped to
 the public site.
 
+## Literature update
+
+`.github/workflows/update-literature.yml` refreshes `public/literature.json`
+every Monday at 9:00 AM America/New_York time. GitHub Actions cron uses UTC, so
+the workflow checks both Eastern Time offsets and proceeds only when the local
+hour is 09. It runs `npm run literature:update`, commits the generated JSON to
+`main`, builds the site, and deploys the refreshed GitHub Pages artifact in the
+same workflow run.
+
+The same workflow can be started manually from the GitHub Actions page when an
+out-of-cycle refresh is needed. The former macOS launchd plist is no longer
+used; `scripts/update-literature-weekly.sh` remains only as a local recovery
+tool.
+
 ## Portal authentication
 
 - `AUTH_SECRET` is a Worker secret used to HMAC login codes, IP rate-limit keys, and session tokens. Never store it in Git or in a plaintext Wrangler variable.
