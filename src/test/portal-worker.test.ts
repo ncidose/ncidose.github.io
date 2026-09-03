@@ -124,6 +124,21 @@ describe("Q&A visibility", () => {
 });
 
 describe("announcement email template", () => {
+  it("uses the portal blue for branded email accents", () => {
+    const html = announcementEmailHtml({
+      title: "Brand test",
+      body: "Read https://ncidose.github.io/versions/ncict.",
+      category: "Release",
+    });
+
+    expect(html).toContain("border-bottom:5px solid #0EA5E9");
+    expect(html).toContain("border:1px solid #0EA5E9");
+    expect(html).toContain("background:#0EA5E9");
+    expect(html).toContain("color:#0EA5E9;text-decoration:underline");
+    expect(html).not.toContain("#2ba8df");
+    expect(html).not.toContain("#147da8");
+  });
+
   it("uses the shared team signature and safely renders a preview", () => {
     const html = announcementEmailHtml({
       title: "Release <Update>",
