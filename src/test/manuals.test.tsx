@@ -21,6 +21,36 @@ describe("public manuals", () => {
     expect(screen.getByText("NCIRF Release History")).toBeInTheDocument();
     expect(screen.getByText("NCINM Release History")).toBeInTheDocument();
     expect(screen.getByText("PHANTOM Library History")).toBeInTheDocument();
+
+    expect(document.querySelector('a[href="#research-software"]')).toHaveAttribute(
+      "data-analytics-audience",
+      "research",
+    );
+    expect(document.querySelector('a[href="#research-software"]')).toHaveAttribute(
+      "data-analytics-event",
+      "documentation_click",
+    );
+    expect(document.querySelector('a[href="#vendor-api-documentation"]')).toHaveAttribute(
+      "data-analytics-audience",
+      "vendor",
+    );
+    expect(document.querySelector('a[href="#release-history"]')).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /Evaluate an API for your product workflow/i })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /Request API Evaluation/i })).toHaveAttribute(
+      "data-analytics-location",
+      "api_manuals_section",
+    );
+
+    for (const product of ["NCICT API", "NCINM API", "NCIRF API"]) {
+      const evaluationLink = screen.getByRole("link", { name: `Evaluate ${product}` });
+      const href = evaluationLink.getAttribute("href") ?? "";
+      const query = new URLSearchParams(href.split("?", 2)[1]);
+      expect(href).toMatch(/^mailto:kevin\.chang@nih\.gov\?/);
+      expect(query.get("subject")).toContain(product);
+      expect(evaluationLink).not.toHaveAttribute("data-analytics-event");
+      expect(evaluationLink).toHaveAttribute("data-analytics-action", "email_licensing");
+      expect(evaluationLink).toHaveAttribute("data-analytics-location", "api_manual_card");
+    }
   });
 
   it("renders a Markdown manual inside the website reader", () => {
@@ -36,6 +66,43 @@ describe("public manuals", () => {
     expect(screen.getByRole("heading", { name: "Introduction" })).toBeInTheDocument();
     expect(screen.getByText("Documented release 4.20260502")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Introduction" })).not.toHaveAttribute("href");
+  });
+
+  it("places product-aware evaluation CTAs above and below each API manual", () => {
+    render(
+      <MemoryRouter initialEntries={["/manuals/ncict-api"]}>
+        <Routes>
+          <Route path="/manuals/:manualId" element={<Manuals />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    const evaluationLinks = screen.getAllByRole("link", {
+      name: /Request NCICT API Evaluation/i,
+    });
+    expect(evaluationLinks).toHaveLength(2);
+    expect(evaluationLinks[0]).toHaveAttribute(
+      "data-analytics-location",
+      "api_manual_reader_top",
+    );
+    expect(evaluationLinks[1]).toHaveAttribute(
+      "data-analytics-location",
+      "api_manual_reader_bottom",
+    );
+
+    for (const link of evaluationLinks) {
+      const href = link.getAttribute("href") ?? "";
+      const query = new URLSearchParams(href.split("?", 2)[1]);
+      expect(href).toMatch(/^mailto:kevin\.chang@nih\.gov\?/);
+      expect(query.get("subject")).toContain("NCICT API");
+      expect(query.get("body")).toContain("Organization:");
+      expect(query.get("body")).toContain("Expected request volume:");
+      expect(query.get("body")).toContain("Deployment environment");
+      expect(query.get("body")).toContain("Evaluation timeline:");
+      expect(query.get("body")).toContain("Proposed use:");
+    }
+
+    expect(document.querySelector('a[href^="mailto:changke@mail.nih.gov"]')).not.toBeInTheDocument();
   });
 
   it("renders the NCICT release record inside the documentation site", () => {

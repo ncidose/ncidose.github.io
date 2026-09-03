@@ -54,6 +54,12 @@ describe("public Q&A", () => {
     expect(screen.getByText(sample.answers[0].body)).toBeInTheDocument();
     expect(screen.getByText("User Community · @fujibuchi · Follow-up")).toBeInTheDocument();
     expect(screen.getByText("Reply in this conversation")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Read NCICT manual" })).toHaveAttribute("href", "/manuals/ncict");
+    expect(screen.getByRole("link", { name: "Read NCICT API manual" })).toHaveAttribute("href", "/manuals/ncict-api");
+    expect(screen.getByRole("link", { name: "Vendor integration" })).toHaveAttribute(
+      "href",
+      "/vendors?tool=ncict#commercial-access",
+    );
   });
 
   it("distinguishes feature requests from NCI Dose Team status updates", async () => {

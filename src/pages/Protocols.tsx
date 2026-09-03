@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
 import { Header } from "@/components/Header";
@@ -62,9 +62,9 @@ const ToolContent = ({
     <div className="grid gap-10 lg:grid-cols-[0.92fr_1.08fr] lg:items-start">
       <div className="space-y-6">
         <div className="border-l-4 border-primary pl-6">
-          <h3 className="text-2xl font-light text-foreground lg:text-3xl">
+          <h2 className="text-2xl font-light text-foreground lg:text-3xl">
             {tool.name}
-          </h3>
+          </h2>
           <p className="mt-2 text-lg font-medium text-primary">
             {tool.fullName}
           </p>
@@ -86,6 +86,47 @@ const ToolContent = ({
         </div>
 
         <p className="text-muted-foreground leading-relaxed">{tool.intro}</p>
+        <div className="grid gap-3 sm:grid-cols-2">
+          <Link
+            to={tool.manualHref}
+            className="btn-precision inline-flex items-center justify-center text-center"
+            data-analytics-event="documentation_click"
+            data-analytics-location="product_primary"
+            data-analytics-tool={tool.id}
+            data-analytics-audience="all"
+            data-analytics-action="read_software_manual"
+          >
+            Read {tool.name} Manual
+          </Link>
+          <Link
+            to="/portal/request-access/"
+            className="btn-precision-outline inline-flex items-center justify-center text-center"
+            data-analytics-event="research_access_start"
+            data-analytics-location="product_primary"
+            data-analytics-tool={tool.id}
+            data-analytics-audience="research"
+            data-analytics-action="start_sta"
+          >
+            Request Research Access
+          </Link>
+          <Link
+            to={`/vendors?tool=${tool.id}#commercial-access`}
+            className="btn-precision-outline inline-flex items-center justify-center text-center sm:col-span-2"
+            data-analytics-event="vendor_evaluation_start"
+            data-analytics-location="product_primary"
+            data-analytics-tool={tool.id}
+            data-analytics-audience="vendor"
+            data-analytics-action="view_licensing_path"
+          >
+            {tool.id === "phantom"
+              ? "Discuss PHANTOM Licensing"
+              : `Evaluate ${tool.name} REST API`}
+          </Link>
+        </div>
+        <p className="border-l-2 border-primary/30 pl-4 text-xs leading-relaxed text-muted-foreground">
+          Approved non-commercial research access and licensed vendor integration
+          follow separate review pathways.
+        </p>
         <div className="border border-border bg-white p-5">
           <div className="font-mono text-xs uppercase tracking-widest text-primary">
             Key advantages
@@ -145,9 +186,9 @@ const ToolContent = ({
     <div className="border border-border bg-slate-50 p-6">
       <div className="grid gap-5 lg:grid-cols-[1fr_auto] lg:items-center">
         <div>
-          <h4 className="font-mono text-sm uppercase tracking-widest text-primary">
+          <h3 className="font-mono text-sm uppercase tracking-widest text-primary">
             Peer-reviewed foundation
-          </h4>
+          </h3>
           <p className="mt-3 text-sm leading-relaxed text-muted-foreground">
             {publicationSummary
               ? `${tool.name} is represented in ${publicationSummary.total} registry papers, including ${publicationSummary.nciTeam} publications by the NCI Dose Team.`
@@ -175,8 +216,13 @@ const ToolContent = ({
 
     <div className="grid gap-3 border border-border bg-white p-4 sm:grid-cols-2 lg:grid-cols-5">
       <Link
-        to="/vendors"
+        to={`/vendors?tool=${tool.id}#commercial-access`}
         className="group border border-slate-200 p-4 transition-colors hover:border-primary"
+        data-analytics-event="vendor_evaluation_start"
+        data-analytics-location="product_resources"
+        data-analytics-tool={tool.id}
+        data-analytics-audience="vendor"
+        data-analytics-action="view_licensing_path"
       >
         <div className="font-mono text-xs uppercase tracking-widest text-primary">
           Vendor integration
@@ -199,6 +245,11 @@ const ToolContent = ({
       <Link
         to={tool.manualHref}
         className="group border border-slate-200 p-4 transition-colors hover:border-primary"
+        data-analytics-event="documentation_click"
+        data-analytics-location="product_resources"
+        data-analytics-tool={tool.id}
+        data-analytics-audience="all"
+        data-analytics-action="read_software_manual"
       >
         <div className="font-mono text-xs uppercase tracking-widest text-primary">
           User manual
@@ -253,8 +304,14 @@ const Protocols = () => {
   const { hash } = useLocation();
   const { toolId } = useParams();
   const navigate = useNavigate();
-  const toolSectionRef = useRef<HTMLElement | null>(null);
-  const [activeTab, setActiveTab] = useState("ncict");
+  const initialToolId = toolId || hash.replace("#", "");
+  const [activeTab, setActiveTab] = useState(
+    tools.some((tool) => tool.id === initialToolId) ? initialToolId : "ncict",
+  );
+  const selectedTool = tools.find((tool) => tool.id === activeTab) ?? tools[0];
+  const hasRequestedTool = Boolean(
+    initialToolId && tools.some((tool) => tool.id === initialToolId),
+  );
   const [publicationSummaries, setPublicationSummaries] =
     useState<Record<string, PublicationSummary> | null>(null);
 
@@ -266,9 +323,6 @@ const Protocols = () => {
       if (!toolId && legacyToolId) {
         navigate(`/tools/${legacyToolId}`, { replace: true });
       }
-      window.requestAnimationFrame(() => {
-        toolSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
-      });
     }
   }, [hash, navigate, toolId]);
 
@@ -298,12 +352,9 @@ const Protocols = () => {
     };
   }, []);
 
-  const handleTabChange = (value: string, shouldScroll = false) => {
+  const handleTabChange = (value: string) => {
     setActiveTab(value);
-    navigate(`/tools/${value}`);
-    if (shouldScroll) {
-      toolSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
-    }
+    navigate(`/tools/${value}#tool-summary`);
   };
 
   return (
@@ -320,18 +371,20 @@ const Protocols = () => {
               className="max-w-5xl"
             >
               <span className="font-mono text-xs uppercase tracking-widest text-primary">
-                Our Tools
+                {hasRequestedTool ? selectedTool.modality : "Our Tools"}
               </span>
               <h1 className="mt-4 text-hero-md lg:text-hero">
-                NCI Dose Tools Suite
+                {hasRequestedTool ? selectedTool.name : "NCI Dose Tools Suite"}
               </h1>
               <p className="mt-6 max-w-3xl text-muted-foreground leading-relaxed">
-                The suite covers CT, nuclear medicine, and radiography/fluoroscopy
-                dose estimation, with a shared anatomical foundation built from
-                computational human phantom libraries.
+                {hasRequestedTool
+                  ? selectedTool.suiteSummary
+                  : "The suite covers CT, nuclear medicine, and radiography/fluoroscopy dose estimation, with a shared anatomical foundation built from computational human phantom libraries."}
               </p>
               <p className="mt-4 max-w-3xl text-muted-foreground leading-relaxed">
-                This page is intentionally high level. Continue to the{" "}
+                {hasRequestedTool
+                  ? `Review ${selectedTool.name} use cases and choose the research or vendor pathway below. Continue to the `
+                  : "Compare the tools below, then continue to the "}
                 <Link to="/manuals" className="text-primary hover:underline">
                   public manual library
                 </Link>{" "}
@@ -342,79 +395,7 @@ const Protocols = () => {
           </div>
         </section>
 
-        <section className="bg-slate-50 py-16">
-          <div className="container mx-auto px-6">
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.6, delay: 0.15, ease: [0.16, 1, 0.3, 1] }}
-              className="mb-8 max-w-4xl"
-            >
-              <span className="font-mono text-xs uppercase tracking-widest text-primary">
-                Compare tools
-              </span>
-              <h2 className="mt-4 text-2xl font-light text-slate-800 lg:text-3xl">
-                Choose the right starting point
-              </h2>
-              <p className="mt-3 text-muted-foreground">
-                Use this comparison to decide which detailed tool tab to open first.
-              </p>
-            </motion.div>
-
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.6, delay: 0.25, ease: [0.16, 1, 0.3, 1] }}
-              className="overflow-hidden border border-slate-200 bg-white"
-            >
-              <div className="overflow-x-auto">
-                <table className="w-full">
-                  <thead>
-                    <tr className="border-b border-slate-200 bg-slate-50">
-                      <th className="px-6 py-4 text-left font-mono text-sm uppercase tracking-wider text-slate-600">
-                        Tool
-                      </th>
-                      <th className="px-6 py-4 text-left font-mono text-sm uppercase tracking-wider text-slate-600">
-                        Best for
-                      </th>
-                      <th className="px-6 py-4 text-left font-mono text-sm uppercase tracking-wider text-slate-600">
-                        Primary inputs
-                      </th>
-                      <th className="px-6 py-4 text-left font-mono text-sm uppercase tracking-wider text-slate-600">
-                        Calculation basis
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100">
-                    {tools.map((tool) => (
-                      <tr key={tool.id} className="transition-colors hover:bg-slate-50">
-                        <td className="px-6 py-5 font-mono font-medium text-primary">
-                          <Link
-                            to={`/tools/${tool.id}`}
-                            className="hover:underline"
-                          >
-                            {tool.name}
-                          </Link>
-                        </td>
-                        <td className="max-w-md px-6 py-5 text-sm leading-relaxed text-slate-700">
-                          {tool.comparison.bestFor}
-                        </td>
-                        <td className="max-w-lg px-6 py-5 text-sm leading-relaxed text-slate-600">
-                          {tool.comparison.primaryInputs}
-                        </td>
-                        <td className="max-w-sm px-6 py-5 text-sm leading-relaxed text-slate-600">
-                          {tool.comparison.calculationBasis}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </motion.div>
-          </div>
-        </section>
-
-        <section ref={toolSectionRef} id="tool-summary" className="scroll-mt-24 py-10 lg:py-16">
+        <section id="tool-summary" className="scroll-mt-24 py-10 lg:py-16">
           <div className="container mx-auto px-6">
             <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-8">
               <motion.div
@@ -446,6 +427,77 @@ const Protocols = () => {
                 ))}
               </div>
             </Tabs>
+          </div>
+        </section>
+
+        <section className="bg-slate-50 py-16">
+          <div className="container mx-auto px-6">
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
+              className="mb-8 max-w-4xl"
+            >
+              <span className="font-mono text-xs uppercase tracking-widest text-primary">
+                Compare tools
+              </span>
+              <h2 className="mt-4 text-2xl font-light text-slate-800 lg:text-3xl">
+                Compare the full suite
+              </h2>
+              <p className="mt-3 text-muted-foreground">
+                Compare the best-fit use, primary inputs, and calculation basis for each tool.
+              </p>
+            </motion.div>
+
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.6, delay: 0.1, ease: [0.16, 1, 0.3, 1] }}
+              className="overflow-hidden border border-slate-200 bg-white"
+            >
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead>
+                    <tr className="border-b border-slate-200 bg-slate-50">
+                      <th className="px-6 py-4 text-left font-mono text-sm uppercase tracking-wider text-slate-600">
+                        Tool
+                      </th>
+                      <th className="px-6 py-4 text-left font-mono text-sm uppercase tracking-wider text-slate-600">
+                        Best for
+                      </th>
+                      <th className="px-6 py-4 text-left font-mono text-sm uppercase tracking-wider text-slate-600">
+                        Primary inputs
+                      </th>
+                      <th className="px-6 py-4 text-left font-mono text-sm uppercase tracking-wider text-slate-600">
+                        Calculation basis
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {tools.map((tool) => (
+                      <tr key={tool.id} className="transition-colors hover:bg-slate-50">
+                        <td className="px-6 py-5 font-mono font-medium text-primary">
+                          <Link to={`/tools/${tool.id}`} className="hover:underline">
+                            {tool.name}
+                          </Link>
+                        </td>
+                        <td className="max-w-md px-6 py-5 text-sm leading-relaxed text-slate-700">
+                          {tool.comparison.bestFor}
+                        </td>
+                        <td className="max-w-lg px-6 py-5 text-sm leading-relaxed text-slate-600">
+                          {tool.comparison.primaryInputs}
+                        </td>
+                        <td className="max-w-sm px-6 py-5 text-sm leading-relaxed text-slate-600">
+                          {tool.comparison.calculationBasis}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </motion.div>
           </div>
         </section>
 

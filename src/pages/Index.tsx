@@ -11,9 +11,9 @@ const Index = () => {
       <Header />
       <main>
         <Hero />
+        <WhereToStart />
         <WhatAreTools />
         <GlobalMap />
-        <WhereToStart />
       </main>
       <Footer />
     </div>

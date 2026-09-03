@@ -78,7 +78,15 @@ const ReleaseHistoryPage = ({ history }: { history: ReleaseHistoryDefinition }) 
 
         <section className="border-b border-border bg-slate-50">
           <div className="container mx-auto grid gap-px bg-border px-6 sm:grid-cols-3">
-            <Link to={`/manuals/${history.id}`} className="group flex items-center justify-between bg-slate-50 px-5 py-5 text-sm text-slate-700 transition-colors hover:bg-white hover:text-primary">
+            <Link
+              to={`/manuals/${history.id}`}
+              className="group flex items-center justify-between bg-slate-50 px-5 py-5 text-sm text-slate-700 transition-colors hover:bg-white hover:text-primary"
+              data-analytics-event="documentation_click"
+              data-analytics-location="release_history_top"
+              data-analytics-tool={history.id}
+              data-analytics-audience="general"
+              data-analytics-action="read_current_manual"
+            >
               <span className="flex items-center gap-3"><FileText className="h-4 w-4 text-primary" /> Read the current manual</span>
               <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
             </Link>
@@ -86,7 +94,18 @@ const ReleaseHistoryPage = ({ history }: { history: ReleaseHistoryDefinition }) 
               <span className="flex items-center gap-3"><History className="h-4 w-4 text-primary" /> View {history.product} overview</span>
               <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
             </Link>
-            <a href={portalLinks.userPortal} className="group flex items-center justify-between bg-slate-50 px-5 py-5 text-sm text-slate-700 transition-colors hover:bg-white hover:text-primary">
+            <a
+              href={portalLinks.userPortal}
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label="Download approved releases in the User Portal (opens in a new tab)"
+              className="group flex items-center justify-between bg-slate-50 px-5 py-5 text-sm text-slate-700 transition-colors hover:bg-white hover:text-primary"
+              data-analytics-event="portal_login_click"
+              data-analytics-location="release_history_top"
+              data-analytics-tool={history.id}
+              data-analytics-audience="approved_user"
+              data-analytics-action="download_approved_release"
+            >
               <span className="flex items-center gap-3"><ShieldCheck className="h-4 w-4 text-primary" /> Download approved releases</span>
               <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
             </a>
@@ -148,10 +167,29 @@ const ReleaseHistoryPage = ({ history }: { history: ReleaseHistoryDefinition }) 
               </ReactMarkdown>
 
               <div className="mt-16 flex flex-wrap items-center justify-between gap-4 border-t border-border pt-8">
-                <Link to="/manuals" className="btn-precision-outline inline-flex items-center gap-2 text-sm">
+                <Link
+                  to="/manuals"
+                  className="btn-precision-outline inline-flex items-center gap-2 text-sm"
+                  data-analytics-event="documentation_click"
+                  data-analytics-location="release_history_bottom"
+                  data-analytics-tool={history.id}
+                  data-analytics-audience="general"
+                  data-analytics-action="browse_manuals"
+                >
                   <ArrowLeft className="h-4 w-4" /> Documentation library
                 </Link>
-                <a href={portalLinks.userPortal} className="btn-precision inline-flex items-center gap-2 text-sm">
+                <a
+                  href={portalLinks.userPortal}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  aria-label="Open User Portal (opens in a new tab)"
+                  className="btn-precision inline-flex items-center gap-2 text-sm"
+                  data-analytics-event="portal_login_click"
+                  data-analytics-location="release_history_bottom"
+                  data-analytics-tool={history.id}
+                  data-analytics-audience="approved_user"
+                  data-analytics-action="open_user_portal"
+                >
                   Open User Portal <ArrowRight className="h-4 w-4" />
                 </a>
               </div>

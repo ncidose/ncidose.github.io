@@ -6,7 +6,7 @@ import { ArrowLeft, ArrowRight, HelpCircle, Loader2, Paperclip, Pin, Search, Sen
 import { Header } from "@/components/Header";
 import { Footer } from "@/components/Footer";
 import { portalLinks } from "@/data/portalLinks";
-import { buildAnswerThreads, normalizePublicQuestion, publicQuestionsApi, questionAnswerLabel, questionAuthorLabel, questionRequestTypeLabels, questionRequestTypes, questionTools, type PublicQuestion, type QuestionAnswerThread, type QuestionRequestType } from "@/lib/questions";
+import { buildAnswerThreads, normalizePublicQuestion, publicQuestionsApi, questionAnswerLabel, questionAuthorLabel, questionRequestTypeLabels, questionRequestTypes, questionTools, type PublicQuestion, type QuestionAnswerThread, type QuestionRequestType, type QuestionTool } from "@/lib/questions";
 import { cn } from "@/lib/utils";
 import { applyPageSeo } from "@/lib/seo";
 
@@ -48,6 +48,72 @@ const PublicReply = ({ answer, depth = 0 }: { answer: QuestionAnswerThread; dept
     {answer.children.length > 0 && <div className="mt-4 space-y-4">{answer.children.map((child) => <PublicReply key={child.id} answer={child} depth={depth + 1} />)}</div>}
   </div>
 );
+
+const discussionToolIds: Partial<Record<QuestionTool, string>> = {
+  NCICT: "ncict",
+  NCIRF: "ncirf",
+  NCINM: "ncinm",
+  PHANTOM: "phantom",
+};
+
+const DiscussionResources = ({ tool }: { tool: QuestionTool }) => {
+  const toolId = discussionToolIds[tool];
+
+  return (
+    <aside aria-label="Related technical resources" className="mt-8 border-l-4 border-primary bg-primary/5 p-5">
+      <div className="font-mono text-xs uppercase tracking-widest text-primary">
+        Continue with related resources
+      </div>
+      <p className="mt-2 text-sm leading-relaxed text-slate-700">
+        Use the maintained product and documentation pages for current workflows,
+        access guidance, and vendor integration details.
+      </p>
+      <div className="mt-4 flex flex-wrap gap-3">
+        <Link
+          to={toolId ? `/tools/${toolId}` : "/tools"}
+          className="btn-precision-outline inline-flex items-center gap-2 text-sm"
+        >
+          {toolId ? `${tool} overview` : "Explore the tools"}
+        </Link>
+        <Link
+          to={toolId ? `/manuals/${toolId}` : "/manuals"}
+          className="btn-precision-outline inline-flex items-center gap-2 text-sm"
+          data-analytics-event="documentation_click"
+          data-analytics-location="discussion_context"
+          data-analytics-tool={toolId ?? "suite"}
+          data-analytics-audience="all"
+          data-analytics-action="read_software_manual"
+        >
+          {toolId ? `Read ${tool} manual` : "Browse manuals"}
+        </Link>
+        {toolId && toolId !== "phantom" && (
+          <Link
+            to={`/manuals/${toolId}-api`}
+            className="btn-precision-outline inline-flex items-center gap-2 text-sm"
+            data-analytics-event="documentation_click"
+            data-analytics-location="discussion_context"
+            data-analytics-tool={toolId}
+            data-analytics-audience="vendor"
+            data-analytics-action="read_api_manual"
+          >
+            Read {tool} API manual
+          </Link>
+        )}
+        <Link
+          to={toolId ? `/vendors?tool=${toolId}#commercial-access` : "/vendors#commercial-access"}
+          className="btn-precision-outline inline-flex items-center gap-2 text-sm"
+          data-analytics-event="vendor_evaluation_start"
+          data-analytics-location="discussion_context"
+          data-analytics-tool={toolId ?? "suite"}
+          data-analytics-audience="vendor"
+          data-analytics-action="view_licensing_path"
+        >
+          Vendor integration
+        </Link>
+      </div>
+    </aside>
+  );
+};
 
 const Questions = () => {
   const { questionId } = useParams();
@@ -136,7 +202,15 @@ const Questions = () => {
                 <h1 className="text-5xl font-light tracking-tight text-slate-950 md:text-6xl lg:text-7xl">Discussions</h1>
                 <p className="mt-6 max-w-3xl text-lg leading-relaxed text-slate-600">Technical questions, bug reports, feature requests, and community replies. Anyone may read; approved portal users may post and reply.</p>
               </div>
-              <a href={`${portalLinks.userPortal}/#/portal/questions`} className="group flex items-center justify-between border border-primary bg-white px-5 py-4 text-sm text-slate-800 shadow-sm transition-colors hover:bg-primary hover:text-white">
+              <a
+                href={`${portalLinks.userPortal}/#/portal/questions`}
+                className="group flex items-center justify-between border border-primary bg-white px-5 py-4 text-sm text-slate-800 shadow-sm transition-colors hover:bg-primary hover:text-white"
+                data-analytics-event="portal_login_click"
+                data-analytics-location="discussion_hero"
+                data-analytics-tool="suite"
+                data-analytics-audience="approved_user"
+                data-analytics-action="join_discussion"
+              >
                 <span className="flex items-center gap-3"><Send className="h-4 w-4" /> Join the discussion</span><ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
               </a>
             </div>
@@ -151,11 +225,20 @@ const Questions = () => {
                 <div className="flex flex-wrap items-center gap-3 font-mono text-xs uppercase tracking-wider text-primary">{selected.pinned && <span className="inline-flex items-center gap-1"><Pin className="h-3 w-3" /> Pinned</span>}<span>{questionRequestTypeLabels[selected.requestType]}</span>{selected.requestType !== "feature_request" && <><span className="text-slate-300">/</span><span>{selected.tool}</span></>}<span className="text-slate-300">/</span><span className="text-muted-foreground">{displayDate(selected.publishedAt || selected.createdAt)}</span><span className="text-slate-300">/</span><span className="normal-case">{questionAuthorLabel(selected)}</span></div>
                 <h2 className="mt-5 text-3xl font-light leading-tight text-slate-950 sm:text-4xl">{selected.title}</h2>
                 <div className="prose prose-slate mt-8 max-w-none text-sm leading-relaxed"><Markdown>{selected.body}</Markdown></div>
+                <DiscussionResources tool={selected.tool} />
                 {selected.attachments.length > 0 && <div className="mt-6 flex flex-wrap gap-2">{selected.attachments.map((attachment) => <a key={attachment.id} href={`https://portal.ncidosetools.com/api/public/attachments/${attachment.id}`} className="inline-flex items-center gap-2 border border-border bg-slate-50 px-3 py-2 text-xs text-slate-700 hover:border-primary hover:text-primary"><Paperclip className="h-3.5 w-3.5" /> {attachment.fileName} <span className="text-muted-foreground">({Math.max(1, Math.round(attachment.sizeBytes / 1024))} KB)</span></a>)}</div>}
                 <div className="mt-10 space-y-6 border-t border-border pt-8">
                   {buildAnswerThreads(selected.answers).map((answer) => <PublicReply key={answer.id} answer={answer} />)}
                 </div>
-                <a href={`${portalLinks.userPortal}/#/portal/questions?discussion=${selected.id}`} className="mt-8 inline-flex items-center gap-2 border border-primary px-4 py-3 text-sm text-primary hover:bg-primary hover:text-white"><Send className="h-4 w-4" /> Reply as an approved user</a>
+                <a
+                  href={`${portalLinks.userPortal}/#/portal/questions?discussion=${selected.id}`}
+                  className="mt-8 inline-flex items-center gap-2 border border-primary px-4 py-3 text-sm text-primary hover:bg-primary hover:text-white"
+                  data-analytics-event="portal_login_click"
+                  data-analytics-location="discussion_reply"
+                  data-analytics-tool={discussionToolIds[selected.tool] ?? "suite"}
+                  data-analytics-audience="approved_user"
+                  data-analytics-action="reply_to_discussion"
+                ><Send className="h-4 w-4" /> Reply as an approved user</a>
               </article>
             </div>
           ) : (

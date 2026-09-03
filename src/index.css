@@ -23,7 +23,7 @@
     --popover-foreground: 222 47% 11%;
 
     /* Accent Colors */
-    --primary: 199 89% 48%; /* #0EA5E9 Sky Blue - slightly deeper for light bg */
+    --primary: 201 96% 32%; /* #0369A1 accessible blue on light backgrounds */
     --primary-foreground: 0 0% 100%;
 
     --secondary: 239 84% 55%; /* #6366F1 Indigo */
@@ -42,12 +42,12 @@
     /* Grid Lines */
     --border: 214 32% 91%; /* Light gray borders */
     --input: 214 32% 91%;
-    --ring: 199 89% 48%;
+    --ring: 201 96% 32%;
 
     --radius: 0.5rem;
 
     /* Custom NCI Tokens */
-    --nci-glow: 199 89% 48%;
+    --nci-glow: 201 96% 32%;
     --nci-glow-secondary: 239 84% 55%;
     --nci-surface-elevated: 0 0% 100%;
     --nci-grid-line: 214 32% 91%;
@@ -55,12 +55,12 @@
     /* Sidebar (keeping for compatibility) */
     --sidebar-background: 210 40% 98%;
     --sidebar-foreground: 222 47% 11%;
-    --sidebar-primary: 199 89% 48%;
+    --sidebar-primary: 201 96% 32%;
     --sidebar-primary-foreground: 0 0% 100%;
     --sidebar-accent: 210 40% 96%;
     --sidebar-accent-foreground: 222 47% 11%;
     --sidebar-border: 214 32% 91%;
-    --sidebar-ring: 199 89% 48%;
+    --sidebar-ring: 201 96% 32%;
   }
 }
 

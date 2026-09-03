@@ -216,7 +216,15 @@ const Researchers = () => {
                       </li>
                     ))}
                   </ol>
-                  <Link to="/portal/request-access/" className="btn-precision mt-7 inline-flex items-center justify-center gap-2">
+                  <Link
+                    to="/portal/request-access/"
+                    className="btn-precision mt-7 inline-flex items-center justify-center gap-2"
+                    data-analytics-event="research_access_start"
+                    data-analytics-location="researcher_access"
+                    data-analytics-tool="suite"
+                    data-analytics-audience="researcher"
+                    data-analytics-action="prepare_sta_request"
+                  >
                     Prepare STA request <ArrowRight className="h-4 w-4" />
                   </Link>
                 </div>
@@ -230,7 +238,15 @@ const Researchers = () => {
                   <p className="mt-4 text-sm leading-relaxed text-muted-foreground">
                     The User Portal will repeat the sign-in and new-user guidance if you need help choosing the correct path.
                   </p>
-                  <a href={portalLinks.userPortal} className="btn-precision mt-7 inline-flex items-center justify-center gap-2 md:mt-auto">
+                  <a
+                    href={portalLinks.userPortal}
+                    className="btn-precision mt-7 inline-flex items-center justify-center gap-2 md:mt-auto"
+                    data-analytics-event="portal_login_click"
+                    data-analytics-location="researcher_access"
+                    data-analytics-tool="suite"
+                    data-analytics-audience="approved_user"
+                    data-analytics-action="open_user_portal"
+                  >
                     Open User Portal <ExternalLink className="h-4 w-4" />
                   </a>
                 </div>
@@ -283,6 +299,11 @@ const Researchers = () => {
                     <Link
                       to="/manuals"
                       className="text-primary hover:underline inline-flex items-center gap-1 font-mono text-sm"
+                      data-analytics-event="documentation_click"
+                      data-analytics-location="researcher_resources"
+                      data-analytics-tool="suite"
+                      data-analytics-audience="researcher"
+                      data-analytics-action="browse_manuals"
                     >
                       Browse public manuals
                     </Link>

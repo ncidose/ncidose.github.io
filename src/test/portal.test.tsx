@@ -4,9 +4,24 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { getPortalHeaderEmail, selectPrimaryPortalIdentity } from "@/lib/portalUser";
 import { AnnouncementBody, Downloads, Portal, PortalSignIn } from "@/pages/Portal";
 
+const portalTestMocks = vi.hoisted(() => ({
+  downloadStaPdf: vi.fn(),
+  trackResearchAccessPdfPrepared: vi.fn(),
+}));
+
+vi.mock("@/lib/staPdf", () => ({
+  downloadStaPdf: portalTestMocks.downloadStaPdf,
+}));
+
+vi.mock("@/lib/analytics", () => ({
+  trackResearchAccessPdfPrepared: portalTestMocks.trackResearchAccessPdfPrepared,
+}));
+
 describe("portal migration experience", () => {
   beforeEach(() => {
     window.sessionStorage.clear();
+    portalTestMocks.downloadStaPdf.mockReset().mockResolvedValue(undefined);
+    portalTestMocks.trackResearchAccessPdfPrepared.mockReset();
   });
 
   afterEach(() => {
@@ -184,6 +199,49 @@ describe("portal migration experience", () => {
 
     expect(screen.getByRole("heading", { name: /clearer path from STA to downloads/i })).toBeInTheDocument();
     expect(screen.queryByRole("heading", { name: /^sign in$/i })).not.toBeInTheDocument();
+  });
+
+  it("tracks STA PDF preparation only after the PDF is created", async () => {
+    render(
+      <MemoryRouter initialEntries={["/portal/request-access?source=home"]}>
+        <Portal />
+      </MemoryRouter>,
+    );
+
+    fireEvent.click(screen.getByRole("checkbox", { name: "NCICT" }));
+    const form = screen.getByRole("button", { name: /prepare STA request/i }).closest("form");
+    expect(form).not.toBeNull();
+    fireEvent.submit(form!);
+
+    expect(await screen.findByRole("heading", { name: /prefilled STA has been downloaded/i })).toBeInTheDocument();
+    expect(portalTestMocks.trackResearchAccessPdfPrepared).toHaveBeenCalledWith(
+      "/portal/request-access?source=home",
+      {
+        ctaLocation: "research_access_form",
+        tool: "ncict",
+        audience: "researcher",
+        action: "sta_pdf_prepared",
+      },
+    );
+    expect(JSON.stringify(portalTestMocks.trackResearchAccessPdfPrepared.mock.calls)).not.toContain("institution");
+    expect(JSON.stringify(portalTestMocks.trackResearchAccessPdfPrepared.mock.calls)).not.toContain("email");
+  });
+
+  it("does not track STA PDF preparation when PDF creation fails", async () => {
+    portalTestMocks.downloadStaPdf.mockRejectedValueOnce(new Error("PDF preparation failed"));
+    render(
+      <MemoryRouter initialEntries={["/portal/request-access"]}>
+        <Portal />
+      </MemoryRouter>,
+    );
+
+    fireEvent.click(screen.getByRole("checkbox", { name: "NCICT" }));
+    const form = screen.getByRole("button", { name: /prepare STA request/i }).closest("form");
+    expect(form).not.toBeNull();
+    fireEvent.submit(form!);
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("PDF preparation failed");
+    expect(portalTestMocks.trackResearchAccessPdfPrepared).not.toHaveBeenCalled();
   });
 
   it("lets an approved user add one optional email for verification", () => {

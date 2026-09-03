@@ -67,10 +67,10 @@ const userPaths = [
   },
   {
     title: "Research user",
-    text: "Use the User Portal for both new access requests and approved-user downloads.",
-    href: portalLinks.userPortal,
-    linkText: "Open User Portal",
-    external: true,
+    text: "Prepare the Software Transfer Agreement required before approved non-commercial research access.",
+    href: "/portal/request-access/",
+    linkText: "Request research access",
+    external: false,
   },
   {
     title: "Commercial vendor",
@@ -156,11 +156,30 @@ const Research = () => {
                   transition={{ duration: 0.55, delay: index * 0.08, ease: [0.16, 1, 0.3, 1] }}
                 >
                   {portal.external ? (
-                    <a href={portal.href} target="_blank" rel="noopener noreferrer" className="group flex min-h-[320px] flex-col justify-between border border-border bg-white p-6 transition-colors hover:border-primary">
+                    <a
+                      href={portal.href}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      aria-label={portal.href === portalLinks.userPortal ? `${portal.title} (opens in a new tab)` : undefined}
+                      className="group flex min-h-[320px] flex-col justify-between border border-border bg-white p-6 transition-colors hover:border-primary"
+                      data-analytics-event={portal.href === portalLinks.userPortal ? "portal_login_click" : undefined}
+                      data-analytics-location={portal.href === portalLinks.userPortal ? "resources_card" : undefined}
+                      data-analytics-tool={portal.href === portalLinks.userPortal ? "suite" : undefined}
+                      data-analytics-audience={portal.href === portalLinks.userPortal ? "approved_user" : undefined}
+                      data-analytics-action={portal.href === portalLinks.userPortal ? "open_user_portal" : undefined}
+                    >
                       <PortalCardContent portal={portal} />
                     </a>
                   ) : (
-                    <Link to={portal.href} className="group flex min-h-[320px] flex-col justify-between border border-border bg-white p-6 transition-colors hover:border-primary">
+                    <Link
+                      to={portal.href}
+                      className="group flex min-h-[320px] flex-col justify-between border border-border bg-white p-6 transition-colors hover:border-primary"
+                      data-analytics-event={portal.href === "/manuals" ? "documentation_click" : undefined}
+                      data-analytics-location={portal.href === "/manuals" ? "resources_card" : undefined}
+                      data-analytics-tool={portal.href === "/manuals" ? "suite" : undefined}
+                      data-analytics-audience={portal.href === "/manuals" ? "general" : undefined}
+                      data-analytics-action={portal.href === "/manuals" ? "browse_manuals" : undefined}
+                    >
                       <PortalCardContent portal={portal} />
                     </Link>
                   )}
@@ -310,6 +329,11 @@ const Research = () => {
                     <Link
                       to={path.href}
                       className="group block h-full border border-border bg-white p-6 transition-colors hover:border-primary"
+                      data-analytics-event={path.title === "Research user" ? "research_access_start" : path.title === "Commercial vendor" ? "vendor_evaluation_start" : path.title === "Technical implementer" ? "documentation_click" : undefined}
+                      data-analytics-location={path.title === "First-time visitor" ? undefined : "resources_user_path"}
+                      data-analytics-tool={path.title === "First-time visitor" ? undefined : "suite"}
+                      data-analytics-audience={path.title === "Research user" ? "researcher" : path.title === "Commercial vendor" ? "vendor" : path.title === "Technical implementer" ? "general" : undefined}
+                      data-analytics-action={path.title === "Research user" ? "request_research_access" : path.title === "Commercial vendor" ? "view_vendor_path" : path.title === "Technical implementer" ? "browse_manuals" : undefined}
                     >
                       <VisitorPathContent path={path} index={index} />
                     </Link>

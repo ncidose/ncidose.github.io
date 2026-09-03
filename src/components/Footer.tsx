@@ -1,22 +1,48 @@
 import { Link } from "react-router-dom";
 import { portalLinks } from "@/data/nciDoseTools";
 
-type FooterLink = { label: string; href: string; external?: boolean };
+type FooterLink = {
+  label: string;
+  href: string;
+  external?: boolean;
+  analyticsEvent?: string;
+  analyticsAudience?: string;
+  analyticsAction?: string;
+};
 
 export const Footer = () => {
   const links: Record<string, FooterLink[]> = {
     Product: [
-      { label: "Our Tools", href: "/tools" },
-      { label: "Manuals & API Documentation", href: "/manuals" },
+      { label: "Tools", href: "/tools" },
+      {
+        label: "Manuals & API Documentation",
+        href: "/manuals",
+        analyticsEvent: "documentation_click",
+        analyticsAudience: "general",
+        analyticsAction: "browse_manuals",
+      },
+      {
+        label: "For Researchers",
+        href: "/researchers",
+      },
+      {
+        label: "For Vendors",
+        href: "/vendors",
+      },
       { label: "Discussions", href: "/discussions" },
-      { label: "For Vendors", href: "/vendors" },
-      { label: "For Researchers", href: "/researchers" },
       { label: "Literature Registry", href: "/literature" },
       { label: "Links & Resources", href: "/resources" },
     ],
     Resources: [
       { label: "Official NCI Resources", href: "https://dceg.cancer.gov/tools/radiation-dosimetry-tools", external: true },
-      { label: "Approved User Portal", href: portalLinks.userPortal, external: true },
+      {
+        label: "Approved User Portal",
+        href: portalLinks.userPortal,
+        external: true,
+        analyticsEvent: "portal_login_click",
+        analyticsAudience: "approved_user",
+        analyticsAction: "open_user_portal",
+      },
       { label: "GitHub Development Repository", href: "https://github.com/ncidose/ncidosetools", external: true },
       { label: "Professional Updates", href: "https://www.linkedin.com/in/choonsiklee/", external: true },
     ],
@@ -56,6 +82,12 @@ export const Footer = () => {
                         href={item.href}
                         target="_blank"
                         rel="noopener noreferrer"
+                        aria-label={item.label === "Approved User Portal" ? `${item.label} (opens in a new tab)` : undefined}
+                        data-analytics-event={item.analyticsEvent}
+                        data-analytics-location={item.analyticsEvent ? "site_footer" : undefined}
+                        data-analytics-tool={item.analyticsEvent ? "suite" : undefined}
+                        data-analytics-audience={item.analyticsAudience}
+                        data-analytics-action={item.analyticsAction}
                         className="text-sm text-muted-foreground hover:text-foreground transition-colors duration-300"
                       >
                         {item.label}
@@ -63,6 +95,11 @@ export const Footer = () => {
                     ) : (
                       <Link
                         to={item.href}
+                        data-analytics-event={item.analyticsEvent}
+                        data-analytics-location={item.analyticsEvent ? "site_footer" : undefined}
+                        data-analytics-tool={item.analyticsEvent ? "suite" : undefined}
+                        data-analytics-audience={item.analyticsAudience}
+                        data-analytics-action={item.analyticsAction}
                         className="text-sm text-muted-foreground hover:text-foreground transition-colors duration-300"
                       >
                         {item.label}

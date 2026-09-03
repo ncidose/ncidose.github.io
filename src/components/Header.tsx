@@ -15,15 +15,33 @@ import { portalLinks } from "@/data/nciDoseTools";
 const isActivePath = (pathname: string, href: string) =>
   pathname === href || (href !== "/" && pathname.startsWith(href));
 
-const navItems = [
-  { label: "Our Tools", href: "/tools" },
-  { label: "For Vendors", href: "/vendors" },
-  { label: "For Researchers", href: "/researchers" },
-  { label: "Manuals", href: "/manuals" },
+type NavItem = {
+  label: string;
+  href: string;
+  analyticsEvent?: string;
+  analyticsAudience?: string;
+  analyticsAction?: string;
+};
+
+const navItems: NavItem[] = [
+  { label: "Tools", href: "/tools" },
+  {
+    label: "Manuals",
+    href: "/manuals",
+    analyticsEvent: "documentation_click",
+    analyticsAudience: "general",
+    analyticsAction: "browse_manuals",
+  },
+  {
+    label: "For Researchers",
+    href: "/researchers",
+  },
+  {
+    label: "For Vendors",
+    href: "/vendors",
+  },
   { label: "Discussions", href: "/discussions" },
   { label: "Literature Registry", href: "/literature" },
-  // { label: "Documentation", href: "/documentation" },
-  { label: "Links & Resources", href: "/resources" },
 ];
 
 export const Header = () => {
@@ -71,6 +89,11 @@ export const Header = () => {
               >
                 <Link
                   to={item.href}
+                  data-analytics-event={item.analyticsEvent}
+                  data-analytics-location={item.analyticsEvent ? "site_header" : undefined}
+                  data-analytics-tool={item.analyticsEvent ? "suite" : undefined}
+                  data-analytics-audience={item.analyticsAudience}
+                  data-analytics-action={item.analyticsAction}
                   className={`relative text-sm transition-colors duration-300 border-animate ${
                     isActivePath(pathname, item.href)
                       ? "text-foreground border-animate-active"
@@ -85,14 +108,27 @@ export const Header = () => {
 
           {/* Desktop CTA */}
           <div className="hidden items-center gap-2 lg:flex">
-            <a href={portalLinks.userPortal} className="btn-precision inline-block text-sm">User Portal</a>
+            <a
+              href={portalLinks.userPortal}
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label="Approved User Portal (opens in a new tab)"
+              className="btn-precision inline-block text-sm"
+              data-analytics-event="portal_login_click"
+              data-analytics-location="site_header"
+              data-analytics-tool="suite"
+              data-analytics-audience="approved_user"
+              data-analytics-action="open_user_portal"
+            >
+              Approved User Portal
+            </a>
           </div>
 
           {/* Mobile Menu */}
           <Sheet open={isOpen} onOpenChange={setIsOpen}>
             <SheetTrigger asChild>
               <button
-                className="lg:hidden flex flex-col gap-1.5 w-6 h-6 items-center justify-center"
+                className="flex h-11 w-11 items-center justify-center lg:hidden"
                 aria-label="Toggle menu"
               >
                <Menu className="w-6 h-6" />
@@ -110,6 +146,11 @@ export const Header = () => {
                     key={item.label}
                     to={item.href}
                     onClick={() => setIsOpen(false)}
+                    data-analytics-event={item.analyticsEvent}
+                    data-analytics-location={item.analyticsEvent ? "mobile_menu" : undefined}
+                    data-analytics-tool={item.analyticsEvent ? "suite" : undefined}
+                    data-analytics-audience={item.analyticsAudience}
+                    data-analytics-action={item.analyticsAction}
                     className={`text-sm transition-colors duration-300 ${
                       isActivePath(pathname, item.href)
                         ? "text-primary font-medium"
@@ -120,7 +161,21 @@ export const Header = () => {
                   </Link>
                 ))}
                 <div className="pt-6 border-t border-border">
-                  <a href={portalLinks.userPortal} onClick={() => setIsOpen(false)} className="btn-precision inline-block w-full text-center text-sm">User Portal</a>
+                  <a
+                    href={portalLinks.userPortal}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    aria-label="Approved User Portal (opens in a new tab)"
+                    onClick={() => setIsOpen(false)}
+                    className="btn-precision inline-block w-full text-center text-sm"
+                    data-analytics-event="portal_login_click"
+                    data-analytics-location="mobile_menu"
+                    data-analytics-tool="suite"
+                    data-analytics-audience="approved_user"
+                    data-analytics-action="open_user_portal"
+                  >
+                    Approved User Portal
+                  </a>
                 </div>
               </nav>
             </SheetContent>

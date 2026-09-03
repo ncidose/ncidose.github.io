@@ -1,5 +1,55 @@
 const measurementId = import.meta.env.VITE_GA_MEASUREMENT_ID?.trim();
 
+export const analyticsCtaEvents = [
+  "portal_login_click",
+  "research_access_start",
+  "vendor_evaluation_start",
+  "documentation_click",
+] as const;
+
+export type AnalyticsCtaEvent = (typeof analyticsCtaEvents)[number];
+
+export type AnalyticsEventMetadata = {
+  ctaLocation?: string;
+  tool?: string;
+  audience?: string;
+  action?: string;
+};
+
+const analyticsCtaEventSet = new Set<string>(analyticsCtaEvents);
+const safeDimensionPattern = /^[a-z0-9_]{1,64}$/;
+const audienceAliases: Record<string, string> = {
+  all: "general",
+  general: "general",
+  approved_user: "approved_user",
+  research: "researcher",
+  researcher: "researcher",
+  vendor: "vendor",
+};
+
+export const isAnalyticsCtaEvent = (
+  value: string | undefined,
+): value is AnalyticsCtaEvent => Boolean(value && analyticsCtaEventSet.has(value));
+
+const safeDimension = (value: string | undefined) => {
+  const normalized = value?.trim().toLowerCase();
+  return normalized && safeDimensionPattern.test(normalized)
+    ? normalized
+    : "unspecified";
+};
+
+const safeAudience = (value: string | undefined) =>
+  audienceAliases[value?.trim().toLowerCase() ?? ""] ?? "unspecified";
+
+const eventContext = (path: string, metadata: AnalyticsEventMetadata) => ({
+  page_location: new URL(path, window.location.origin).href,
+  page_path: path,
+  cta_location: safeDimension(metadata.ctaLocation),
+  tool: safeDimension(metadata.tool),
+  audience: safeAudience(metadata.audience),
+  cta_action: safeDimension(metadata.action),
+});
+
 declare global {
   interface Window {
     dataLayer: unknown[];
@@ -26,7 +76,7 @@ export const initializeAnalytics = () => {
 };
 
 export const trackPageView = (path: string) => {
-  if (!measurementId || typeof window.gtag !== "function") return;
+  if (!measurementId || typeof window === "undefined" || typeof window.gtag !== "function") return;
 
   window.gtag("event", "page_view", {
     page_title: document.title,
@@ -36,7 +86,7 @@ export const trackPageView = (path: string) => {
 };
 
 export const trackPageNotFound = (path: string) => {
-  if (!measurementId || typeof window.gtag !== "function") return;
+  if (!measurementId || typeof window === "undefined" || typeof window.gtag !== "function") return;
 
   window.gtag("event", "page_not_found", {
     page_location: new URL(path, window.location.origin).href,
@@ -45,12 +95,38 @@ export const trackPageNotFound = (path: string) => {
   });
 };
 
-export const trackLicensingEmailClick = (path: string) => {
-  if (!measurementId || typeof window.gtag !== "function") return;
+export const trackCtaEvent = (
+  eventName: AnalyticsCtaEvent,
+  path: string,
+  metadata: AnalyticsEventMetadata = {},
+) => {
+  if (
+    !isAnalyticsCtaEvent(eventName)
+    || !measurementId
+    || typeof window === "undefined"
+    || typeof window.gtag !== "function"
+  ) return;
+
+  window.gtag("event", eventName, eventContext(path, metadata));
+};
+
+export const trackLicensingEmailClick = (
+  path: string,
+  metadata: AnalyticsEventMetadata = {},
+) => {
+  if (!measurementId || typeof window === "undefined" || typeof window.gtag !== "function") return;
 
   window.gtag("event", "licensing_email_click", {
-    page_location: new URL(path, window.location.origin).href,
-    page_path: path,
+    ...eventContext(path, metadata),
     contact_type: "commercial_licensing",
   });
+};
+
+export const trackResearchAccessPdfPrepared = (
+  path: string,
+  metadata: AnalyticsEventMetadata = {},
+) => {
+  if (!measurementId || typeof window === "undefined" || typeof window.gtag !== "function") return;
+
+  window.gtag("event", "research_access_pdf_prepared", eventContext(path, metadata));
 };

@@ -46,6 +46,8 @@ import {
   portalReleases,
 } from "@/data/portalDemo";
 import { portalLinks } from "@/data/portalLinks";
+import { trackResearchAccessPdfPrepared } from "@/lib/analytics";
+import { createLicensingMailto } from "@/lib/licensing";
 import { cn } from "@/lib/utils";
 import { getPortalHeaderEmail, selectPrimaryPortalIdentity } from "@/lib/portalUser";
 import { buildAnswerThreads, questionAnswerLabel, questionAuthorLabel, questionRequestTypeLabels, questionRequestTypes, questionTools, type ManagedQuestion, type QuestionAnswerThread, type QuestionRequestType, type QuestionTool, type QuestionVisibility } from "@/lib/questions";
@@ -86,7 +88,7 @@ const portalNav = [
 
 const publicSiteUrl = "https://ncidose.github.io/";
 const publicAccessRequestUrl = `${publicSiteUrl}portal/request-access/`;
-const commercialLicensingEmail = "mailto:kevin.chang@nih.gov?subject=NCI%20Dose%20Tools%20Licensing%20Inquiry";
+const commercialLicensingEmail = createLicensingMailto();
 const portalSupportEmail = "mailto:choonsik.lee@nih.gov?subject=NCI%20Dose%20Tools%20User%20Portal%20Help";
 
 export const AnnouncementBody = ({ children }: { children: string }) => (
@@ -326,11 +328,38 @@ const NewUserAccessOptions = ({ internalStaLink = false }: { internalStaLink?: b
   return (
     <div className="mt-5 space-y-3">
       {internalStaLink ? (
-        <Link to="/portal/request-access" className={optionClassName}>{researchContent}</Link>
+        <Link
+          to="/portal/request-access"
+          className={optionClassName}
+          data-analytics-event="research_access_start"
+          data-analytics-location="portal_new_user"
+          data-analytics-tool="suite"
+          data-analytics-audience="researcher"
+          data-analytics-action="request_research_access"
+        >
+          {researchContent}
+        </Link>
       ) : (
-        <a href={publicAccessRequestUrl} className={optionClassName}>{researchContent}</a>
+        <a
+          href={publicAccessRequestUrl}
+          className={optionClassName}
+          data-analytics-event="research_access_start"
+          data-analytics-location="portal_new_user"
+          data-analytics-tool="suite"
+          data-analytics-audience="researcher"
+          data-analytics-action="request_research_access"
+        >
+          {researchContent}
+        </a>
       )}
-      <a href={commercialLicensingEmail} className="flex items-center justify-between gap-4 border border-slate-300 px-4 py-3 text-left text-slate-700 transition-colors hover:border-primary hover:text-primary">
+      <a
+        href={commercialLicensingEmail}
+        className="flex items-center justify-between gap-4 border border-slate-300 px-4 py-3 text-left text-slate-700 transition-colors hover:border-primary hover:text-primary"
+        data-analytics-location="portal_new_user"
+        data-analytics-tool="suite"
+        data-analytics-audience="vendor"
+        data-analytics-action="email_licensing"
+      >
         <span><span className="block text-sm font-medium">Commercial user</span><span className="mt-0.5 block text-xs">Email Dr. Kevin Chang</span></span><Mail className="h-4 w-4 shrink-0" />
       </a>
     </div>
@@ -493,12 +522,21 @@ export const PortalSignIn = ({
               <a
                 href={publicAccessRequestUrl}
                 className="flex items-center justify-center gap-2 bg-primary px-4 py-3 text-sm font-medium text-white transition-colors hover:bg-primary/90"
+                data-analytics-event="research_access_start"
+                data-analytics-location="portal_access_denied"
+                data-analytics-tool="suite"
+                data-analytics-audience="researcher"
+                data-analytics-action="request_research_access"
               >
                 Research user: prepare and submit an STA <ChevronRight className="h-4 w-4" />
               </a>
               <a
                 href={commercialLicensingEmail}
                 className="flex items-center justify-center gap-2 border border-primary px-4 py-3 text-sm font-medium text-primary transition-colors hover:bg-primary hover:text-white"
+                data-analytics-location="portal_access_denied"
+                data-analytics-tool="suite"
+                data-analytics-audience="vendor"
+                data-analytics-action="email_licensing"
               >
                 Commercial user: email Dr. Kevin Chang <Mail className="h-4 w-4" />
               </a>
@@ -586,6 +624,11 @@ export const PortalSignIn = ({
                 className="h-12 w-full rounded-none"
                 disabled={!demoMode && !securePortalUrl}
                 onClick={beginSecureSignIn}
+                data-analytics-event="portal_login_click"
+                data-analytics-location="portal_sign_in"
+                data-analytics-tool="suite"
+                data-analytics-audience="approved_user"
+                data-analytics-action="sign_in_with_approved_email"
               >
                 <Mail className="h-4 w-4" /> Sign in with approved email
               </Button>
@@ -645,6 +688,7 @@ const PortalLoading = () => (
 );
 
 const AccessRequest = () => {
+  const location = useLocation();
   const [submitted, setSubmitted] = useState(false);
   const [preparingPdf, setPreparingPdf] = useState(false);
   const [pdfError, setPdfError] = useState("");
@@ -734,6 +778,12 @@ const AccessRequest = () => {
                 legalEmail: String(form.get("legalEmail") || ""),
                 legalPhone: String(form.get("legalPhone") || ""),
                 tools: selectedTools,
+              });
+              trackResearchAccessPdfPrepared(`${location.pathname}${location.search}`, {
+                ctaLocation: "research_access_form",
+                tool: selectedTools.length === 1 ? selectedTools[0].toLowerCase() : "multiple",
+                audience: "researcher",
+                action: "sta_pdf_prepared",
               });
               setSubmitted(true);
             } catch (error) {
@@ -860,7 +910,16 @@ const EligibilityQuestion = ({ name, question, value, onChange, instruction, sto
     </div>
     <p className={cn("mt-3 text-xs leading-relaxed", value === stopAnswer ? "border-l-2 border-amber-500 bg-amber-50 px-3 py-2 text-amber-900" : "text-muted-foreground")}>
       {instruction.split("kevin.chang@nih.gov")[0]}
-      <a className="font-medium underline" href="mailto:kevin.chang@nih.gov">kevin.chang@nih.gov</a>
+      <a
+        className="font-medium underline"
+        href={commercialLicensingEmail}
+        data-analytics-location="research_access_eligibility"
+        data-analytics-tool="suite"
+        data-analytics-audience="vendor"
+        data-analytics-action="email_licensing"
+      >
+        kevin.chang@nih.gov
+      </a>
       {instruction.split("kevin.chang@nih.gov")[1]}
     </p>
   </fieldset>
