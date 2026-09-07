@@ -18,7 +18,49 @@ describe("public vendor API demo", () => {
     const preset = vendorDemoPresets["ncirf-size-demo"];
     expect(preset.payload.Hist).toBe(100000);
     expect(preset.payload.Thread).toBe(2);
-    expect(vendorDemoLimits.perIpHourlyNcirf).toBeLessThan(vendorDemoLimits.perIpHourly);
+    const varied = vendorDemoRequestForInput({
+      presetId: "ncirf-size-demo",
+      parameters: {
+        phantomLibrary: 5,
+        age: 30,
+        pregnantAge: "35wk",
+        sex: "m",
+        heightCm: 170,
+        weightKg: 70,
+        kvp: 80,
+        hvlMmAl: 3.2,
+        sidCm: 100,
+        fieldWidthCm: 20,
+        fieldHeightCm: 15,
+        dapGyCm2: 250,
+        ppaDeg: 90,
+        psaDeg: -15,
+        isoXCm: 20,
+        isoYCm: 15,
+        isoZCm: 90,
+        tableCm: 2,
+      },
+    });
+    expect(varied?.payload).toMatchObject({
+      PhtLib: 5,
+      Age: "35wk",
+      kVp: 80,
+      HVL: 3.2,
+      SID: 100,
+      FW: 20,
+      FH: 15,
+      DAP: 250,
+      PPA: 90,
+      PSA: -15,
+      ISOZ: 90,
+      Hist: 100000,
+      Thread: 2,
+    });
+    expect(vendorDemoRequestForInput({ presetId: "ncirf-size-demo", parameters: { Hist: 5000000 } })).toBeNull();
+    expect(vendorDemoRequestForInput({ presetId: "ncirf-size-demo", parameters: { threads: 8 } })).toBeNull();
+    expect(vendorDemoLimits.perIpHourly).toBe(60);
+    expect(vendorDemoLimits.perIpThirtyMinutesNcirf).toBe(5);
+    expect(vendorDemoLimits.globalDailyNcirf).toBe(60);
     expect(vendorDemoLimits.concurrentNcirf).toBe(1);
   });
 
@@ -56,7 +98,7 @@ describe("public vendor API demo", () => {
     }, { waitUntil: vi.fn() });
 
     expect(response.status).toBe(200);
-    expect(statements.some((sql) => sql.includes("request_ip_hash=? AND tool='ncirf'"))).toBe(true);
+    expect(statements.some((sql) => sql.includes("request_ip_hash=? AND tool='ncirf'") && sql.includes("datetime('now', ?)"))).toBe(true);
   });
 
   it("keeps the API key server-side while proxying the fixed payload", async () => {

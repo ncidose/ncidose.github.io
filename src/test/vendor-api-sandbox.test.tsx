@@ -45,7 +45,10 @@ describe("vendor API sandbox", () => {
       },
     });
     expect(JSON.stringify(options)).not.toContain("X-API-Key");
-    expect(screen.getByText(/"effective_dose_mSv": 3.25/i)).toBeInTheDocument();
+    const responseText = screen.getByText(/"effective_dose_mSv": 3.25/i);
+    expect(responseText).toBeInTheDocument();
+    expect(responseText.closest("pre")).toHaveClass("whitespace-pre-wrap", "break-words");
+    expect(responseText.closest("pre")).not.toHaveClass("overflow-auto", "h-[360px]");
     expect(analyticsMocks.trackVendorSandboxEvent).toHaveBeenCalledWith(
       "vendor_sandbox_run",
       "ncinm",
@@ -67,5 +70,24 @@ describe("vendor API sandbox", () => {
     expect(screen.getByText(/not for clinical use/i)).toBeInTheDocument();
     expect(screen.getByText(/same hypothetical inputs in your current solution/i)).toBeInTheDocument();
     expect(screen.getAllByRole("tab")).toHaveLength(3);
+  });
+
+  it("offers varied NCIRF phantom and geometry inputs while fixing compute controls", () => {
+    render(<VendorApiSandbox initialTool="ncirf" />);
+
+    expect(screen.getByLabelText("Phantom library")).toBeInTheDocument();
+    expect(screen.getByLabelText("Height (cm)")).toBeInTheDocument();
+    expect(screen.getByLabelText("Weight (kg)")).toBeInTheDocument();
+    expect(screen.getByLabelText("Tube potential (kVp)")).toBeInTheDocument();
+    expect(screen.getByLabelText("Primary angle (°)")).toBeInTheDocument();
+    expect(screen.getByLabelText("Isocenter Z (cm)")).toBeInTheDocument();
+    expect(screen.queryByLabelText(/histories/i)).not.toBeInTheDocument();
+    expect(screen.queryByLabelText(/threads/i)).not.toBeInTheDocument();
+
+    fireEvent.change(screen.getByLabelText("Phantom library"), { target: { value: "5" } });
+    expect(screen.getByLabelText("Gestational age")).toBeInTheDocument();
+    expect(screen.queryByLabelText("Height (cm)")).not.toBeInTheDocument();
+    expect(screen.getByRole("tabpanel").textContent).toContain("\"Hist\": 100000");
+    expect(screen.getByRole("tabpanel").textContent).toContain("\"Thread\": 2");
   });
 });

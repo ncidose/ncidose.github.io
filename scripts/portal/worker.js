@@ -30,11 +30,11 @@ export const vendorDemoPresets = Object.freeze({
   },
 });
 export const vendorDemoLimits = Object.freeze({
-  perIpHourly: 8,
-  perIpHourlyNcirf: 2,
-  globalDaily: 300,
-  globalDailyNcirf: 30,
-  concurrent: 3,
+  perIpHourly: 60,
+  perIpThirtyMinutesNcirf: 5,
+  globalDaily: 2000,
+  globalDailyNcirf: 60,
+  concurrent: 10,
   concurrentNcirf: 1,
 });
 export const vendorDemoPresetForInput = (input = {}) =>
@@ -49,8 +49,13 @@ const vendorDemoProtocolRanges = Object.freeze({
 const vendorDemoParameterKeys = Object.freeze({
   ncict: new Set(["age", "sex", "protocol", "kvp", "ctdivol"]),
   ncinm: new Set(["phantomLibrary", "sex", "age", "administeredActivityMbq"]),
-  ncirf: new Set(["dapGyCm2"]),
+  ncirf: new Set([
+    "phantomLibrary", "age", "pregnantAge", "sex", "heightCm", "weightKg",
+    "kvp", "hvlMmAl", "sidCm", "fieldWidthCm", "fieldHeightCm", "dapGyCm2",
+    "ppaDeg", "psaDeg", "isoXCm", "isoYCm", "isoZCm", "tableCm",
+  ]),
 });
+const vendorDemoPregnantAges = new Set(["8wk", "10wk", "15wk", "20wk", "25wk", "30wk", "35wk", "38wk"]);
 const plainObject = (value) => Boolean(value && typeof value === "object" && !Array.isArray(value));
 const onlyKeys = (value, allowed) => Object.keys(value).every((key) => allowed.has(key));
 const finiteNumber = (value, minimum, maximum) =>
@@ -75,9 +80,70 @@ export const vendorDemoRequestForInput = (input = {}) => {
     return { preset, parameters: normalized, payload: { ...preset.payload, phantom_library: normalized.phantomLibrary, sex: normalized.sex, age: normalized.age, administered_activity_mbq: normalized.administeredActivityMbq } };
   }
 
-  const normalized = { dapGyCm2: parameters.dapGyCm2 ?? 100 };
-  if (!finiteNumber(normalized.dapGyCm2, 1, 100)) return null;
-  return { preset, parameters: normalized, payload: { ...preset.payload, DAP: normalized.dapGyCm2 } };
+  const normalized = {
+    phantomLibrary: parameters.phantomLibrary ?? 4,
+    age: parameters.age ?? 30,
+    pregnantAge: parameters.pregnantAge ?? "20wk",
+    sex: parameters.sex ?? "f",
+    heightCm: parameters.heightCm ?? 150,
+    weightKg: parameters.weightKg ?? 40,
+    kvp: parameters.kvp ?? 28,
+    hvlMmAl: parameters.hvlMmAl ?? 0.46,
+    sidCm: parameters.sidCm ?? 80,
+    fieldWidthCm: parameters.fieldWidthCm ?? 10,
+    fieldHeightCm: parameters.fieldHeightCm ?? 10,
+    dapGyCm2: parameters.dapGyCm2 ?? 100,
+    ppaDeg: parameters.ppaDeg ?? 180,
+    psaDeg: parameters.psaDeg ?? 0,
+    isoXCm: parameters.isoXCm ?? 16.5,
+    isoYCm: parameters.isoYCm ?? 13.7,
+    isoZCm: parameters.isoZCm ?? 75.1,
+    tableCm: parameters.tableCm ?? 1,
+  };
+  if (
+    ![1, 2, 3, 4, 5].includes(normalized.phantomLibrary)
+    || !finiteNumber(normalized.age, 0, 90)
+    || !vendorDemoPregnantAges.has(normalized.pregnantAge)
+    || !["f", "m"].includes(normalized.sex)
+    || !finiteNumber(normalized.heightCm, 50, 210)
+    || !finiteNumber(normalized.weightKg, 3, 200)
+    || !finiteNumber(normalized.kvp, 20, 150)
+    || !finiteNumber(normalized.hvlMmAl, 0.1, 20)
+    || !finiteNumber(normalized.sidCm, 30, 200)
+    || !finiteNumber(normalized.fieldWidthCm, 0.5, 60)
+    || !finiteNumber(normalized.fieldHeightCm, 0.5, 60)
+    || !finiteNumber(normalized.dapGyCm2, 0.1, 1000)
+    || !finiteNumber(normalized.ppaDeg, -360, 360)
+    || !finiteNumber(normalized.psaDeg, -180, 180)
+    || !finiteNumber(normalized.isoXCm, -100, 150)
+    || !finiteNumber(normalized.isoYCm, -100, 150)
+    || !finiteNumber(normalized.isoZCm, -20, 220)
+    || !finiteNumber(normalized.tableCm, 0, 15)
+  ) return null;
+  return {
+    preset,
+    parameters: normalized,
+    payload: {
+      ...preset.payload,
+      PhtLib: normalized.phantomLibrary,
+      Age: normalized.phantomLibrary === 5 ? normalized.pregnantAge : normalized.age,
+      Sex: normalized.sex,
+      HT: normalized.heightCm,
+      WT: normalized.weightKg,
+      kVp: normalized.kvp,
+      HVL: normalized.hvlMmAl,
+      SID: normalized.sidCm,
+      FW: normalized.fieldWidthCm,
+      FH: normalized.fieldHeightCm,
+      DAP: normalized.dapGyCm2,
+      PPA: normalized.ppaDeg,
+      PSA: normalized.psaDeg,
+      ISOX: normalized.isoXCm,
+      ISOY: normalized.isoYCm,
+      ISOZ: normalized.isoZCm,
+      Tbl: normalized.tableCm,
+    },
+  };
 };
 const qaRequestTypeLabel = (value) => ({
   technical_question: "Technical question",
@@ -130,20 +196,22 @@ const requestHasAllowedOrigin = (request, env) => {
 async function reserveVendorDemoRequest(request, env, preset) {
   const requestIp = request.headers.get("cf-connecting-ip") || "unknown";
   const requestIpHash = await keyedHash(`vendor-demo-ip:${requestIp}`, env.AUTH_SECRET);
+  const isNcirf = preset.tool === "ncirf";
+  const ipWindow = isNcirf ? "-30 minutes" : "-1 hour";
   const activeWindow = preset.tool === "ncirf" ? "-10 minutes" : "-2 minutes";
-  const ipRecentStatement = preset.tool === "ncirf"
-    ? env.DB.prepare("SELECT COUNT(*) AS total FROM vendor_demo_requests WHERE request_ip_hash=? AND tool='ncirf' AND created_at >= datetime('now', '-1 hour')").bind(requestIpHash)
-    : env.DB.prepare("SELECT COUNT(*) AS total FROM vendor_demo_requests WHERE request_ip_hash=? AND created_at >= datetime('now', '-1 hour')").bind(requestIpHash);
+  const ipRecentStatement = isNcirf
+    ? env.DB.prepare("SELECT COUNT(*) AS total FROM vendor_demo_requests WHERE request_ip_hash=? AND tool='ncirf' AND created_at >= datetime('now', ?)").bind(requestIpHash, ipWindow)
+    : env.DB.prepare("SELECT COUNT(*) AS total FROM vendor_demo_requests WHERE request_ip_hash=? AND created_at >= datetime('now', ?)").bind(requestIpHash, ipWindow);
   const [ipRecent, globalRecent, toolRecent, active] = await Promise.all([
     ipRecentStatement.first(),
     env.DB.prepare("SELECT COUNT(*) AS total FROM vendor_demo_requests WHERE created_at >= datetime('now', '-1 day')").first(),
     env.DB.prepare("SELECT COUNT(*) AS total FROM vendor_demo_requests WHERE tool=? AND created_at >= datetime('now', '-1 day')").bind(preset.tool).first(),
     env.DB.prepare("SELECT COUNT(*) AS total FROM vendor_demo_requests WHERE tool=? AND result='started' AND created_at >= datetime('now', ?)").bind(preset.tool, activeWindow).first(),
   ]);
-  const ipLimit = preset.tool === "ncirf" ? vendorDemoLimits.perIpHourlyNcirf : vendorDemoLimits.perIpHourly;
-  const toolLimit = preset.tool === "ncirf" ? vendorDemoLimits.globalDailyNcirf : vendorDemoLimits.globalDaily;
-  const concurrentLimit = preset.tool === "ncirf" ? vendorDemoLimits.concurrentNcirf : vendorDemoLimits.concurrent;
-  if (Number(ipRecent?.total) >= ipLimit || Number(globalRecent?.total) >= vendorDemoLimits.globalDaily || Number(toolRecent?.total) >= toolLimit) return { error: "too_many_demo_requests", retryAfter: 3600 };
+  const ipLimit = isNcirf ? vendorDemoLimits.perIpThirtyMinutesNcirf : vendorDemoLimits.perIpHourly;
+  const toolLimit = isNcirf ? vendorDemoLimits.globalDailyNcirf : vendorDemoLimits.globalDaily;
+  const concurrentLimit = isNcirf ? vendorDemoLimits.concurrentNcirf : vendorDemoLimits.concurrent;
+  if (Number(ipRecent?.total) >= ipLimit || Number(globalRecent?.total) >= vendorDemoLimits.globalDaily || Number(toolRecent?.total) >= toolLimit) return { error: "too_many_demo_requests", retryAfter: isNcirf ? 1800 : 3600 };
   if (Number(active?.total) >= concurrentLimit) return { error: "demo_busy", retryAfter: preset.tool === "ncirf" ? 120 : 30 };
   const id = crypto.randomUUID();
   await env.DB.prepare("INSERT INTO vendor_demo_requests (id, request_ip_hash, tool, preset_id, result) VALUES (?, ?, ?, ?, 'started')").bind(id, requestIpHash, preset.tool, preset.id).run();

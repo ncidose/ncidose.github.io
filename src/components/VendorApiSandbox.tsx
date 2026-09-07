@@ -28,7 +28,7 @@ const demoErrors: Record<string, string> = {
   demo_upstream_error: "The calculation server did not complete this example. Please try again later.",
   invalid_demo_parameters: "One or more demonstration inputs are outside the allowed range.",
   invalid_origin: "This demonstration can be run only from the NCI Dose Tools website.",
-  too_many_demo_requests: "The hourly demonstration limit has been reached. Please try again later.",
+  too_many_demo_requests: "The demonstration request limit has been reached. Please try again later.",
 };
 
 const formattedJson = (value: unknown) => JSON.stringify(value, null, 2);
@@ -36,6 +36,43 @@ const formattedJson = (value: unknown) => JSON.stringify(value, null, 2);
 type ParameterValue = string | number;
 
 const selectClassName = "mt-2 w-full border border-slate-600 bg-slate-950 px-3 py-2 text-sm text-white outline-none focus:border-sky-400";
+const numberInputClassName = "mt-2 w-full border border-slate-600 bg-slate-950 px-3 py-2 text-sm text-white outline-none focus:border-sky-400";
+
+const NumberInput = ({
+  label,
+  name,
+  value,
+  min,
+  max,
+  step = 1,
+  unit,
+  disabled,
+  onChange,
+}: {
+  label: string;
+  name: string;
+  value: ParameterValue;
+  min: number;
+  max: number;
+  step?: number;
+  unit?: string;
+  disabled: boolean;
+  onChange: (name: string, value: ParameterValue) => void;
+}) => (
+  <label className="text-xs text-slate-300">
+    {label}{unit ? ` (${unit})` : ""}
+    <input
+      type="number"
+      value={value}
+      min={min}
+      max={max}
+      step={step}
+      disabled={disabled}
+      onChange={(event) => onChange(name, Number(event.target.value))}
+      className={numberInputClassName}
+    />
+  </label>
+);
 
 const ParameterControls = ({
   preset,
@@ -68,9 +105,67 @@ const ParameterControls = ({
       </div>
     )}
     {preset.tool === "ncirf" && (
-      <div className="mt-3">
-        <label className="text-xs text-slate-300"><span className="flex justify-between gap-3"><span>Dose-area product</span><output>{parameters.dapGyCm2} Gy·cm²</output></span><input type="range" min="1" max="100" step="1" value={parameters.dapGyCm2} disabled={disabled} onChange={(event) => onChange("dapGyCm2", Number(event.target.value))} className="mt-2 w-full accent-sky-400" /></label>
-        <p className="mt-3 text-xs leading-5 text-slate-400">Geometry, phantom, particle history, and thread count remain fixed to bound server load.</p>
+      <div className="mt-3 space-y-5">
+        <div>
+          <div className="font-mono text-[10px] uppercase tracking-widest text-slate-400">Phantom</div>
+          <div className="mt-3 grid gap-3 sm:grid-cols-2">
+            <label className="text-xs text-slate-300">
+              Phantom library
+              <select value={parameters.phantomLibrary} disabled={disabled} onChange={(event) => onChange("phantomLibrary", Number(event.target.value))} className={selectClassName}>
+                <option value={1}>Reference · arms raised</option>
+                <option value={2}>Reference · arms lowered</option>
+                <option value={3}>Reference · arms rotated</option>
+                <option value={4}>Size-dependent</option>
+                <option value={5}>Pregnant</option>
+              </select>
+            </label>
+            {Number(parameters.phantomLibrary) === 5 ? (
+              <label className="text-xs text-slate-300">
+                Gestational age
+                <select value={parameters.pregnantAge} disabled={disabled} onChange={(event) => onChange("pregnantAge", event.target.value)} className={selectClassName}>
+                  {["8wk", "10wk", "15wk", "20wk", "25wk", "30wk", "35wk", "38wk"].map((age) => <option key={age} value={age}>{age}</option>)}
+                </select>
+              </label>
+            ) : (
+              <NumberInput label="Age" name="age" value={parameters.age} min={0} max={90} disabled={disabled} onChange={onChange} />
+            )}
+            {Number(parameters.phantomLibrary) !== 5 && (
+              <label className="text-xs text-slate-300">
+                Sex
+                <select value={parameters.sex} disabled={disabled} onChange={(event) => onChange("sex", event.target.value)} className={selectClassName}>
+                  <option value="f">Female</option>
+                  <option value="m">Male</option>
+                </select>
+              </label>
+            )}
+            {Number(parameters.phantomLibrary) === 4 && (
+              <>
+                <NumberInput label="Height" name="heightCm" value={parameters.heightCm} min={50} max={210} unit="cm" disabled={disabled} onChange={onChange} />
+                <NumberInput label="Weight" name="weightKg" value={parameters.weightKg} min={3} max={200} unit="kg" disabled={disabled} onChange={onChange} />
+              </>
+            )}
+          </div>
+        </div>
+
+        <div className="border-t border-slate-700 pt-5">
+          <div className="font-mono text-[10px] uppercase tracking-widest text-slate-400">Beam &amp; geometry</div>
+          <div className="mt-3 grid gap-3 sm:grid-cols-2">
+            <NumberInput label="Tube potential" name="kvp" value={parameters.kvp} min={20} max={150} unit="kVp" disabled={disabled} onChange={onChange} />
+            <NumberInput label="HVL" name="hvlMmAl" value={parameters.hvlMmAl} min={0.1} max={20} step={0.01} unit="mm Al" disabled={disabled} onChange={onChange} />
+            <NumberInput label="SID" name="sidCm" value={parameters.sidCm} min={30} max={200} unit="cm" disabled={disabled} onChange={onChange} />
+            <NumberInput label="Dose-area product" name="dapGyCm2" value={parameters.dapGyCm2} min={0.1} max={1000} step={0.1} unit="Gy·cm²" disabled={disabled} onChange={onChange} />
+            <NumberInput label="Field width" name="fieldWidthCm" value={parameters.fieldWidthCm} min={0.5} max={60} step={0.5} unit="cm" disabled={disabled} onChange={onChange} />
+            <NumberInput label="Field height" name="fieldHeightCm" value={parameters.fieldHeightCm} min={0.5} max={60} step={0.5} unit="cm" disabled={disabled} onChange={onChange} />
+            <NumberInput label="Primary angle" name="ppaDeg" value={parameters.ppaDeg} min={-360} max={360} unit="°" disabled={disabled} onChange={onChange} />
+            <NumberInput label="Secondary angle" name="psaDeg" value={parameters.psaDeg} min={-180} max={180} unit="°" disabled={disabled} onChange={onChange} />
+            <NumberInput label="Isocenter X" name="isoXCm" value={parameters.isoXCm} min={-100} max={150} step={0.1} unit="cm" disabled={disabled} onChange={onChange} />
+            <NumberInput label="Isocenter Y" name="isoYCm" value={parameters.isoYCm} min={-100} max={150} step={0.1} unit="cm" disabled={disabled} onChange={onChange} />
+            <NumberInput label="Isocenter Z" name="isoZCm" value={parameters.isoZCm} min={-20} max={220} step={0.1} unit="cm" disabled={disabled} onChange={onChange} />
+            <NumberInput label="Table thickness" name="tableCm" value={parameters.tableCm} min={0} max={15} step={0.1} unit="cm" disabled={disabled} onChange={onChange} />
+          </div>
+        </div>
+
+        <p className="text-xs leading-5 text-slate-400">Case ID is synthetic. Particle histories (100,000) and threads (2) remain fixed to bound server load.</p>
       </div>
     )}
   </div>
@@ -217,7 +312,7 @@ export const VendorApiSandbox = ({ initialTool }: { initialTool?: string | null 
                 <details>
                   <summary className="cursor-pointer px-5 py-4 font-mono text-xs text-sky-300 hover:text-white">View request JSON</summary>
                   <div className="grid grid-cols-[auto_1fr] gap-x-4 border-y border-slate-700 px-5 py-3 font-mono text-xs"><span className="text-emerald-300">POST</span><span className="break-all text-slate-200">{selected.endpoint}</span></div>
-                  <pre className="max-h-[260px] overflow-auto p-5 text-xs leading-relaxed text-slate-200"><code>{formattedJson(displayedRequest)}</code></pre>
+                  <pre className="whitespace-pre-wrap break-words p-5 text-xs leading-relaxed text-slate-200"><code>{formattedJson(displayedRequest)}</code></pre>
                 </details>
               </div>
 
@@ -285,7 +380,7 @@ export const VendorApiSandbox = ({ initialTool }: { initialTool?: string | null 
                     <div className="flex items-center gap-2 border-b border-emerald-200 bg-emerald-50 px-5 py-3 text-sm text-emerald-900" role="status">
                       <CheckCircle2 className="h-4 w-4" /> Live calculation completed
                     </div>
-                    <pre className="h-[360px] overflow-auto p-5 text-xs leading-relaxed text-slate-800 sm:text-sm">
+                    <pre className="whitespace-pre-wrap break-words p-5 text-xs leading-relaxed text-slate-800 sm:text-sm">
                       <code>{formattedJson(responseBody)}</code>
                     </pre>
                   </div>

@@ -69,7 +69,7 @@ export const vendorApiDemoPresets: VendorApiDemoPreset[] = [
     name: "Size-matched projection",
     modality: "NCIRF",
     description:
-      "Runs a reduced-history, fixed projection case to demonstrate the GEANT4-backed response.",
+      "Runs a reduced-history GEANT4 case with adjustable phantom, spectrum, and projection geometry.",
     endpoint: "https://ncirf-api.ncidosetools.com/param",
     request: {
       ID: "public-vendor-demo",
@@ -94,7 +94,24 @@ export const vendorApiDemoPresets: VendorApiDemoPreset[] = [
       Thread: 2,
     },
     defaultParameters: {
+      phantomLibrary: 4,
+      age: 30,
+      pregnantAge: "20wk",
+      sex: "f",
+      heightCm: 150,
+      weightKg: 40,
+      kvp: 28,
+      hvlMmAl: 0.46,
+      sidCm: 80,
+      fieldWidthCm: 10,
+      fieldHeightCm: 10,
       dapGyCm2: 100,
+      ppaDeg: 180,
+      psaDeg: 0,
+      isoXCm: 16.5,
+      isoYCm: 13.7,
+      isoZCm: 75.1,
+      tableCm: 1,
     },
     expectedTime: "May take up to about one minute",
   },
@@ -136,5 +153,25 @@ export const buildVendorApiDemoRequest = (
       administered_activity_mbq: Number(parameters.administeredActivityMbq),
     };
   }
-  return { ...preset.request, DAP: Number(parameters.dapGyCm2) };
+  const phantomLibrary = Number(parameters.phantomLibrary);
+  return {
+    ...preset.request,
+    PhtLib: phantomLibrary,
+    Age: phantomLibrary === 5 ? String(parameters.pregnantAge) : Number(parameters.age),
+    Sex: String(parameters.sex),
+    HT: Number(parameters.heightCm),
+    WT: Number(parameters.weightKg),
+    kVp: Number(parameters.kvp),
+    HVL: Number(parameters.hvlMmAl),
+    SID: Number(parameters.sidCm),
+    FW: Number(parameters.fieldWidthCm),
+    FH: Number(parameters.fieldHeightCm),
+    DAP: Number(parameters.dapGyCm2),
+    PPA: Number(parameters.ppaDeg),
+    PSA: Number(parameters.psaDeg),
+    ISOX: Number(parameters.isoXCm),
+    ISOY: Number(parameters.isoYCm),
+    ISOZ: Number(parameters.isoZCm),
+    Tbl: Number(parameters.tableCm),
+  };
 };
