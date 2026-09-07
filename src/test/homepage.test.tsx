@@ -63,29 +63,14 @@ describe("homepage visitor paths", () => {
     expect(screen.queryByText(/new users can also start an access request from the same page/i)).not.toBeInTheDocument();
   });
 
-  it("exposes measurable research, vendor, and approved-user actions", () => {
+  it("exposes measurable role pathways without duplicated hero actions", () => {
     render(
       <MemoryRouter initialEntries={["/"]}>
         <Index />
       </MemoryRouter>,
     );
 
-    const heroResearch = document.querySelector(
-      '[data-analytics-location="homepage_hero"][data-analytics-event="research_access_start"]',
-    );
-    const heroVendor = document.querySelector(
-      '[data-analytics-location="homepage_hero"][data-analytics-event="vendor_sandbox_open"]',
-    );
-    const heroPortal = document.querySelector(
-      '[data-analytics-location="homepage_hero"][data-analytics-event="portal_login_click"]',
-    );
-
-    expect(heroResearch).toHaveAttribute("href", "/portal/request-access/");
-    expectAnalytics(heroResearch, "research_access_start", "homepage_hero", "researcher", "request_research_access");
-    expect(heroVendor).toHaveAttribute("href", "/vendors#api-sandbox");
-    expectAnalytics(heroVendor, "vendor_sandbox_open", "homepage_hero", "vendor", "open_live_demo");
-    expect(heroPortal).toHaveAttribute("href", "https://portal.ncidosetools.com");
-    expectAnalytics(heroPortal, "portal_login_click", "homepage_hero", "approved_user", "open_user_portal");
+    expect(document.querySelector('[data-analytics-location="homepage_hero"]')).toBeNull();
 
     const pathwayLinks = document.querySelectorAll('[data-analytics-location="homepage_pathway"]');
     expect(pathwayLinks).toHaveLength(3);

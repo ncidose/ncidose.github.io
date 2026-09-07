@@ -1,11 +1,8 @@
 import { motion } from "framer-motion";
-import { Link } from "react-router-dom";
-import { ExternalLink } from "lucide-react";
-import { portalLinks } from "@/data/nciDoseTools";
 
 export const Hero = () => {
   return (
-    <section className="relative flex items-center justify-center overflow-hidden pb-16 pt-28 sm:pb-20 sm:pt-36">
+    <section className="relative flex items-center justify-center overflow-hidden pb-8 pt-24 sm:pb-10 sm:pt-28">
       <div className="container mx-auto px-6 relative z-10 flex justify-center">
         <div className="max-w-4xl space-y-6 text-center">
           <motion.div
@@ -37,50 +34,6 @@ export const Hero = () => {
             and radiography/fluoroscopy research, with a public live sandbox for
             vendor API testing and licensed pathways for production integration.
           </motion.p>
-
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.7, delay: 0.3, ease: [0.16, 1, 0.3, 1] }}
-            className="flex flex-col items-stretch justify-center gap-3 pt-2 sm:flex-row sm:flex-wrap sm:items-center"
-          >
-            <Link
-              to="/portal/request-access/"
-              className="btn-precision inline-flex items-center justify-center text-sm"
-              data-analytics-event="research_access_start"
-              data-analytics-location="homepage_hero"
-              data-analytics-tool="suite"
-              data-analytics-audience="researcher"
-              data-analytics-action="request_research_access"
-            >
-              Request Research Access
-            </Link>
-            <Link
-              to="/vendors#api-sandbox"
-              className="btn-precision-outline inline-flex items-center justify-center text-sm"
-              data-analytics-event="vendor_sandbox_open"
-              data-analytics-location="homepage_hero"
-              data-analytics-tool="suite"
-              data-analytics-audience="vendor"
-              data-analytics-action="open_live_demo"
-            >
-              Try Live API Sandbox
-            </Link>
-            <a
-              href={portalLinks.userPortal}
-              target="_blank"
-              rel="noopener noreferrer"
-              aria-label="Approved User Portal (opens in a new tab)"
-              className="btn-precision-outline inline-flex items-center justify-center gap-2 text-sm"
-              data-analytics-event="portal_login_click"
-              data-analytics-location="homepage_hero"
-              data-analytics-tool="suite"
-              data-analytics-audience="approved_user"
-              data-analytics-action="open_user_portal"
-            >
-              Approved User Portal <ExternalLink className="h-3.5 w-3.5" />
-            </a>
-          </motion.div>
         </div>
       </div>
     </section>

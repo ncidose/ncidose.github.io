@@ -44,7 +44,7 @@ const startingPoints = [
 
 export const WhereToStart = () => {
   return (
-    <section id="where-to-start" className="py-16 sm:py-20">
+    <section id="where-to-start" className="pb-16 pt-8 sm:pb-20 sm:pt-10">
       <div className="container mx-auto px-6">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
