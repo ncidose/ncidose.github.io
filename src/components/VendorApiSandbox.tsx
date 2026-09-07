@@ -88,20 +88,38 @@ const ParameterControls = ({
   <div className="border-b border-slate-700 bg-slate-800/40 px-5 py-4">
     <div className="font-mono text-[11px] uppercase tracking-widest text-sky-300">Adjustable demo inputs</div>
     {preset.tool === "ncict" && (
-      <div className="mt-3 grid gap-3 sm:grid-cols-2">
-        <label className="text-xs text-slate-300">Age<select value={parameters.age} disabled={disabled} onChange={(event) => onChange("age", Number(event.target.value))} className={selectClassName}>{[5, 10, 15, 20, 40, 60].map((age) => <option key={age} value={age}>{age} years</option>)}</select></label>
-        <label className="text-xs text-slate-300">Sex<select value={parameters.sex} disabled={disabled} onChange={(event) => onChange("sex", event.target.value)} className={selectClassName}><option value="f">Female</option><option value="m">Male</option></select></label>
+      <div className="mt-3 space-y-4">
+        <div className="grid gap-3 sm:grid-cols-2">
         <label className="text-xs text-slate-300">Scan protocol<select value={parameters.protocol} disabled={disabled} onChange={(event) => onChange("protocol", event.target.value)} className={selectClassName}><option value="head">Head</option><option value="chest">Chest</option><option value="abdomen">Abdomen</option><option value="pelvis">Pelvis</option><option value="cap">Chest–abdomen–pelvis</option></select></label>
-        <label className="text-xs text-slate-300">Tube potential<select value={parameters.kvp} disabled={disabled} onChange={(event) => onChange("kvp", Number(event.target.value))} className={selectClassName}>{[80, 100, 120, 140].map((kvp) => <option key={kvp} value={kvp}>{kvp} kVp</option>)}</select></label>
-        <label className="text-xs text-slate-300 sm:col-span-2"><span className="flex justify-between gap-3"><span>CTDIvol</span><output>{parameters.ctdivol} mGy</output></span><input type="range" min="1" max="50" step="1" value={parameters.ctdivol} disabled={disabled} onChange={(event) => onChange("ctdivol", Number(event.target.value))} className="mt-2 w-full accent-sky-400" /></label>
+          <label className="text-xs text-slate-300"><span className="flex justify-between gap-3"><span>CTDIvol</span><output>{parameters.ctdivol} mGy</output></span><input type="range" min="1" max="50" step="1" value={parameters.ctdivol} disabled={disabled} onChange={(event) => onChange("ctdivol", Number(event.target.value))} className="mt-3 w-full accent-sky-400" /></label>
+        </div>
+        <details className="border border-slate-700 bg-slate-950/30">
+          <summary className="cursor-pointer px-4 py-3 font-mono text-[11px] uppercase tracking-widest text-sky-300 hover:text-white">Advanced patient &amp; scanner inputs</summary>
+          <div className="border-t border-slate-700 p-4">
+            <p className="text-xs leading-5 text-slate-400">Match patient and scanner settings using the <a className="text-sky-300 underline decoration-sky-500/50 underline-offset-2 hover:text-white" href="/manuals/ncict-api">NCICT API manual</a>.</p>
+            <div className="mt-4 grid gap-3 sm:grid-cols-3">
+              <label className="text-xs text-slate-300">Age<select value={parameters.age} disabled={disabled} onChange={(event) => onChange("age", Number(event.target.value))} className={selectClassName}>{[5, 10, 15, 20, 40, 60].map((age) => <option key={age} value={age}>{age} years</option>)}</select></label>
+              <label className="text-xs text-slate-300">Sex<select value={parameters.sex} disabled={disabled} onChange={(event) => onChange("sex", event.target.value)} className={selectClassName}><option value="f">Female</option><option value="m">Male</option></select></label>
+              <label className="text-xs text-slate-300">Tube potential<select value={parameters.kvp} disabled={disabled} onChange={(event) => onChange("kvp", Number(event.target.value))} className={selectClassName}>{[80, 100, 120, 140].map((kvp) => <option key={kvp} value={kvp}>{kvp} kVp</option>)}</select></label>
+            </div>
+          </div>
+        </details>
       </div>
     )}
     {preset.tool === "ncinm" && (
-      <div className="mt-3 grid gap-3 sm:grid-cols-2">
-        <label className="text-xs text-slate-300">Phantom library<select value={parameters.phantomLibrary} disabled={disabled} onChange={(event) => onChange("phantomLibrary", Number(event.target.value))} className={selectClassName}><option value={1}>NCI</option><option value={2}>ICRP</option></select></label>
-        <label className="text-xs text-slate-300">Sex<select value={parameters.sex} disabled={disabled} onChange={(event) => onChange("sex", event.target.value)} className={selectClassName}><option value="female">Female</option><option value="male">Male</option></select></label>
-        <label className="text-xs text-slate-300 sm:col-span-2"><span className="flex justify-between gap-3"><span>Age</span><output>{parameters.age} years</output></span><input type="range" min="0" max="90" step="1" value={parameters.age} disabled={disabled} onChange={(event) => onChange("age", Number(event.target.value))} className="mt-2 w-full accent-sky-400" /></label>
-        <label className="text-xs text-slate-300 sm:col-span-2"><span className="flex justify-between gap-3"><span>Administered activity</span><output>{parameters.administeredActivityMbq} MBq</output></span><input type="range" min="10" max="1000" step="10" value={parameters.administeredActivityMbq} disabled={disabled} onChange={(event) => onChange("administeredActivityMbq", Number(event.target.value))} className="mt-2 w-full accent-sky-400" /></label>
+      <div className="mt-3 space-y-4">
+        <label className="block text-xs text-slate-300"><span className="flex justify-between gap-3"><span>Administered activity</span><output>{parameters.administeredActivityMbq} MBq</output></span><input type="range" min="10" max="1000" step="10" value={parameters.administeredActivityMbq} disabled={disabled} onChange={(event) => onChange("administeredActivityMbq", Number(event.target.value))} className="mt-3 w-full accent-sky-400" /></label>
+        <details className="border border-slate-700 bg-slate-950/30">
+          <summary className="cursor-pointer px-4 py-3 font-mono text-[11px] uppercase tracking-widest text-sky-300 hover:text-white">Advanced phantom &amp; patient inputs</summary>
+          <div className="border-t border-slate-700 p-4">
+            <p className="text-xs leading-5 text-slate-400">Match phantom and patient settings using the <a className="text-sky-300 underline decoration-sky-500/50 underline-offset-2 hover:text-white" href="/manuals/ncinm-api">NCINM API manual</a>.</p>
+            <div className="mt-4 grid gap-3 sm:grid-cols-2">
+              <label className="text-xs text-slate-300">Phantom library<select value={parameters.phantomLibrary} disabled={disabled} onChange={(event) => onChange("phantomLibrary", Number(event.target.value))} className={selectClassName}><option value={1}>NCI</option><option value={2}>ICRP</option></select></label>
+              <label className="text-xs text-slate-300">Sex<select value={parameters.sex} disabled={disabled} onChange={(event) => onChange("sex", event.target.value)} className={selectClassName}><option value="female">Female</option><option value="male">Male</option></select></label>
+              <label className="text-xs text-slate-300 sm:col-span-2"><span className="flex justify-between gap-3"><span>Age</span><output>{parameters.age} years</output></span><input type="range" min="0" max="90" step="1" value={parameters.age} disabled={disabled} onChange={(event) => onChange("age", Number(event.target.value))} className="mt-3 w-full accent-sky-400" /></label>
+            </div>
+          </div>
+        </details>
       </div>
     )}
     {preset.tool === "ncirf" && (
@@ -148,22 +166,34 @@ const ParameterControls = ({
         </div>
 
         <div className="border-t border-slate-700 pt-5">
-          <div className="font-mono text-[10px] uppercase tracking-widest text-slate-400">Beam &amp; geometry</div>
+          <div className="font-mono text-[10px] uppercase tracking-widest text-slate-400">Exposure</div>
           <div className="mt-3 grid gap-3 sm:grid-cols-2">
             <NumberInput label="Tube potential" name="kvp" value={parameters.kvp} min={20} max={150} unit="kVp" disabled={disabled} onChange={onChange} />
             <NumberInput label="HVL" name="hvlMmAl" value={parameters.hvlMmAl} min={0.1} max={20} step={0.01} unit="mm Al" disabled={disabled} onChange={onChange} />
-            <NumberInput label="SID" name="sidCm" value={parameters.sidCm} min={30} max={200} unit="cm" disabled={disabled} onChange={onChange} />
             <NumberInput label="Dose-area product" name="dapGyCm2" value={parameters.dapGyCm2} min={0.1} max={1000} step={0.1} unit="Gy·cm²" disabled={disabled} onChange={onChange} />
-            <NumberInput label="Field width" name="fieldWidthCm" value={parameters.fieldWidthCm} min={0.5} max={60} step={0.5} unit="cm" disabled={disabled} onChange={onChange} />
-            <NumberInput label="Field height" name="fieldHeightCm" value={parameters.fieldHeightCm} min={0.5} max={60} step={0.5} unit="cm" disabled={disabled} onChange={onChange} />
-            <NumberInput label="Primary angle" name="ppaDeg" value={parameters.ppaDeg} min={-360} max={360} unit="°" disabled={disabled} onChange={onChange} />
-            <NumberInput label="Secondary angle" name="psaDeg" value={parameters.psaDeg} min={-180} max={180} unit="°" disabled={disabled} onChange={onChange} />
-            <NumberInput label="Isocenter X" name="isoXCm" value={parameters.isoXCm} min={-100} max={150} step={0.1} unit="cm" disabled={disabled} onChange={onChange} />
-            <NumberInput label="Isocenter Y" name="isoYCm" value={parameters.isoYCm} min={-100} max={150} step={0.1} unit="cm" disabled={disabled} onChange={onChange} />
-            <NumberInput label="Isocenter Z" name="isoZCm" value={parameters.isoZCm} min={-20} max={220} step={0.1} unit="cm" disabled={disabled} onChange={onChange} />
-            <NumberInput label="Table thickness" name="tableCm" value={parameters.tableCm} min={0} max={15} step={0.1} unit="cm" disabled={disabled} onChange={onChange} />
           </div>
         </div>
+
+        <details className="border border-slate-700 bg-slate-950/30">
+          <summary className="cursor-pointer px-4 py-3 font-mono text-[11px] uppercase tracking-widest text-sky-300 hover:text-white">Advanced RDSR-derived geometry</summary>
+          <div className="border-t border-slate-700 p-4">
+            <p className="text-xs leading-5 text-slate-400">
+              Enter one normalized irradiation event from your RDSR workflow. Confirm NCIRF angle and phantom-coordinate conventions in the{" "}
+              <a className="text-sky-300 underline decoration-sky-500/50 underline-offset-2 hover:text-white" href="/manuals/ncirf-api">NCIRF API manual</a>.
+            </p>
+            <div className="mt-4 grid gap-3 sm:grid-cols-2">
+              <NumberInput label="SID" name="sidCm" value={parameters.sidCm} min={30} max={200} unit="cm" disabled={disabled} onChange={onChange} />
+              <NumberInput label="Field width · FW" name="fieldWidthCm" value={parameters.fieldWidthCm} min={0.5} max={60} step={0.5} unit="cm" disabled={disabled} onChange={onChange} />
+              <NumberInput label="Field height · FH" name="fieldHeightCm" value={parameters.fieldHeightCm} min={0.5} max={60} step={0.5} unit="cm" disabled={disabled} onChange={onChange} />
+              <NumberInput label="Primary angle · PPA" name="ppaDeg" value={parameters.ppaDeg} min={-360} max={360} unit="°" disabled={disabled} onChange={onChange} />
+              <NumberInput label="Secondary angle · PSA" name="psaDeg" value={parameters.psaDeg} min={-180} max={180} unit="°" disabled={disabled} onChange={onChange} />
+              <NumberInput label="Isocenter X · ISOX" name="isoXCm" value={parameters.isoXCm} min={-100} max={150} step={0.1} unit="cm" disabled={disabled} onChange={onChange} />
+              <NumberInput label="Isocenter Y · ISOY" name="isoYCm" value={parameters.isoYCm} min={-100} max={150} step={0.1} unit="cm" disabled={disabled} onChange={onChange} />
+              <NumberInput label="Isocenter Z · ISOZ" name="isoZCm" value={parameters.isoZCm} min={-20} max={220} step={0.1} unit="cm" disabled={disabled} onChange={onChange} />
+              <NumberInput label="Table thickness · Tbl" name="tableCm" value={parameters.tableCm} min={0} max={15} step={0.1} unit="cm" disabled={disabled} onChange={onChange} />
+            </div>
+          </div>
+        </details>
 
         <p className="text-xs leading-5 text-slate-400">Case ID is synthetic. Particle histories (100,000) and threads (2) remain fixed to bound server load.</p>
       </div>
@@ -184,6 +214,7 @@ export const VendorApiSandbox = ({ initialTool }: { initialTool?: string | null 
   const selected = vendorApiDemoPresets.find((preset) => preset.id === selectedId) ?? initialPreset;
   const selectedParameters = parameterSets[selected.id] ?? selected.defaultParameters;
   const displayedRequest = buildVendorApiDemoRequest(selected, selectedParameters);
+  const rateLimitLabel = selected.tool === "ncirf" ? "5 runs / 30 min" : "30 runs / hour";
 
   const updateParameter = (name: string, value: ParameterValue) => {
     setParameterSets((current) => ({
@@ -263,9 +294,9 @@ export const VendorApiSandbox = ({ initialTool }: { initialTool?: string | null 
         <div className="mx-auto max-w-6xl">
           <div className="max-w-3xl">
             <span className="font-mono text-xs uppercase tracking-widest text-sky-300">Live Vendor Sandbox</span>
-            <h2 className="mt-4 text-section-md text-white lg:text-section">Try the APIs with a sample case</h2>
+            <h2 className="mt-4 text-section-md text-white lg:text-section">Try the APIs with a verified sample case</h2>
             <p className="mt-4 text-base leading-7 text-slate-300">
-              Select a tool, adjust a few safe inputs, and run a live calculation—no account or API key required.
+              Start with the simple inputs, or expand the advanced section to match a single de-identified case. No account or API key is required.
             </p>
           </div>
 
@@ -388,10 +419,9 @@ export const VendorApiSandbox = ({ initialTool }: { initialTool?: string | null 
               </div>
             </div>
           </div>
-          <div className="mt-5 flex flex-col gap-2 text-sm leading-6 text-slate-300 sm:flex-row sm:items-start sm:justify-between">
-            <p>Use the same hypothetical inputs in your current solution for a side-by-side technical comparison with the live result shown above.</p>
-            <p className="flex-none text-xs text-slate-400">Rate-limited · No identifiers · Not for clinical use</p>
-          </div>
+          <p className="mt-5 text-xs leading-5 text-slate-400">
+            Evaluation only · Single-case requests · {rateLimitLabel} · No identifiers · No production or clinical use · No SLA
+          </p>
         </div>
       </div>
     </section>

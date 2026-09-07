@@ -27,6 +27,7 @@ describe("vendor API sandbox", () => {
     vi.stubGlobal("fetch", fetchMock);
 
     render(<VendorApiSandbox initialTool="ncinm" />);
+    fireEvent.click(screen.getByText(/Advanced phantom & patient inputs/i));
     fireEvent.change(screen.getByLabelText("Sex"), { target: { value: "male" } });
     await waitFor(() => expect(screen.getByLabelText("Sex")).toHaveValue("male"));
     fireEvent.click(screen.getByRole("button", { name: /Run NCINM demo/i }));
@@ -63,24 +64,36 @@ describe("vendor API sandbox", () => {
     );
   });
 
-  it("states the safety and licensing boundaries before a demo is run", () => {
+  it("keeps simple and advanced inputs distinct while stating evaluation boundaries", () => {
     render(<VendorApiSandbox />);
 
     expect(screen.getByText(/No identifiers/i)).toBeInTheDocument();
-    expect(screen.getByText(/not for clinical use/i)).toBeInTheDocument();
-    expect(screen.getByText(/same hypothetical inputs in your current solution/i)).toBeInTheDocument();
+    expect(screen.getByText(/No production or clinical use/i)).toBeInTheDocument();
+    expect(screen.getByText(/Single-case requests/i)).toBeInTheDocument();
+    expect(screen.getByText(/30 runs \/ hour/i)).toBeInTheDocument();
+    expect(screen.queryByText(/same hypothetical inputs in your current solution/i)).not.toBeInTheDocument();
+    expect(screen.getByText(/Advanced patient & scanner inputs/i)).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /NCICT API manual/i })).toHaveAttribute("href", "/manuals/ncict-api");
     expect(screen.getAllByRole("tab")).toHaveLength(3);
+
+    fireEvent.click(screen.getByRole("tab", { name: /NCINM/i }));
+    expect(screen.getByText(/Advanced phantom & patient inputs/i)).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /NCINM API manual/i })).toHaveAttribute("href", "/manuals/ncinm-api");
   });
 
   it("offers varied NCIRF phantom and geometry inputs while fixing compute controls", () => {
     render(<VendorApiSandbox initialTool="ncirf" />);
 
+    expect(screen.getByText(/Advanced RDSR-derived geometry/i)).toBeInTheDocument();
+    expect(screen.getByText(/5 runs \/ 30 min/i)).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /NCIRF API manual/i })).toHaveAttribute("href", "/manuals/ncirf-api");
+    fireEvent.click(screen.getByText(/Advanced RDSR-derived geometry/i));
     expect(screen.getByLabelText("Phantom library")).toBeInTheDocument();
     expect(screen.getByLabelText("Height (cm)")).toBeInTheDocument();
     expect(screen.getByLabelText("Weight (kg)")).toBeInTheDocument();
     expect(screen.getByLabelText("Tube potential (kVp)")).toBeInTheDocument();
-    expect(screen.getByLabelText("Primary angle (°)")).toBeInTheDocument();
-    expect(screen.getByLabelText("Isocenter Z (cm)")).toBeInTheDocument();
+    expect(screen.getByLabelText("Primary angle · PPA (°)")).toBeInTheDocument();
+    expect(screen.getByLabelText("Isocenter Z · ISOZ (cm)")).toBeInTheDocument();
     expect(screen.queryByLabelText(/histories/i)).not.toBeInTheDocument();
     expect(screen.queryByLabelText(/threads/i)).not.toBeInTheDocument();
 

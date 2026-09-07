@@ -24,7 +24,7 @@ describe("commercial access guidance", () => {
     );
 
     const hero = screen.getByRole("heading", { name: /REST API-Ready Reference Dosimetry/i }).closest("section");
-    const sandbox = screen.getByRole("heading", { name: /Try the APIs with a sample case/i }).closest("section");
+    const sandbox = screen.getByRole("heading", { name: /Try the APIs with a verified sample case/i }).closest("section");
     const commercialAccess = screen.getByRole("heading", { name: /Start the commercial access conversation/i }).closest("section");
     expect(hero?.nextElementSibling).toBe(sandbox);
     expect(sandbox?.nextElementSibling).toBe(commercialAccess);
