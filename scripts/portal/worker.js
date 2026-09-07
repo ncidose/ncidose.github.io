@@ -26,7 +26,7 @@ export const vendorDemoPresets = Object.freeze({
     tool: "ncirf",
     endpoint: "https://ncirf-api.ncidosetools.com/param",
     timeoutMs: 90_000,
-    payload: { ID: "public-vendor-demo", PhtLib: 4, Age: 30, Sex: "f", HT: 150, WT: 40, kVp: 28, HVL: 0.46, SID: 80, FW: 10, FH: 10, DAP: 100, PPA: 180, PSA: 0, ISOX: 16.5, ISOY: 13.7, ISOZ: 75.1, Tbl: 1, Hist: 100000, Thread: 2 },
+    payload: { ID: "public-vendor-demo", PhtLib: 4, Age: 30, Sex: "f", HT: 150, WT: 40, kVp: 28, HVL: 0.46, SID: 80, FW: 10, FH: 10, DAP: 100, PPA: 180, PSA: 0, ISOX: 16.5, ISOY: 13.7, ISOZ: 75.1, Tbl: 1, Hist: 25000, Thread: 2 },
   },
 });
 export const vendorDemoLimits = Object.freeze({
@@ -41,14 +41,17 @@ export const vendorDemoPresetForInput = (input = {}) =>
   typeof input.presetId === "string" ? vendorDemoPresets[input.presetId] || null : null;
 const vendorDemoProtocolRanges = Object.freeze({
   head: [1001, 1003],
+  neck: [1002, 1005],
   chest: [1004, 1007],
   abdomen: [1006, 1008],
   pelvis: [1008, 1009],
+  abdomenPelvis: [1006, 1009],
   cap: [1004, 1009],
+  wholeBody: [1001, 1010],
 });
 const vendorDemoParameterKeys = Object.freeze({
-  ncict: new Set(["age", "sex", "protocol", "kvp", "ctdivol"]),
-  ncinm: new Set(["phantomLibrary", "sex", "age", "administeredActivityMbq"]),
+  ncict: new Set(["age", "sex", "protocol", "bodySizeMethod", "heightCm", "weightKg", "wedCm", "kvp", "tcmStrength", "headBody", "ctdivol"]),
+  ncinm: new Set(["phantomLibrary", "sex", "age", "radiopharmaceutical", "administeredActivityMbq"]),
   ncirf: new Set([
     "phantomLibrary", "age", "pregnantAge", "sex", "heightCm", "weightKg",
     "kvp", "hvlMmAl", "sidCm", "fieldWidthCm", "fieldHeightCm", "dapGyCm2",
@@ -68,16 +71,70 @@ export const vendorDemoRequestForInput = (input = {}) => {
   if (!preset || !plainObject(parameters) || !onlyKeys(parameters, vendorDemoParameterKeys[preset.tool])) return null;
 
   if (preset.tool === "ncict") {
-    const normalized = { age: parameters.age ?? 40, sex: parameters.sex ?? "f", protocol: parameters.protocol ?? "chest", kvp: parameters.kvp ?? 120, ctdivol: parameters.ctdivol ?? 10 };
-    if (![5, 10, 15, 20, 40, 60].includes(normalized.age) || !["f", "m"].includes(normalized.sex) || !Object.hasOwn(vendorDemoProtocolRanges, normalized.protocol) || ![80, 100, 120, 140].includes(normalized.kvp) || !finiteNumber(normalized.ctdivol, 1, 50)) return null;
+    const normalized = {
+      age: parameters.age ?? 40,
+      sex: parameters.sex ?? "f",
+      protocol: parameters.protocol ?? "chest",
+      bodySizeMethod: parameters.bodySizeMethod ?? "age-sex",
+      heightCm: parameters.heightCm ?? 165,
+      weightKg: parameters.weightKg ?? 65,
+      wedCm: parameters.wedCm ?? 25,
+      kvp: parameters.kvp ?? 120,
+      tcmStrength: parameters.tcmStrength ?? 0,
+      headBody: parameters.headBody ?? 2,
+      ctdivol: parameters.ctdivol ?? 10,
+    };
+    if (
+      !finiteNumber(normalized.age, 0, 90)
+      || !["f", "m"].includes(normalized.sex)
+      || !Object.hasOwn(vendorDemoProtocolRanges, normalized.protocol)
+      || !["age-sex", "wed", "height-weight"].includes(normalized.bodySizeMethod)
+      || !finiteNumber(normalized.heightCm, 40, 220)
+      || !finiteNumber(normalized.weightKg, 2, 300)
+      || !finiteNumber(normalized.wedCm, 5, 80)
+      || ![80, 100, 120, 140].includes(normalized.kvp)
+      || !finiteNumber(normalized.tcmStrength, 0, 1)
+      || ![1, 2].includes(normalized.headBody)
+      || !finiteNumber(normalized.ctdivol, 1, 50)
+    ) return null;
     const [start, end] = vendorDemoProtocolRanges[normalized.protocol];
-    return { preset, parameters: normalized, payload: { ...preset.payload, age: normalized.age, sex: normalized.sex, start, end, kvp: normalized.kvp, ctdivol: normalized.ctdivol } };
+    const payload = {
+      ...preset.payload,
+      age: normalized.age,
+      sex: normalized.sex,
+      start,
+      end,
+      kvp: normalized.kvp,
+      tcm_strength: normalized.tcmStrength,
+      head_body: normalized.headBody,
+      ctdivol: normalized.ctdivol,
+    };
+    if (normalized.bodySizeMethod === "wed") payload.wed = normalized.wedCm;
+    if (normalized.bodySizeMethod === "height-weight") {
+      payload.height = normalized.heightCm;
+      payload.weight = normalized.weightKg;
+    }
+    return { preset, parameters: normalized, payload };
   }
 
   if (preset.tool === "ncinm") {
-    const normalized = { phantomLibrary: parameters.phantomLibrary ?? 2, sex: parameters.sex ?? "female", age: parameters.age ?? 58, administeredActivityMbq: parameters.administeredActivityMbq ?? 200 };
-    if (![1, 2].includes(normalized.phantomLibrary) || !["female", "male"].includes(normalized.sex) || !finiteNumber(normalized.age, 0, 90) || !finiteNumber(normalized.administeredActivityMbq, 10, 1000)) return null;
-    return { preset, parameters: normalized, payload: { ...preset.payload, phantom_library: normalized.phantomLibrary, sex: normalized.sex, age: normalized.age, administered_activity_mbq: normalized.administeredActivityMbq } };
+    const normalized = {
+      phantomLibrary: parameters.phantomLibrary ?? 2,
+      sex: parameters.sex ?? "female",
+      age: parameters.age ?? 58,
+      radiopharmaceutical: typeof parameters.radiopharmaceutical === "string" ? parameters.radiopharmaceutical.trim() : "F-18 FDG",
+      administeredActivityMbq: parameters.administeredActivityMbq ?? 200,
+    };
+    if (
+      ![1, 2].includes(normalized.phantomLibrary)
+      || !["female", "male"].includes(normalized.sex)
+      || !finiteNumber(normalized.age, 0, 90)
+      || normalized.radiopharmaceutical.length < 1
+      || normalized.radiopharmaceutical.length > 120
+      || /[\u0000-\u001f\u007f]/.test(normalized.radiopharmaceutical)
+      || !finiteNumber(normalized.administeredActivityMbq, 10, 1000)
+    ) return null;
+    return { preset, parameters: normalized, payload: { ...preset.payload, phantom_library: normalized.phantomLibrary, sex: normalized.sex, age: normalized.age, radiopharmaceutical: normalized.radiopharmaceutical, administered_activity_mbq: normalized.administeredActivityMbq } };
   }
 
   const normalized = {

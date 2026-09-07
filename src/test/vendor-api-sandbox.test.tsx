@@ -27,6 +27,7 @@ describe("vendor API sandbox", () => {
     vi.stubGlobal("fetch", fetchMock);
 
     render(<VendorApiSandbox initialTool="ncinm" />);
+    fireEvent.change(screen.getByLabelText("Radiopharmaceutical name"), { target: { value: "Tc99m MDP bone scan" } });
     fireEvent.click(screen.getByText(/Advanced phantom & patient inputs/i));
     fireEvent.change(screen.getByLabelText("Sex"), { target: { value: "male" } });
     await waitFor(() => expect(screen.getByLabelText("Sex")).toHaveValue("male"));
@@ -42,6 +43,7 @@ describe("vendor API sandbox", () => {
         phantomLibrary: 2,
         sex: "male",
         age: 58,
+        radiopharmaceutical: "Tc99m MDP bone scan",
         administeredActivityMbq: 200,
       },
     });
@@ -74,9 +76,19 @@ describe("vendor API sandbox", () => {
     expect(screen.queryByText(/same hypothetical inputs in your current solution/i)).not.toBeInTheDocument();
     expect(screen.getByText(/Advanced patient & scanner inputs/i)).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /NCICT API manual/i })).toHaveAttribute("href", "/manuals/ncict-api");
+    fireEvent.click(screen.getByText(/Advanced patient & scanner inputs/i));
+    fireEvent.change(screen.getByLabelText("Body-size matching"), { target: { value: "wed" } });
+    expect(screen.getByLabelText("Water-equivalent diameter · WED (cm)")).toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText("Body-size matching"), { target: { value: "height-weight" } });
+    expect(screen.getByLabelText("Height (cm)")).toBeInTheDocument();
+    expect(screen.getByLabelText("Weight (kg)")).toBeInTheDocument();
+    expect(screen.getByLabelText("CTDI phantom")).toBeInTheDocument();
+    expect(screen.getByText(/Tube current modulation strength/i)).toBeInTheDocument();
     expect(screen.getAllByRole("tab")).toHaveLength(3);
 
     fireEvent.click(screen.getByRole("tab", { name: /NCINM/i }));
+    expect(screen.getByLabelText("Radiopharmaceutical name")).toHaveValue("F-18 FDG");
+    expect(screen.getByText(/matched entry, method, and score/i)).toBeInTheDocument();
     expect(screen.getByText(/Advanced phantom & patient inputs/i)).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /NCINM API manual/i })).toHaveAttribute("href", "/manuals/ncinm-api");
   });
@@ -100,7 +112,8 @@ describe("vendor API sandbox", () => {
     fireEvent.change(screen.getByLabelText("Phantom library"), { target: { value: "5" } });
     expect(screen.getByLabelText("Gestational age")).toBeInTheDocument();
     expect(screen.queryByLabelText("Height (cm)")).not.toBeInTheDocument();
-    expect(screen.getByRole("tabpanel").textContent).toContain("\"Hist\": 100000");
+    expect(screen.getByRole("tabpanel").textContent).toContain("\"Hist\": 25000");
     expect(screen.getByRole("tabpanel").textContent).toContain("\"Thread\": 2");
+    expect(screen.getByText(/approved dedicated vendor deployment/i)).toBeInTheDocument();
   });
 });

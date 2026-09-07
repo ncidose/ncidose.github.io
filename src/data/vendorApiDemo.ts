@@ -35,7 +35,13 @@ export const vendorApiDemoPresets: VendorApiDemoPreset[] = [
       age: 40,
       sex: "f",
       protocol: "chest",
+      bodySizeMethod: "age-sex",
+      heightCm: 165,
+      weightKg: 65,
+      wedCm: 25,
       kvp: 120,
+      tcmStrength: 0,
+      headBody: 2,
       ctdivol: 10,
     },
     expectedTime: "Usually completes in a few seconds",
@@ -59,6 +65,7 @@ export const vendorApiDemoPresets: VendorApiDemoPreset[] = [
       phantomLibrary: 2,
       sex: "female",
       age: 58,
+      radiopharmaceutical: "F-18 FDG",
       administeredActivityMbq: 200,
     },
     expectedTime: "Usually completes in a few seconds",
@@ -90,7 +97,7 @@ export const vendorApiDemoPresets: VendorApiDemoPreset[] = [
       ISOY: 13.7,
       ISOZ: 75.1,
       Tbl: 1,
-      Hist: 100000,
+      Hist: 25000,
       Thread: 2,
     },
     defaultParameters: {
@@ -113,7 +120,7 @@ export const vendorApiDemoPresets: VendorApiDemoPreset[] = [
       isoZCm: 75.1,
       tableCm: 1,
     },
-    expectedTime: "May take up to about one minute",
+    expectedTime: "Reduced-history demonstration; usually under 30 seconds",
   },
 ];
 
@@ -122,10 +129,13 @@ export const vendorApiDemoPresetForTool = (tool?: string | null) =>
 
 const protocolRanges: Record<string, [number, number]> = {
   head: [1001, 1003],
+  neck: [1002, 1005],
   chest: [1004, 1007],
   abdomen: [1006, 1008],
   pelvis: [1008, 1009],
+  abdomenPelvis: [1006, 1009],
   cap: [1004, 1009],
+  wholeBody: [1001, 1010],
 };
 
 export const buildVendorApiDemoRequest = (
@@ -134,15 +144,23 @@ export const buildVendorApiDemoRequest = (
 ) => {
   if (preset.tool === "ncict") {
     const [start, end] = protocolRanges[String(parameters.protocol)] ?? protocolRanges.chest;
-    return {
+    const request: Record<string, unknown> = {
       ...preset.request,
       age: Number(parameters.age),
       sex: String(parameters.sex),
       start,
       end,
       kvp: Number(parameters.kvp),
+      tcm_strength: Number(parameters.tcmStrength),
+      head_body: Number(parameters.headBody),
       ctdivol: Number(parameters.ctdivol),
     };
+    if (parameters.bodySizeMethod === "wed") request.wed = Number(parameters.wedCm);
+    if (parameters.bodySizeMethod === "height-weight") {
+      request.height = Number(parameters.heightCm);
+      request.weight = Number(parameters.weightKg);
+    }
+    return request;
   }
   if (preset.tool === "ncinm") {
     return {
@@ -150,6 +168,7 @@ export const buildVendorApiDemoRequest = (
       phantom_library: Number(parameters.phantomLibrary),
       sex: String(parameters.sex),
       age: Number(parameters.age),
+      radiopharmaceutical: String(parameters.radiopharmaceutical),
       administered_activity_mbq: Number(parameters.administeredActivityMbq),
     };
   }

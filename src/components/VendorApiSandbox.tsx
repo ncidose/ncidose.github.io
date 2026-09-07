@@ -37,6 +37,7 @@ type ParameterValue = string | number;
 
 const selectClassName = "mt-2 w-full border border-slate-600 bg-slate-950 px-3 py-2 text-sm text-white outline-none focus:border-sky-400";
 const numberInputClassName = "mt-2 w-full border border-slate-600 bg-slate-950 px-3 py-2 text-sm text-white outline-none focus:border-sky-400";
+const textInputClassName = "mt-2 w-full border border-slate-600 bg-slate-950 px-3 py-2 text-sm text-white outline-none placeholder:text-slate-600 focus:border-sky-400";
 
 const NumberInput = ({
   label,
@@ -90,25 +91,47 @@ const ParameterControls = ({
     {preset.tool === "ncict" && (
       <div className="mt-3 space-y-4">
         <div className="grid gap-3 sm:grid-cols-2">
-        <label className="text-xs text-slate-300">Scan protocol<select value={parameters.protocol} disabled={disabled} onChange={(event) => onChange("protocol", event.target.value)} className={selectClassName}><option value="head">Head</option><option value="chest">Chest</option><option value="abdomen">Abdomen</option><option value="pelvis">Pelvis</option><option value="cap">Chest–abdomen–pelvis</option></select></label>
+          <label className="text-xs text-slate-300">Scan protocol<select value={parameters.protocol} disabled={disabled} onChange={(event) => onChange("protocol", event.target.value)} className={selectClassName}><option value="head">Head</option><option value="neck">Neck</option><option value="chest">Chest</option><option value="abdomen">Abdomen</option><option value="pelvis">Pelvis</option><option value="abdomenPelvis">Abdomen–pelvis</option><option value="cap">Chest–abdomen–pelvis</option><option value="wholeBody">Whole body</option></select></label>
           <label className="text-xs text-slate-300"><span className="flex justify-between gap-3"><span>CTDIvol</span><output>{parameters.ctdivol} mGy</output></span><input type="range" min="1" max="50" step="1" value={parameters.ctdivol} disabled={disabled} onChange={(event) => onChange("ctdivol", Number(event.target.value))} className="mt-3 w-full accent-sky-400" /></label>
         </div>
         <details className="border border-slate-700 bg-slate-950/30">
           <summary className="cursor-pointer px-4 py-3 font-mono text-[11px] uppercase tracking-widest text-sky-300 hover:text-white">Advanced patient &amp; scanner inputs</summary>
           <div className="border-t border-slate-700 p-4">
-            <p className="text-xs leading-5 text-slate-400">Match patient and scanner settings using the <a className="text-sky-300 underline decoration-sky-500/50 underline-offset-2 hover:text-white" href="/manuals/ncict-api">NCICT API manual</a>.</p>
+            <p className="text-xs leading-5 text-slate-400">Choose age/sex, WED, or height/weight phantom matching as documented in the <a className="text-sky-300 underline decoration-sky-500/50 underline-offset-2 hover:text-white" href="/manuals/ncict-api">NCICT API manual</a>.</p>
             <div className="mt-4 grid gap-3 sm:grid-cols-3">
-              <label className="text-xs text-slate-300">Age<select value={parameters.age} disabled={disabled} onChange={(event) => onChange("age", Number(event.target.value))} className={selectClassName}>{[5, 10, 15, 20, 40, 60].map((age) => <option key={age} value={age}>{age} years</option>)}</select></label>
+              <NumberInput label="Age" name="age" value={parameters.age} min={0} max={90} unit="years" disabled={disabled} onChange={onChange} />
               <label className="text-xs text-slate-300">Sex<select value={parameters.sex} disabled={disabled} onChange={(event) => onChange("sex", event.target.value)} className={selectClassName}><option value="f">Female</option><option value="m">Male</option></select></label>
+              <label className="text-xs text-slate-300">Body-size matching<select value={parameters.bodySizeMethod} disabled={disabled} onChange={(event) => onChange("bodySizeMethod", event.target.value)} className={selectClassName}><option value="age-sex">Age and sex</option><option value="wed">Water-equivalent diameter</option><option value="height-weight">Height and weight</option></select></label>
+              {parameters.bodySizeMethod === "wed" && (
+                <NumberInput label="Water-equivalent diameter · WED" name="wedCm" value={parameters.wedCm} min={5} max={80} step={0.1} unit="cm" disabled={disabled} onChange={onChange} />
+              )}
+              {parameters.bodySizeMethod === "height-weight" && (
+                <>
+                  <NumberInput label="Height" name="heightCm" value={parameters.heightCm} min={40} max={220} step={0.1} unit="cm" disabled={disabled} onChange={onChange} />
+                  <NumberInput label="Weight" name="weightKg" value={parameters.weightKg} min={2} max={300} step={0.1} unit="kg" disabled={disabled} onChange={onChange} />
+                </>
+              )}
               <label className="text-xs text-slate-300">Tube potential<select value={parameters.kvp} disabled={disabled} onChange={(event) => onChange("kvp", Number(event.target.value))} className={selectClassName}>{[80, 100, 120, 140].map((kvp) => <option key={kvp} value={kvp}>{kvp} kVp</option>)}</select></label>
+              <label className="text-xs text-slate-300">CTDI phantom<select value={parameters.headBody} disabled={disabled} onChange={(event) => onChange("headBody", Number(event.target.value))} className={selectClassName}><option value={1}>16-cm head</option><option value={2}>32-cm body</option></select></label>
+              <label className="text-xs text-slate-300 sm:col-span-3"><span className="flex justify-between gap-3"><span>Tube current modulation strength</span><output>{Number(parameters.tcmStrength).toFixed(1)}</output></span><input type="range" min="0" max="1" step="0.1" value={parameters.tcmStrength} disabled={disabled} onChange={(event) => onChange("tcmStrength", Number(event.target.value))} className="mt-3 w-full accent-sky-400" /></label>
             </div>
+            {parameters.bodySizeMethod === "wed" && !["chest", "abdomen", "pelvis", "abdomenPelvis", "cap"].includes(String(parameters.protocol)) && (
+              <p className="mt-3 text-xs leading-5 text-amber-200">WED matching is applied only to supported chest, abdomen, pelvis, AP, and CAP landmark ranges; other ranges fall back to age/sex matching.</p>
+            )}
           </div>
         </details>
       </div>
     )}
     {preset.tool === "ncinm" && (
       <div className="mt-3 space-y-4">
-        <label className="block text-xs text-slate-300"><span className="flex justify-between gap-3"><span>Administered activity</span><output>{parameters.administeredActivityMbq} MBq</output></span><input type="range" min="10" max="1000" step="10" value={parameters.administeredActivityMbq} disabled={disabled} onChange={(event) => onChange("administeredActivityMbq", Number(event.target.value))} className="mt-3 w-full accent-sky-400" /></label>
+        <div className="grid gap-3 sm:grid-cols-2">
+          <label className="text-xs text-slate-300">
+            Radiopharmaceutical name
+            <input type="text" value={parameters.radiopharmaceutical} maxLength={120} placeholder="e.g., Tc99m MDP bone scan" disabled={disabled} onChange={(event) => onChange("radiopharmaceutical", event.target.value)} className={textInputClassName} />
+          </label>
+          <label className="text-xs text-slate-300"><span className="flex justify-between gap-3"><span>Administered activity</span><output>{parameters.administeredActivityMbq} MBq</output></span><input type="range" min="10" max="1000" step="10" value={parameters.administeredActivityMbq} disabled={disabled} onChange={(event) => onChange("administeredActivityMbq", Number(event.target.value))} className="mt-3 w-full accent-sky-400" /></label>
+          <p className="text-xs leading-5 text-slate-400 sm:col-span-2">Try a library name, ID, alternate radionuclide notation, or clinical-style text. The response reports the original text, matched entry, method, and score.</p>
+        </div>
         <details className="border border-slate-700 bg-slate-950/30">
           <summary className="cursor-pointer px-4 py-3 font-mono text-[11px] uppercase tracking-widest text-sky-300 hover:text-white">Advanced phantom &amp; patient inputs</summary>
           <div className="border-t border-slate-700 p-4">
@@ -195,7 +218,7 @@ const ParameterControls = ({
           </div>
         </details>
 
-        <p className="text-xs leading-5 text-slate-400">Case ID is synthetic. Particle histories (100,000) and threads (2) remain fixed to bound server load.</p>
+        <p className="text-xs leading-5 text-slate-400">Case ID is synthetic. Particle histories (25,000) and threads (2) are fixed for a functional demonstration. Higher-history or scaled evaluation requires an approved dedicated vendor deployment.</p>
       </div>
     )}
   </div>

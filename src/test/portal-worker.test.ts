@@ -5,18 +5,45 @@ describe("public vendor API demo", () => {
   it("accepts bounded parameters and rejects arbitrary calculation input", () => {
     const valid = vendorDemoRequestForInput({
       presetId: "ncict-adult-chest",
-      parameters: { age: 10, sex: "m", protocol: "head", kvp: 100, ctdivol: 20 },
+      parameters: { age: 10, sex: "m", protocol: "abdomenPelvis", bodySizeMethod: "wed", wedCm: 25, heightCm: 145, weightKg: 40, kvp: 100, tcmStrength: 0.5, headBody: 1, ctdivol: 20 },
     });
-    expect(valid?.payload).toMatchObject({ age: 10, sex: "m", start: 1001, end: 1003, kvp: 100, ctdivol: 20 });
+    expect(valid?.payload).toMatchObject({ age: 10, sex: "m", wed: 25, start: 1006, end: 1009, kvp: 100, tcm_strength: 0.5, head_body: 1, ctdivol: 20 });
+    expect(valid?.payload).not.toHaveProperty("height");
+    expect(valid?.payload).not.toHaveProperty("weight");
+    const heightWeight = vendorDemoRequestForInput({
+      presetId: "ncict-adult-chest",
+      parameters: { bodySizeMethod: "height-weight", heightCm: 175, weightKg: 80 },
+    });
+    expect(heightWeight?.payload).toMatchObject({ height: 175, weight: 80 });
+    expect(heightWeight?.payload).not.toHaveProperty("wed");
     expect(vendorDemoRequestForInput({ presetId: "ncict-adult-chest", parameters: { history: 10000000 } })).toBeNull();
     expect(vendorDemoRequestForInput({ presetId: "ncict-adult-chest", parameters: { ctdivol: 500 } })).toBeNull();
+    expect(vendorDemoRequestForInput({ presetId: "ncict-adult-chest", parameters: { wedCm: 500 } })).toBeNull();
+    expect(vendorDemoRequestForInput({ presetId: "ncict-adult-chest", parameters: { tcmStrength: -1 } })).toBeNull();
     expect(vendorDemoRequestForInput({ presetId: "unknown", parameters: {} })).toBeNull();
     expect(vendorDemoPresetForInput({ presetId: "ncict-adult-chest" })).toBe(vendorDemoPresets["ncict-adult-chest"]);
   });
 
+  it("allows bounded clinical-style NCINM text for fuzzy matching", () => {
+    const valid = vendorDemoRequestForInput({
+      presetId: "ncinm-fdg-adult",
+      parameters: { phantomLibrary: 1, sex: "male", age: 42, radiopharmaceutical: "  Tc99m MDP bone scan  ", administeredActivityMbq: 740 },
+    });
+    expect(valid?.payload).toMatchObject({
+      phantom_library: 1,
+      sex: "male",
+      age: 42,
+      radiopharmaceutical: "Tc99m MDP bone scan",
+      administered_activity_mbq: 740,
+    });
+    expect(vendorDemoRequestForInput({ presetId: "ncinm-fdg-adult", parameters: { radiopharmaceutical: "" } })).toBeNull();
+    expect(vendorDemoRequestForInput({ presetId: "ncinm-fdg-adult", parameters: { radiopharmaceutical: "F-18\nFDG" } })).toBeNull();
+    expect(vendorDemoRequestForInput({ presetId: "ncinm-fdg-adult", parameters: { radiopharmaceutical: "x".repeat(121) } })).toBeNull();
+  });
+
   it("keeps the public NCIRF example computationally bounded", () => {
     const preset = vendorDemoPresets["ncirf-size-demo"];
-    expect(preset.payload.Hist).toBe(100000);
+    expect(preset.payload.Hist).toBe(25000);
     expect(preset.payload.Thread).toBe(2);
     const varied = vendorDemoRequestForInput({
       presetId: "ncirf-size-demo",
@@ -53,7 +80,7 @@ describe("public vendor API demo", () => {
       PPA: 90,
       PSA: -15,
       ISOZ: 90,
-      Hist: 100000,
+      Hist: 25000,
       Thread: 2,
     });
     expect(vendorDemoRequestForInput({ presetId: "ncirf-size-demo", parameters: { Hist: 5000000 } })).toBeNull();
