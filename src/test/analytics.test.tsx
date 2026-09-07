@@ -35,7 +35,7 @@ describe("analytics interactions", () => {
   it.each([
     ["portal_login_click", "Open portal"],
     ["research_access_start", "Start research access"],
-    ["vendor_evaluation_start", "Evaluate an API"],
+    ["vendor_sandbox_open", "Open the API sandbox"],
     ["documentation_click", "Read the manual"],
   ])("tracks the allowlisted %s CTA with stable metadata", (eventName, label) => {
     render(

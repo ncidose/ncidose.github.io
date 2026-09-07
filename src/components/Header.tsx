@@ -12,8 +12,10 @@ import {
 import {Menu} from "lucide-react";
 import { portalLinks } from "@/data/nciDoseTools";
 
-const isActivePath = (pathname: string, href: string) =>
-  pathname === href || (href !== "/" && pathname.startsWith(href));
+const isActivePath = (pathname: string, href: string) => {
+  const hrefPath = href.split(/[?#]/, 1)[0];
+  return pathname === hrefPath || (hrefPath !== "/" && pathname.startsWith(hrefPath));
+};
 
 type NavItem = {
   label: string;
@@ -37,8 +39,8 @@ const navItems: NavItem[] = [
     href: "/researchers",
   },
   {
-    label: "For Vendors",
-    href: "/vendors",
+    label: "Vendor Sandbox",
+    href: "/vendors#api-sandbox",
   },
   { label: "Discussions", href: "/discussions" },
   { label: "Literature Registry", href: "/literature" },

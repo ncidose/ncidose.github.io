@@ -40,9 +40,9 @@ describe("product-first tool pages", () => {
     expect(productHeading.compareDocumentPosition(comparisonHeading) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(screen.getByRole("link", { name: "Read NCINM Manual" })).toHaveAttribute("href", "/manuals/ncinm");
     expect(screen.getByRole("link", { name: "Request Research Access" })).toHaveAttribute("href", "/portal/request-access/");
-    expect(screen.getByRole("link", { name: "Evaluate NCINM REST API" })).toHaveAttribute(
+    expect(screen.getByRole("link", { name: "Try NCINM Live API" })).toHaveAttribute(
       "href",
-      "/vendors?tool=ncinm#commercial-access",
+      "/vendors?tool=ncinm#api-sandbox",
     );
   });
 

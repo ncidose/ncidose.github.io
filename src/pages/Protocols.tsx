@@ -110,17 +110,19 @@ const ToolContent = ({
             Request Research Access
           </Link>
           <Link
-            to={`/vendors?tool=${tool.id}#commercial-access`}
+            to={tool.id === "phantom"
+              ? "/vendors?tool=phantom#commercial-access"
+              : `/vendors?tool=${tool.id}#api-sandbox`}
             className="btn-precision-outline inline-flex items-center justify-center text-center sm:col-span-2"
-            data-analytics-event="vendor_evaluation_start"
+            data-analytics-event={tool.id === "phantom" ? undefined : "vendor_sandbox_open"}
             data-analytics-location="product_primary"
             data-analytics-tool={tool.id}
             data-analytics-audience="vendor"
-            data-analytics-action="view_licensing_path"
+            data-analytics-action={tool.id === "phantom" ? "view_licensing_path" : "open_live_demo"}
           >
             {tool.id === "phantom"
               ? "Discuss PHANTOM Licensing"
-              : `Evaluate ${tool.name} REST API`}
+              : `Try ${tool.name} Live API`}
           </Link>
         </div>
         <p className="border-l-2 border-primary/30 pl-4 text-xs leading-relaxed text-muted-foreground">
@@ -216,19 +218,23 @@ const ToolContent = ({
 
     <div className="grid gap-3 border border-border bg-white p-4 sm:grid-cols-2 lg:grid-cols-5">
       <Link
-        to={`/vendors?tool=${tool.id}#commercial-access`}
+        to={tool.id === "phantom"
+          ? "/vendors?tool=phantom#commercial-access"
+          : `/vendors?tool=${tool.id}#api-sandbox`}
         className="group border border-slate-200 p-4 transition-colors hover:border-primary"
-        data-analytics-event="vendor_evaluation_start"
+        data-analytics-event={tool.id === "phantom" ? undefined : "vendor_sandbox_open"}
         data-analytics-location="product_resources"
         data-analytics-tool={tool.id}
         data-analytics-audience="vendor"
-        data-analytics-action="view_licensing_path"
+        data-analytics-action={tool.id === "phantom" ? "view_licensing_path" : "open_live_demo"}
       >
         <div className="font-mono text-xs uppercase tracking-widest text-primary">
-          Vendor integration
+          {tool.id === "phantom" ? "Vendor licensing" : "Live API sandbox"}
         </div>
         <p className="mt-2 text-sm text-muted-foreground group-hover:text-slate-700">
-          Evaluate REST API-ready components.
+          {tool.id === "phantom"
+            ? "Review the commercial integration pathway."
+            : `Run ${tool.name} with adjustable test inputs.`}
         </p>
       </Link>
       <Link

@@ -218,7 +218,7 @@ const ParameterControls = ({
           </div>
         </details>
 
-        <p className="text-xs leading-5 text-slate-400">Case ID is synthetic. Particle histories (25,000) and threads (2) are fixed for a functional demonstration. Higher-history or scaled evaluation requires an approved dedicated vendor deployment.</p>
+        <p className="text-xs leading-5 text-slate-400">Case ID is synthetic. Particle histories (25,000) and threads (2) are fixed for a functional demonstration. Higher-history or scaled testing requires an approved dedicated vendor deployment.</p>
       </div>
     )}
   </div>
@@ -443,7 +443,7 @@ export const VendorApiSandbox = ({ initialTool }: { initialTool?: string | null 
             </div>
           </div>
           <p className="mt-5 text-xs leading-5 text-slate-400">
-            Evaluation only · Single-case requests · {rateLimitLabel} · No identifiers · No production or clinical use · No SLA
+            Technical testing only · Single-case requests · {rateLimitLabel} · No identifiers · No production or clinical use · No SLA
           </p>
         </div>
       </div>

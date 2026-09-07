@@ -21,6 +21,8 @@ import {
   getManual,
   getManualBody,
   getManualHeadings,
+  getManualScientificUpdate,
+  getManualUpdateType,
   getManualVersion,
   manuals,
   type ManualCategory,
@@ -37,11 +39,14 @@ const categoryLabels: Record<ManualCategory, string> = {
 const categoryDescriptions: Record<ManualCategory, string> = {
   software:
     "Public reference manuals for the approved NCI Dose Tools software and computational phantom libraries.",
-  api: "Technical documentation for vendors evaluating licensed REST API integration.",
+  api: "Public technical documentation for testing REST APIs in the live vendor sandbox and planning production integration.",
 };
 
 const analyticsToolForManual = (manual: ManualDefinition) =>
   manual.id.replace(/-api$/, "");
+
+const sandboxHrefForManual = (manual: ManualDefinition) =>
+  `/vendors?tool=${analyticsToolForManual(manual)}#api-sandbox`;
 
 const ManualCard = ({ manual }: { manual: ManualDefinition }) => {
   const version = getManualVersion(manual.markdown);
@@ -97,17 +102,18 @@ const ManualCard = ({ manual }: { manual: ManualDefinition }) => {
             <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
           </Link>
           {isApi && (
-            <a
-              href={createLicensingMailto(manual.product)}
+            <Link
+              to={sandboxHrefForManual(manual)}
               className="inline-flex items-center gap-2 font-mono text-xs uppercase tracking-wider text-slate-700 hover:text-primary"
+              data-analytics-event="vendor_sandbox_open"
               data-analytics-location="api_manual_card"
               data-analytics-tool={analyticsTool}
               data-analytics-audience="vendor"
-              data-analytics-action="email_licensing"
+              data-analytics-action="open_live_demo"
             >
-              Evaluate {manual.product}
-              <ExternalLink className="h-3.5 w-3.5" />
-            </a>
+              Try {manual.product}
+              <ArrowRight className="h-3.5 w-3.5" />
+            </Link>
           )}
         </div>
       </div>
@@ -153,7 +159,7 @@ const ManualsIndex = () => {
                 </h1>
                 <p className="mt-6 max-w-3xl text-lg leading-relaxed text-muted-foreground">
                   Current technical guidance for NCI Dose Tools software, computational
-                  phantom libraries, and licensed vendor integrations—presented in one
+                  phantom libraries, and vendor APIs—presented in one
                   searchable public library.
                 </p>
               </div>
@@ -258,25 +264,26 @@ const ManualsIndex = () => {
                         <ShieldCheck className="mt-0.5 h-5 w-5 flex-none text-primary" />
                         <div>
                           <h3 className="font-medium text-slate-900">
-                            Evaluate an API for your product workflow
+                            Test an API in the live vendor sandbox
                           </h3>
                           <p className="mt-2 text-sm leading-relaxed text-slate-700">
-                            API documentation is publicly available for technical evaluation.
-                            Production access requires a commercial licensing agreement and
-                            vendor-specific credentials.
+                            Run NCICT, NCINM, and NCIRF with adjustable inputs, then use
+                            these public manuals to review the complete request structure.
+                            Production use still requires a commercial licensing agreement.
                           </p>
                         </div>
                       </div>
-                      <a
-                        href={createLicensingMailto()}
+                      <Link
+                        to="/vendors#api-sandbox"
                         className="btn-precision inline-flex items-center justify-center gap-2"
+                        data-analytics-event="vendor_sandbox_open"
                         data-analytics-location="api_manuals_section"
                         data-analytics-tool="suite"
                         data-analytics-audience="vendor"
-                        data-analytics-action="email_licensing"
+                        data-analytics-action="open_live_demo"
                       >
-                        Request API Evaluation <ArrowRight className="h-4 w-4" />
-                      </a>
+                        Open Live API Sandbox <ArrowRight className="h-4 w-4" />
+                      </Link>
                     </div>
                   )}
                   <div className="grid gap-5 md:grid-cols-2">
@@ -378,12 +385,15 @@ const ManualNavigation = ({ currentId }: { currentId: string }) => (
 const ManualReader = ({ manual }: { manual: ManualDefinition }) => {
   const headings = getManualHeadings(manual.markdown);
   const version = getManualVersion(manual.markdown);
+  const updateType = getManualUpdateType(manual.markdown);
+  const scientificUpdate = getManualScientificUpdate(manual.markdown);
   const body = getManualBody(manual.markdown);
   const currentIndex = manuals.findIndex((candidate) => candidate.id === manual.id);
   const previous = manuals[currentIndex - 1];
   const next = manuals[currentIndex + 1];
   const analyticsTool = analyticsToolForManual(manual);
   const licensingHref = createLicensingMailto(manual.product);
+  const sandboxHref = sandboxHrefForManual(manual);
 
   return (
     <div className="min-h-screen bg-white">
@@ -444,32 +454,45 @@ const ManualReader = ({ manual }: { manual: ManualDefinition }) => {
                 <p className="mt-5 text-base leading-relaxed text-muted-foreground">
                   {manual.description}
                 </p>
-                {version && (
-                  <div className="mt-5 inline-flex border border-primary/25 bg-primary/5 px-3 py-1.5 font-mono text-xs text-primary">
-                    Documented release {version}
-                  </div>
-                )}
+                <div className="mt-5 flex flex-wrap gap-2">
+                  {version && (
+                    <div className="inline-flex border border-primary/25 bg-primary/5 px-3 py-1.5 font-mono text-xs text-primary">
+                      Documented release {version}
+                    </div>
+                  )}
+                  {updateType && (
+                    <div className="inline-flex border border-slate-200 bg-slate-50 px-3 py-1.5 font-mono text-xs text-slate-600">
+                      {updateType}
+                    </div>
+                  )}
+                  {scientificUpdate && (
+                    <div className="inline-flex border border-sky-200 bg-sky-50 px-3 py-1.5 font-mono text-xs text-sky-700">
+                      Latest scientific update {scientificUpdate}
+                    </div>
+                  )}
+                </div>
               </header>
 
               {manual.category === "api" && (
                 <div className="mb-9 border-l-4 border-primary bg-primary/5 p-5">
                   <div className="text-sm leading-relaxed text-slate-700">
-                    <strong className="font-medium text-slate-900">Vendor access:</strong>{" "}
-                    This public manual supports technical evaluation. Production API credentials
-                    are issued only through the commercial licensing process. Contact Dr. Kevin
-                    Chang at the NCI Technology Transfer Center to discuss access and licensing.
+                    <strong className="font-medium text-slate-900">Test while you read:</strong>{" "}
+                    Use this public manual with the live sandbox; no account or API key is
+                    required. Production API credentials are issued only through the commercial
+                    licensing process.
                   </div>
-                  <a
-                    href={licensingHref}
+                  <Link
+                    to={sandboxHref}
                     className="btn-precision mt-5 inline-flex items-center gap-2"
+                    data-analytics-event="vendor_sandbox_open"
                     data-analytics-location="api_manual_reader_top"
                     data-analytics-tool={analyticsTool}
                     data-analytics-audience="vendor"
-                    data-analytics-action="email_licensing"
+                    data-analytics-action="open_live_demo"
                   >
-                    Request {manual.product} Evaluation
+                    Try {manual.product} in Sandbox
                     <ArrowRight className="h-4 w-4" />
-                  </a>
+                  </Link>
                 </div>
               )}
 
@@ -514,24 +537,38 @@ const ManualReader = ({ manual }: { manual: ManualDefinition }) => {
                     Next step for vendors
                   </div>
                   <h2 className="mt-3 text-2xl font-light text-slate-900">
-                    Evaluate {manual.product} in your deployment environment
+                    Run {manual.product} with your test inputs
                   </h2>
                   <p className="mt-3 text-sm leading-relaxed text-slate-700">
-                    Share your organization, expected request volume, deployment
-                    environment, evaluation timeline, and proposed use with the NCI
-                    Technology Transfer Center.
+                    Try a de-identified single case in the public sandbox. If the result
+                    fits your workflow and you are planning production or commercial use,
+                    continue with the NCI licensing conversation.
                   </p>
-                  <a
-                    href={licensingHref}
-                    className="btn-precision mt-5 inline-flex items-center gap-2"
-                    data-analytics-location="api_manual_reader_bottom"
-                    data-analytics-tool={analyticsTool}
-                    data-analytics-audience="vendor"
-                    data-analytics-action="email_licensing"
-                  >
-                    Request {manual.product} Evaluation
-                    <ArrowRight className="h-4 w-4" />
-                  </a>
+                  <div className="mt-5 flex flex-wrap gap-3">
+                    <Link
+                      to={sandboxHref}
+                      className="btn-precision inline-flex items-center gap-2"
+                      data-analytics-event="vendor_sandbox_open"
+                      data-analytics-location="api_manual_reader_bottom"
+                      data-analytics-tool={analyticsTool}
+                      data-analytics-audience="vendor"
+                      data-analytics-action="open_live_demo"
+                    >
+                      Try {manual.product} in Sandbox
+                      <ArrowRight className="h-4 w-4" />
+                    </Link>
+                    <a
+                      href={licensingHref}
+                      className="btn-precision-outline inline-flex items-center gap-2"
+                      data-analytics-location="api_manual_reader_bottom"
+                      data-analytics-tool={analyticsTool}
+                      data-analytics-audience="vendor"
+                      data-analytics-action="email_licensing"
+                    >
+                      Discuss Commercial Licensing
+                      <ExternalLink className="h-4 w-4" />
+                    </a>
+                  </div>
                 </section>
               )}
 

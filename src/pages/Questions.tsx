@@ -100,15 +100,19 @@ const DiscussionResources = ({ tool }: { tool: QuestionTool }) => {
           </Link>
         )}
         <Link
-          to={toolId ? `/vendors?tool=${toolId}#commercial-access` : "/vendors#commercial-access"}
+          to={toolId === "phantom"
+            ? "/vendors?tool=phantom#commercial-access"
+            : toolId
+              ? `/vendors?tool=${toolId}#api-sandbox`
+              : "/vendors#api-sandbox"}
           className="btn-precision-outline inline-flex items-center gap-2 text-sm"
-          data-analytics-event="vendor_evaluation_start"
+          data-analytics-event={toolId === "phantom" ? undefined : "vendor_sandbox_open"}
           data-analytics-location="discussion_context"
           data-analytics-tool={toolId ?? "suite"}
           data-analytics-audience="vendor"
-          data-analytics-action="view_licensing_path"
+          data-analytics-action={toolId === "phantom" ? "view_licensing_path" : "open_live_demo"}
         >
-          Vendor integration
+          {toolId === "phantom" ? "Vendor integration" : "Try live API sandbox"}
         </Link>
       </div>
     </aside>

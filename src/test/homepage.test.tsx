@@ -57,7 +57,7 @@ describe("homepage visitor paths", () => {
     expect(productHeading.compareDocumentPosition(trustHeading) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
 
     expect(screen.getByRole("heading", { name: "Research Use" })).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "Vendor / API Integration" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Vendor API Sandbox" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Approved User Portal" })).toBeInTheDocument();
     expect(screen.queryByRole("heading", { name: "Explore the Tools" })).not.toBeInTheDocument();
     expect(screen.queryByText(/new users can also start an access request from the same page/i)).not.toBeInTheDocument();
@@ -74,7 +74,7 @@ describe("homepage visitor paths", () => {
       '[data-analytics-location="homepage_hero"][data-analytics-event="research_access_start"]',
     );
     const heroVendor = document.querySelector(
-      '[data-analytics-location="homepage_hero"][data-analytics-event="vendor_evaluation_start"]',
+      '[data-analytics-location="homepage_hero"][data-analytics-event="vendor_sandbox_open"]',
     );
     const heroPortal = document.querySelector(
       '[data-analytics-location="homepage_hero"][data-analytics-event="portal_login_click"]',
@@ -82,15 +82,15 @@ describe("homepage visitor paths", () => {
 
     expect(heroResearch).toHaveAttribute("href", "/portal/request-access/");
     expectAnalytics(heroResearch, "research_access_start", "homepage_hero", "researcher", "request_research_access");
-    expect(heroVendor).toHaveAttribute("href", "/vendors#commercial-access");
-    expectAnalytics(heroVendor, "vendor_evaluation_start", "homepage_hero", "vendor", "evaluate_rest_api");
+    expect(heroVendor).toHaveAttribute("href", "/vendors#api-sandbox");
+    expectAnalytics(heroVendor, "vendor_sandbox_open", "homepage_hero", "vendor", "open_live_demo");
     expect(heroPortal).toHaveAttribute("href", "https://portal.ncidosetools.com");
     expectAnalytics(heroPortal, "portal_login_click", "homepage_hero", "approved_user", "open_user_portal");
 
     const pathwayLinks = document.querySelectorAll('[data-analytics-location="homepage_pathway"]');
     expect(pathwayLinks).toHaveLength(3);
     expectAnalytics(pathwayLinks[0], "research_access_start", "homepage_pathway", "researcher", "request_research_access");
-    expectAnalytics(pathwayLinks[1], "vendor_evaluation_start", "homepage_pathway", "vendor", "evaluate_rest_api");
+    expectAnalytics(pathwayLinks[1], "vendor_sandbox_open", "homepage_pathway", "vendor", "open_live_demo");
     expectAnalytics(pathwayLinks[2], "portal_login_click", "homepage_pathway", "approved_user", "open_user_portal");
   });
 
@@ -108,14 +108,14 @@ describe("homepage visitor paths", () => {
       "Tools",
       "Manuals",
       "For Researchers",
-      "For Vendors",
+      "Vendor Sandbox",
       "Discussions",
       "Literature Registry",
     ]);
     expect(within(desktopNavigation as HTMLElement).getByRole("link", { name: "For Researchers" })).not.toHaveAttribute(
       "data-analytics-event",
     );
-    expect(within(desktopNavigation as HTMLElement).getByRole("link", { name: "For Vendors" })).not.toHaveAttribute(
+    expect(within(desktopNavigation as HTMLElement).getByRole("link", { name: "Vendor Sandbox" })).not.toHaveAttribute(
       "data-analytics-event",
     );
 

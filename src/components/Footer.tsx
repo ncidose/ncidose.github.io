@@ -26,8 +26,8 @@ export const Footer = () => {
         href: "/researchers",
       },
       {
-        label: "For Vendors",
-        href: "/vendors",
+        label: "Vendor API Sandbox",
+        href: "/vendors#api-sandbox",
       },
       { label: "Discussions", href: "/discussions" },
       { label: "Literature Registry", href: "/literature" },

@@ -120,10 +120,10 @@ export const seoRoutes = [
   })),
   {
     path: "/vendors",
-    title: "Vendor Integration and REST APIs | NCI Dose Tools",
-    heading: "Vendor Integration",
+    title: "Live Vendor API Sandbox | NCI Dose Tools",
+    heading: "Live Vendor API Sandbox",
     description:
-      "Technical overview of NCI Dose Tools REST API components, vendor evaluation, commercial integration, and licensing pathways.",
+      "Run public NCICT, NCINM, and NCIRF API test cases with adjustable inputs, review technical manuals, and find the production licensing pathway.",
     schemaType: "WebPage",
   },
   {

@@ -74,9 +74,9 @@ const userPaths = [
   },
   {
     title: "Commercial vendor",
-    text: "Commercial use, product integration, or vendor evaluation requires review through the NCI Technology Transfer Center and an appropriate licensing agreement.",
-    href: "/vendors",
-    linkText: "Vendor integration path",
+    text: "Test NCICT, NCINM, and NCIRF directly in the public sandbox. Contact NCI licensing only when you are planning production or commercial integration.",
+    href: "/vendors#api-sandbox",
+    linkText: "Open vendor sandbox",
     external: false,
   },
   {
@@ -329,11 +329,11 @@ const Research = () => {
                     <Link
                       to={path.href}
                       className="group block h-full border border-border bg-white p-6 transition-colors hover:border-primary"
-                      data-analytics-event={path.title === "Research user" ? "research_access_start" : path.title === "Commercial vendor" ? "vendor_evaluation_start" : path.title === "Technical implementer" ? "documentation_click" : undefined}
+                      data-analytics-event={path.title === "Research user" ? "research_access_start" : path.title === "Commercial vendor" ? "vendor_sandbox_open" : path.title === "Technical implementer" ? "documentation_click" : undefined}
                       data-analytics-location={path.title === "First-time visitor" ? undefined : "resources_user_path"}
                       data-analytics-tool={path.title === "First-time visitor" ? undefined : "suite"}
                       data-analytics-audience={path.title === "Research user" ? "researcher" : path.title === "Commercial vendor" ? "vendor" : path.title === "Technical implementer" ? "general" : undefined}
-                      data-analytics-action={path.title === "Research user" ? "request_research_access" : path.title === "Commercial vendor" ? "view_vendor_path" : path.title === "Technical implementer" ? "browse_manuals" : undefined}
+                      data-analytics-action={path.title === "Research user" ? "request_research_access" : path.title === "Commercial vendor" ? "open_live_demo" : path.title === "Technical implementer" ? "browse_manuals" : undefined}
                     >
                       <VisitorPathContent path={path} index={index} />
                     </Link>

@@ -96,11 +96,17 @@ export const getManual = (id?: string) => manuals.find((manual) => manual.id ===
 export const getManualVersion = (markdown: string) =>
   markdown.match(/Current documented release:\s*\*\*([^*]+)\*\*/)?.[1] ?? null;
 
+export const getManualUpdateType = (markdown: string) =>
+  markdown.match(/Current release type:\s*\*\*([^*]+)\*\*/)?.[1] ?? null;
+
+export const getManualScientificUpdate = (markdown: string) =>
+  markdown.match(/Latest scientific update:\s*\*\*([^*]+)\*\*/)?.[1] ?? null;
+
 export const getManualBody = (markdown: string) =>
   markdown
     .replace(/^#\s+.+\n+/, "")
     .replace(/^_\*\*.+\*\*_\n+/m, "")
-    .replace(/^Current documented release:\s*\*\*[^*]+\*\*\n+/m, "")
+    .replace(/^(?:Current documented release|Current release type|Latest scientific update):\s*\*\*[^*]+\*\*\n?/gm, "")
     .replace(/^---\n+/m, "")
     .trim();
 

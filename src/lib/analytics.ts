@@ -3,7 +3,7 @@ const measurementId = import.meta.env.VITE_GA_MEASUREMENT_ID?.trim();
 export const analyticsCtaEvents = [
   "portal_login_click",
   "research_access_start",
-  "vendor_evaluation_start",
+  "vendor_sandbox_open",
   "documentation_click",
 ] as const;
 

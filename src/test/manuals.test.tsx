@@ -35,21 +35,19 @@ describe("public manuals", () => {
       "vendor",
     );
     expect(document.querySelector('a[href="#release-history"]')).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: /Evaluate an API for your product workflow/i })).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /Request API Evaluation/i })).toHaveAttribute(
-      "data-analytics-location",
-      "api_manuals_section",
+    expect(screen.getByRole("heading", { name: /Test an API in the live vendor sandbox/i })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /Open Live API Sandbox/i })).toHaveAttribute("href", "/vendors#api-sandbox");
+    expect(screen.getByRole("link", { name: /Open Live API Sandbox/i })).toHaveAttribute(
+      "data-analytics-event",
+      "vendor_sandbox_open",
     );
 
-    for (const product of ["NCICT API", "NCINM API", "NCIRF API"]) {
-      const evaluationLink = screen.getByRole("link", { name: `Evaluate ${product}` });
-      const href = evaluationLink.getAttribute("href") ?? "";
-      const query = new URLSearchParams(href.split("?", 2)[1]);
-      expect(href).toMatch(/^mailto:kevin\.chang@nih\.gov\?/);
-      expect(query.get("subject")).toContain(product);
-      expect(evaluationLink).not.toHaveAttribute("data-analytics-event");
-      expect(evaluationLink).toHaveAttribute("data-analytics-action", "email_licensing");
-      expect(evaluationLink).toHaveAttribute("data-analytics-location", "api_manual_card");
+    for (const [product, tool] of [["NCICT API", "ncict"], ["NCINM API", "ncinm"], ["NCIRF API", "ncirf"]]) {
+      const sandboxLink = screen.getByRole("link", { name: `Try ${product}` });
+      expect(sandboxLink).toHaveAttribute("href", `/vendors?tool=${tool}#api-sandbox`);
+      expect(sandboxLink).toHaveAttribute("data-analytics-event", "vendor_sandbox_open");
+      expect(sandboxLink).toHaveAttribute("data-analytics-action", "open_live_demo");
+      expect(sandboxLink).toHaveAttribute("data-analytics-location", "api_manual_card");
     }
   });
 
@@ -68,7 +66,7 @@ describe("public manuals", () => {
     expect(screen.getByRole("button", { name: "Introduction" })).not.toHaveAttribute("href");
   });
 
-  it("places product-aware evaluation CTAs above and below each API manual", () => {
+  it("places product-aware sandbox CTAs above and below each API manual", () => {
     render(
       <MemoryRouter initialEntries={["/manuals/ncict-api"]}>
         <Routes>
@@ -77,30 +75,34 @@ describe("public manuals", () => {
       </MemoryRouter>,
     );
 
-    const evaluationLinks = screen.getAllByRole("link", {
-      name: /Request NCICT API Evaluation/i,
+    const sandboxLinks = screen.getAllByRole("link", {
+      name: /Try NCICT API in Sandbox/i,
     });
-    expect(evaluationLinks).toHaveLength(2);
-    expect(evaluationLinks[0]).toHaveAttribute(
+    expect(sandboxLinks).toHaveLength(2);
+    expect(sandboxLinks[0]).toHaveAttribute(
       "data-analytics-location",
       "api_manual_reader_top",
     );
-    expect(evaluationLinks[1]).toHaveAttribute(
+    expect(sandboxLinks[1]).toHaveAttribute(
       "data-analytics-location",
       "api_manual_reader_bottom",
     );
 
-    for (const link of evaluationLinks) {
-      const href = link.getAttribute("href") ?? "";
-      const query = new URLSearchParams(href.split("?", 2)[1]);
-      expect(href).toMatch(/^mailto:kevin\.chang@nih\.gov\?/);
-      expect(query.get("subject")).toContain("NCICT API");
-      expect(query.get("body")).toContain("Organization:");
-      expect(query.get("body")).toContain("Expected request volume:");
-      expect(query.get("body")).toContain("Deployment environment");
-      expect(query.get("body")).toContain("Evaluation timeline:");
-      expect(query.get("body")).toContain("Proposed use:");
+    for (const link of sandboxLinks) {
+      expect(link).toHaveAttribute("href", "/vendors?tool=ncict#api-sandbox");
+      expect(link).toHaveAttribute("data-analytics-event", "vendor_sandbox_open");
     }
+
+    const licensingLink = screen.getByRole("link", { name: /Discuss Commercial Licensing/i });
+    const href = licensingLink.getAttribute("href") ?? "";
+    const query = new URLSearchParams(href.split("?", 2)[1]);
+    expect(href).toMatch(/^mailto:kevin\.chang@nih\.gov\?/);
+    expect(query.get("subject")).toContain("NCICT API commercial licensing inquiry");
+    expect(query.get("body")).toContain("Organization:");
+    expect(query.get("body")).toContain("Expected request volume:");
+    expect(query.get("body")).toContain("Deployment environment");
+    expect(query.get("body")).toContain("Implementation timeline:");
+    expect(query.get("body")).toContain("Proposed use:");
 
     expect(document.querySelector('a[href^="mailto:changke@mail.nih.gov"]')).not.toBeInTheDocument();
   });

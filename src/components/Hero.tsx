@@ -15,7 +15,7 @@ export const Hero = () => {
             className="inline-flex items-center gap-2 text-xs font-mono text-primary uppercase tracking-widest"
           >
             <span className="w-2 h-2 bg-primary rounded-full animate-glow-pulse" />
-            Research Software &amp; Vendor API Evaluation
+            Research Software &amp; Live Vendor APIs
           </motion.div>
 
           <motion.h1
@@ -34,8 +34,8 @@ export const Hero = () => {
             className="mx-auto max-w-3xl text-base leading-relaxed text-muted-foreground sm:text-lg"
           >
             NCI-developed organ-dose estimation tools for CT, nuclear medicine,
-            and radiography/fluoroscopy research, with REST API pathways for
-            approved vendor integration.
+            and radiography/fluoroscopy research, with a public live sandbox for
+            vendor API testing and licensed pathways for production integration.
           </motion.p>
 
           <motion.div
@@ -56,15 +56,15 @@ export const Hero = () => {
               Request Research Access
             </Link>
             <Link
-              to="/vendors#commercial-access"
+              to="/vendors#api-sandbox"
               className="btn-precision-outline inline-flex items-center justify-center text-sm"
-              data-analytics-event="vendor_evaluation_start"
+              data-analytics-event="vendor_sandbox_open"
               data-analytics-location="homepage_hero"
               data-analytics-tool="suite"
               data-analytics-audience="vendor"
-              data-analytics-action="evaluate_rest_api"
+              data-analytics-action="open_live_demo"
             >
-              Evaluate REST APIs
+              Try Live API Sandbox
             </Link>
             <a
               href={portalLinks.userPortal}

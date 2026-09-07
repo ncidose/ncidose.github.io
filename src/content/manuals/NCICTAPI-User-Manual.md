@@ -1,6 +1,8 @@
 # NCICT API
 
-Current documented release: **4.20260502**
+Current documented release: **August 22, 2026**
+Current release type: **Maintenance Update**
+Latest scientific update: **May 2, 2026**
 
 NCICTAPI provides REST-style access to the NCICT4 CT organ dose calculation
 workflow. A client sends one JSON object to `/param`; the server matches the
@@ -91,6 +93,10 @@ print(response.json())
 ## JSON Input
 
 The API accepts one JSON object per request. GUI Batch uses CSV format, but it uses the same calculation parameters as the API JSON input. A `dose_target` field is not required; NCICT infers the dose target from `age` and whether `height` is supplied.
+
+JSON numeric literals use dot decimals as required by JSON. Numeric parameters
+may also be sent as strings using either dot or comma decimal notation. API
+numeric output uses dot decimals regardless of server or client locale.
 
 Recommended key order for readability:
 

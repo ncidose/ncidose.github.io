@@ -15,19 +15,21 @@ class IntersectionObserverMock {
 
 vi.stubGlobal("IntersectionObserver", IntersectionObserverMock);
 
-describe("commercial access guidance", () => {
-  it("puts product-aware commercial access immediately after the hero", () => {
+describe("vendor sandbox and commercial access guidance", () => {
+  it("leads with a product-aware sandbox and leaves commercial access for the final step", () => {
     render(
-      <MemoryRouter initialEntries={["/vendors?tool=ncict#commercial-access"]}>
+      <MemoryRouter initialEntries={["/vendors?tool=ncict#api-sandbox"]}>
         <Engine />
       </MemoryRouter>,
     );
 
     const hero = screen.getByRole("heading", { name: /REST API-Ready Reference Dosimetry/i }).closest("section");
     const sandbox = screen.getByRole("heading", { name: /Try the APIs with a verified sample case/i }).closest("section");
-    const commercialAccess = screen.getByRole("heading", { name: /Start the commercial access conversation/i }).closest("section");
+    const components = screen.getByRole("heading", { name: /Components vendors can test and review/i }).closest("section");
+    const commercialAccess = screen.getByRole("heading", { name: /Plan production or commercial integration/i }).closest("section");
     expect(hero?.nextElementSibling).toBe(sandbox);
-    expect(sandbox?.nextElementSibling).toBe(commercialAccess);
+    expect(sandbox?.compareDocumentPosition(components as Node) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(components?.nextElementSibling).toBe(commercialAccess);
     expect(sandbox).toHaveAttribute("id", "api-sandbox");
     expect(commercialAccess).toHaveAttribute("id", "commercial-access");
 
@@ -45,48 +47,45 @@ describe("commercial access guidance", () => {
       "portal_login_click",
     );
 
-    const emailLink = screen.getByRole("link", { name: /Email Dr. Kevin Chang about NCICT/i });
+    const emailLink = screen.getByRole("link", { name: /Discuss NCICT commercial licensing/i });
     const href = emailLink.getAttribute("href") ?? "";
     const query = new URLSearchParams(href.split("?", 2)[1]);
     expect(href).toMatch(/^mailto:kevin\.chang@nih\.gov\?/);
-    expect(query.get("subject")).toContain("NCICT REST API");
+    expect(query.get("subject")).toContain("NCICT REST API commercial licensing inquiry");
     expect(query.get("body")).toContain("Organization:");
     expect(query.get("body")).toContain("Expected request volume:");
     expect(query.get("body")).toContain("Deployment environment");
-    expect(query.get("body")).toContain("Evaluation timeline:");
+    expect(query.get("body")).toContain("Implementation timeline:");
     expect(query.get("body")).toContain("Proposed use:");
     expect(emailLink).toHaveAttribute("data-analytics-location", "vendor_commercial_access");
     expect(emailLink).toHaveAttribute("data-analytics-tool", "ncict");
 
-    expect(screen.getByRole("link", { name: /Request NCICT Evaluation/i })).toHaveAttribute(
-      "data-analytics-location",
-      "vendor_hero",
-    );
-    expect(screen.getByRole("link", { name: /^Request Evaluation/i })).toHaveAttribute(
-      "data-analytics-location",
-      "vendor_components_footer",
-    );
+    expect(screen.queryByText(/Request Evaluation/i)).not.toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /Review Commercial Access/i })).toHaveAttribute("href", "#commercial-access");
   });
 
-  it("offers a product-specific evaluation link for every component", () => {
+  it("sends each API component to its sandbox and keeps PHANTOM on licensing", () => {
     render(
       <MemoryRouter initialEntries={["/vendors"]}>
         <Engine />
       </MemoryRouter>,
     );
 
-    for (const [name, product] of [
-      ["Evaluate NCICT API", "NCICT REST API"],
-      ["Evaluate NCIRF API", "NCIRF REST API"],
-      ["Evaluate NCINM API", "NCINM REST API"],
-      ["Discuss PHANTOM licensing", "PHANTOM libraries"],
+    for (const [name, tool] of [
+      ["Try NCICT in sandbox", "ncict"],
+      ["Try NCIRF in sandbox", "ncirf"],
+      ["Try NCINM in sandbox", "ncinm"],
     ]) {
       const link = screen.getByRole("link", { name });
-      const href = link.getAttribute("href") ?? "";
-      const query = new URLSearchParams(href.split("?", 2)[1]);
-      expect(query.get("subject")).toContain(product);
-      expect(link).not.toHaveAttribute("data-analytics-event");
-      expect(link).toHaveAttribute("data-analytics-action", "email_licensing");
+      expect(link).toHaveAttribute("href", `/vendors?tool=${tool}#api-sandbox`);
+      expect(link).toHaveAttribute("data-analytics-event", "vendor_sandbox_open");
+      expect(link).toHaveAttribute("data-analytics-action", "open_live_demo");
     }
+
+    const phantomLink = screen.getByRole("link", { name: "Discuss PHANTOM licensing" });
+    const href = phantomLink.getAttribute("href") ?? "";
+    const query = new URLSearchParams(href.split("?", 2)[1]);
+    expect(query.get("subject")).toContain("PHANTOM libraries commercial licensing inquiry");
+    expect(phantomLink).toHaveAttribute("data-analytics-action", "email_licensing");
   });
 });

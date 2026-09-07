@@ -56,9 +56,9 @@ describe("public Q&A", () => {
     expect(screen.getByText("Reply in this conversation")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Read NCICT manual" })).toHaveAttribute("href", "/manuals/ncict");
     expect(screen.getByRole("link", { name: "Read NCICT API manual" })).toHaveAttribute("href", "/manuals/ncict-api");
-    expect(screen.getByRole("link", { name: "Vendor integration" })).toHaveAttribute(
+    expect(screen.getByRole("link", { name: "Try live API sandbox" })).toHaveAttribute(
       "href",
-      "/vendors?tool=ncict#commercial-access",
+      "/vendors?tool=ncict#api-sandbox",
     );
   });
 

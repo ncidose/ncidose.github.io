@@ -1,6 +1,8 @@
 # NCINM API
 
-Current documented release: **NCINM3.20260510**
+Current documented release: **August 22, 2026**
+Current release type: **Maintenance Update**
+Latest scientific update: **May 10, 2026**
 
 NCINMAPI provides REST-style access to the NCINM3 radiopharmaceutical dose
 calculation workflow. A client sends one JSON object to `/param`; the server
@@ -103,6 +105,10 @@ _ncinm3api_test.http
 ## JSON Input
 
 The API accepts one JSON object per request.
+
+JSON numeric literals use dot decimals as required by JSON. Numeric parameters
+may also be sent as strings using either dot or comma decimal notation. API
+numeric output uses dot decimals regardless of server or client locale.
 
 Parameter | Required | Definition
 --|--|--
