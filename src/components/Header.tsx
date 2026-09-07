@@ -40,7 +40,7 @@ const navItems: NavItem[] = [
   },
   {
     label: "Vendor Sandbox",
-    href: "/vendors#api-sandbox",
+    href: "/vendors",
   },
   { label: "Discussions", href: "/discussions" },
   { label: "Literature Registry", href: "/literature" },

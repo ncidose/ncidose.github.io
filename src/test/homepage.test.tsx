@@ -100,9 +100,9 @@ describe("homepage visitor paths", () => {
     expect(within(desktopNavigation as HTMLElement).getByRole("link", { name: "For Researchers" })).not.toHaveAttribute(
       "data-analytics-event",
     );
-    expect(within(desktopNavigation as HTMLElement).getByRole("link", { name: "Vendor Sandbox" })).not.toHaveAttribute(
-      "data-analytics-event",
-    );
+    const vendorNavigation = within(desktopNavigation as HTMLElement).getByRole("link", { name: "Vendor Sandbox" });
+    expect(vendorNavigation).toHaveAttribute("href", "/vendors");
+    expect(vendorNavigation).not.toHaveAttribute("data-analytics-event");
 
     const headerPortal = document.querySelector(
       '[data-analytics-location="site_header"][data-analytics-event="portal_login_click"]',
