@@ -368,7 +368,7 @@ export const VendorApiSandbox = ({ initialTool }: { initialTool?: string | null 
               <div className="border-b border-slate-700 lg:border-b-0 lg:border-r">
                 <div className="border-b border-slate-700 px-5 py-4">
                   <div className="font-mono text-[11px] uppercase tracking-widest text-sky-300">
-                    Sample case
+                    Starting values
                   </div>
                   <p className="mt-2 text-sm text-slate-300">{selected.description}</p>
                   <p className="mt-2 flex items-center gap-2 text-xs text-slate-400">

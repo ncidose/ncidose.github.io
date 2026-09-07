@@ -16,10 +16,10 @@ export const vendorApiDemoPresets: VendorApiDemoPreset[] = [
   {
     id: "ncict-adult-chest",
     tool: "ncict",
-    name: "Adult chest CT",
+    name: "CT dosimetry",
     modality: "NCICT",
     description:
-      "Starts with an adult female chest CT case using landmark-based scan coverage.",
+      "Adjust scan coverage, patient matching, scanner settings, and CTDIvol.",
     endpoint: "https://ncict-api.ncidosetools.com/param",
     request: {
       age: 40,
@@ -49,10 +49,10 @@ export const vendorApiDemoPresets: VendorApiDemoPreset[] = [
   {
     id: "ncinm-fdg-adult",
     tool: "ncinm",
-    name: "Adult F-18 FDG",
+    name: "Nuclear medicine dosimetry",
     modality: "NCINM",
     description:
-      "Starts with an adult female radiopharmaceutical case and demonstrates name matching.",
+      "Enter patient settings, activity, and a radiopharmaceutical name to test direct or fuzzy matching.",
     endpoint: "https://ncinm-api.ncidosetools.com/param",
     request: {
       phantom_library: 2,
@@ -73,10 +73,10 @@ export const vendorApiDemoPresets: VendorApiDemoPreset[] = [
   {
     id: "ncirf-size-demo",
     tool: "ncirf",
-    name: "Size-matched projection",
+    name: "Radiography & fluoroscopy dosimetry",
     modality: "NCIRF",
     description:
-      "Runs a reduced-history GEANT4 case with adjustable phantom, spectrum, and projection geometry.",
+      "Adjust phantom, spectrum, and projection geometry in a reduced-history GEANT4 calculation.",
     endpoint: "https://ncirf-api.ncidosetools.com/param",
     request: {
       ID: "public-vendor-demo",
