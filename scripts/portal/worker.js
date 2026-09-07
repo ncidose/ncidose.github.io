@@ -30,7 +30,7 @@ export const vendorDemoPresets = Object.freeze({
   },
 });
 export const vendorDemoLimits = Object.freeze({
-  perIpHourly: 60,
+  perIpHourly: 30,
   perIpThirtyMinutesNcirf: 5,
   globalDaily: 2000,
   globalDailyNcirf: 60,

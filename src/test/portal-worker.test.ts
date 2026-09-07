@@ -58,7 +58,7 @@ describe("public vendor API demo", () => {
     });
     expect(vendorDemoRequestForInput({ presetId: "ncirf-size-demo", parameters: { Hist: 5000000 } })).toBeNull();
     expect(vendorDemoRequestForInput({ presetId: "ncirf-size-demo", parameters: { threads: 8 } })).toBeNull();
-    expect(vendorDemoLimits.perIpHourly).toBe(60);
+    expect(vendorDemoLimits.perIpHourly).toBe(30);
     expect(vendorDemoLimits.perIpThirtyMinutesNcirf).toBe(5);
     expect(vendorDemoLimits.globalDailyNcirf).toBe(60);
     expect(vendorDemoLimits.concurrentNcirf).toBe(1);
