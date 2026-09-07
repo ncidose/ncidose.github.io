@@ -24,7 +24,7 @@ describe("vendor sandbox and commercial access guidance", () => {
     );
 
     const hero = screen.getByRole("heading", { name: /REST API-Ready Reference Dosimetry/i }).closest("section");
-    const sandbox = screen.getByRole("heading", { name: /Try the APIs with a verified sample case/i }).closest("section");
+    const sandbox = screen.getByRole("heading", { name: /Try the APIs live/i }).closest("section");
     const components = screen.getByRole("heading", { name: /Components vendors can test and review/i }).closest("section");
     const commercialAccess = screen.getByRole("heading", { name: /Plan production or commercial integration/i }).closest("section");
     expect(hero?.nextElementSibling).toBe(sandbox);

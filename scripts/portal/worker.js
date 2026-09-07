@@ -250,29 +250,39 @@ const requestHasAllowedOrigin = (request, env) => {
   return Boolean(origin && configuredOrigins(env).includes(origin));
 };
 
-async function reserveVendorDemoRequest(request, env, preset) {
+const vendorDemoUsageForRequest = async (request, env, tool) => {
   const requestIp = request.headers.get("cf-connecting-ip") || "unknown";
   const requestIpHash = await keyedHash(`vendor-demo-ip:${requestIp}`, env.AUTH_SECRET);
+  const isNcirf = tool === "ncirf";
+  const windowMinutes = isNcirf ? 30 : 60;
+  const limit = isNcirf ? vendorDemoLimits.perIpThirtyMinutesNcirf : vendorDemoLimits.perIpHourly;
+  const statement = isNcirf
+    ? env.DB.prepare("SELECT COUNT(*) AS total FROM vendor_demo_requests WHERE request_ip_hash=? AND tool='ncirf' AND created_at >= datetime('now', '-30 minutes')").bind(requestIpHash)
+    : env.DB.prepare("SELECT COUNT(*) AS total FROM vendor_demo_requests WHERE request_ip_hash=? AND tool!='ncirf' AND created_at >= datetime('now', '-1 hour')").bind(requestIpHash);
+  const recent = await statement.first();
+  const used = Number(recent?.total) || 0;
+  return { requestIpHash, used, limit, remaining: Math.max(0, limit - used), windowMinutes };
+};
+
+async function reserveVendorDemoRequest(request, env, preset) {
   const isNcirf = preset.tool === "ncirf";
-  const ipWindow = isNcirf ? "-30 minutes" : "-1 hour";
   const activeWindow = preset.tool === "ncirf" ? "-10 minutes" : "-2 minutes";
-  const ipRecentStatement = isNcirf
-    ? env.DB.prepare("SELECT COUNT(*) AS total FROM vendor_demo_requests WHERE request_ip_hash=? AND tool='ncirf' AND created_at >= datetime('now', ?)").bind(requestIpHash, ipWindow)
-    : env.DB.prepare("SELECT COUNT(*) AS total FROM vendor_demo_requests WHERE request_ip_hash=? AND created_at >= datetime('now', ?)").bind(requestIpHash, ipWindow);
-  const [ipRecent, globalRecent, toolRecent, active] = await Promise.all([
-    ipRecentStatement.first(),
+  const [usage, globalRecent, toolRecent, active] = await Promise.all([
+    vendorDemoUsageForRequest(request, env, preset.tool),
     env.DB.prepare("SELECT COUNT(*) AS total FROM vendor_demo_requests WHERE created_at >= datetime('now', '-1 day')").first(),
     env.DB.prepare("SELECT COUNT(*) AS total FROM vendor_demo_requests WHERE tool=? AND created_at >= datetime('now', '-1 day')").bind(preset.tool).first(),
     env.DB.prepare("SELECT COUNT(*) AS total FROM vendor_demo_requests WHERE tool=? AND result='started' AND created_at >= datetime('now', ?)").bind(preset.tool, activeWindow).first(),
   ]);
-  const ipLimit = isNcirf ? vendorDemoLimits.perIpThirtyMinutesNcirf : vendorDemoLimits.perIpHourly;
   const toolLimit = isNcirf ? vendorDemoLimits.globalDailyNcirf : vendorDemoLimits.globalDaily;
   const concurrentLimit = isNcirf ? vendorDemoLimits.concurrentNcirf : vendorDemoLimits.concurrent;
-  if (Number(ipRecent?.total) >= ipLimit || Number(globalRecent?.total) >= vendorDemoLimits.globalDaily || Number(toolRecent?.total) >= toolLimit) return { error: "too_many_demo_requests", retryAfter: isNcirf ? 1800 : 3600 };
-  if (Number(active?.total) >= concurrentLimit) return { error: "demo_busy", retryAfter: preset.tool === "ncirf" ? 120 : 30 };
+  const publicUsage = ({ used, limit, remaining, windowMinutes }) => ({ used, limit, remaining, windowMinutes });
+  if (usage.used >= usage.limit || Number(globalRecent?.total) >= vendorDemoLimits.globalDaily || Number(toolRecent?.total) >= toolLimit) {
+    return { error: "too_many_demo_requests", retryAfter: isNcirf ? 1800 : 3600, usage: publicUsage(usage) };
+  }
+  if (Number(active?.total) >= concurrentLimit) return { error: "demo_busy", retryAfter: preset.tool === "ncirf" ? 120 : 30, usage: publicUsage(usage) };
   const id = crypto.randomUUID();
-  await env.DB.prepare("INSERT INTO vendor_demo_requests (id, request_ip_hash, tool, preset_id, result) VALUES (?, ?, ?, ?, 'started')").bind(id, requestIpHash, preset.tool, preset.id).run();
-  return { id };
+  await env.DB.prepare("INSERT INTO vendor_demo_requests (id, request_ip_hash, tool, preset_id, result) VALUES (?, ?, ?, ?, 'started')").bind(id, usage.requestIpHash, preset.tool, preset.id).run();
+  return { id, usage: publicUsage({ ...usage, used: usage.used + 1, remaining: Math.max(0, usage.limit - usage.used - 1) }) };
 }
 
 async function completeVendorDemoRequest(env, id, result, upstreamStatus, durationMs) {
@@ -289,7 +299,7 @@ async function runVendorDemo(request, env, context, cors) {
   if (!demoRequest) return json({ error: "invalid_demo_parameters" }, 400, cors);
   const { preset, parameters, payload } = demoRequest;
   const reservation = await reserveVendorDemoRequest(request, env, preset);
-  if (reservation.error) return json({ error: reservation.error, retryAfter: reservation.retryAfter }, 429, { ...cors, "retry-after": String(reservation.retryAfter) });
+  if (reservation.error) return json({ error: reservation.error, retryAfter: reservation.retryAfter, usage: reservation.usage }, 429, { ...cors, "retry-after": String(reservation.retryAfter) });
 
   const startedAt = Date.now();
   let upstreamStatus = 0;
@@ -308,15 +318,15 @@ async function runVendorDemo(request, env, context, cors) {
     const durationMs = Date.now() - startedAt;
     if (!upstream.ok || upstreamBody === null) {
       await completeVendorDemoRequest(env, reservation.id, "failed", upstreamStatus, durationMs);
-      return json({ error: "demo_upstream_error" }, 502, cors);
+      return json({ error: "demo_upstream_error", usage: reservation.usage }, 502, cors);
     }
     await completeVendorDemoRequest(env, reservation.id, "succeeded", upstreamStatus, durationMs);
     context.waitUntil(env.DB.prepare("DELETE FROM vendor_demo_requests WHERE created_at < datetime('now', '-30 days')").run());
-    return json({ ok: true, demo: { tool: preset.tool, presetId: preset.id, parameters, upstreamStatus, durationMs, completedAt: new Date().toISOString() }, request: payload, response: upstreamBody }, 200, cors);
+    return json({ ok: true, demo: { tool: preset.tool, presetId: preset.id, parameters, upstreamStatus, durationMs, completedAt: new Date().toISOString() }, usage: reservation.usage, request: payload, response: upstreamBody }, 200, cors);
   } catch {
     const durationMs = Date.now() - startedAt;
     await completeVendorDemoRequest(env, reservation.id, "failed", upstreamStatus, durationMs);
-    return json({ error: "demo_upstream_error" }, 502, cors);
+    return json({ error: "demo_upstream_error", usage: reservation.usage }, 502, cors);
   } finally {
     clearTimeout(timeout);
   }
@@ -1168,6 +1178,14 @@ export default {
     if (request.method === "OPTIONS") return new Response(null, { status: 204, headers: cors });
     if (request.method === "GET" && url.pathname === "/health") return json({ ok: true, service: "ncidose-portal-api" }, 200, cors);
     if (request.method === "GET" && url.pathname === "/api/public/vendor-demo") {
+      const tool = url.searchParams.get("tool");
+      if (tool) {
+        if (!requestHasAllowedOrigin(request, env)) return json({ error: "invalid_origin" }, 403, cors);
+        if (!env.AUTH_SECRET || !env.DB) return json({ error: "demo_not_configured" }, 503, cors);
+        if (!["ncict", "ncinm", "ncirf"].includes(tool)) return json({ error: "invalid_demo_parameters" }, 400, cors);
+        const { used, limit, remaining, windowMinutes } = await vendorDemoUsageForRequest(request, env, tool);
+        return json({ ok: true, usage: { used, limit, remaining, windowMinutes } }, 200, cors);
+      }
       return Response.json({ ok: true, mode: "bounded_parameters", presets: Object.values(vendorDemoPresets).map(({ id, tool, endpoint }) => ({ id, tool, endpoint })) }, {
         headers: { ...cors, "cache-control": "public, max-age=300, s-maxage=300" },
       });

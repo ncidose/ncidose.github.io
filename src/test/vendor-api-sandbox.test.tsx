@@ -15,27 +15,36 @@ describe("vendor API sandbox", () => {
   beforeEach(() => {
     analyticsMocks.trackVendorSandboxEvent.mockReset();
     vi.unstubAllGlobals();
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(JSON.stringify({
+      ok: true,
+      usage: { used: 0, limit: 30, remaining: 30, windowMinutes: 60 },
+    }), { status: 200, headers: { "content-type": "application/json" } })));
   });
 
   it("sends only a preset identifier and renders the live API response", async () => {
-    const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify({
-      ok: true,
-      demo: { tool: "ncinm", presetId: "ncinm-fdg-adult", upstreamStatus: 200, durationMs: 42 },
-      request: { phantom_library: 2 },
-      response: { ok: true, dose_mGy: { effective_dose_mSv: 3.25 } },
-    }), { status: 200, headers: { "content-type": "application/json" } }));
+    const fetchMock = vi.fn(async (_url: RequestInfo | URL, options?: RequestInit) => new Response(JSON.stringify(
+      options?.method === "POST"
+        ? {
+            ok: true,
+            demo: { tool: "ncinm", presetId: "ncinm-fdg-adult", upstreamStatus: 200, durationMs: 42 },
+            usage: { used: 3, limit: 30, remaining: 27, windowMinutes: 60 },
+            request: { phantom_library: 2 },
+            response: { ok: true, dose_mGy: { effective_dose_mSv: 3.25 } },
+          }
+        : { ok: true, usage: { used: 2, limit: 30, remaining: 28, windowMinutes: 60 } },
+    ), { status: 200, headers: { "content-type": "application/json" } }));
     vi.stubGlobal("fetch", fetchMock);
 
     render(<VendorApiSandbox initialTool="ncinm" />);
     fireEvent.change(screen.getByLabelText("Radiopharmaceutical name"), { target: { value: "Tc99m MDP bone scan" } });
-    fireEvent.click(screen.getByText(/Advanced phantom & patient inputs/i));
     fireEvent.change(screen.getByLabelText("Sex"), { target: { value: "male" } });
     await waitFor(() => expect(screen.getByLabelText("Sex")).toHaveValue("male"));
     fireEvent.click(screen.getByRole("button", { name: /Run NCINM demo/i }));
 
     await waitFor(() => expect(screen.getByText(/Live calculation completed/i)).toBeInTheDocument());
-    expect(fetchMock).toHaveBeenCalledTimes(1);
-    const [url, options] = fetchMock.mock.calls[0];
+    const postCall = fetchMock.mock.calls.find(([, options]) => options?.method === "POST");
+    expect(postCall).toBeDefined();
+    const [url, options] = postCall!;
     expect(url).toBe("https://portal.ncidosetools.com/api/public/vendor-demo");
     expect(JSON.parse(String(options.body))).toEqual({
       presetId: "ncinm-fdg-adult",
@@ -52,6 +61,7 @@ describe("vendor API sandbox", () => {
     expect(responseText).toBeInTheDocument();
     expect(responseText.closest("pre")).toHaveClass("whitespace-pre-wrap", "break-words");
     expect(responseText.closest("pre")).not.toHaveClass("overflow-auto", "h-[360px]");
+    expect(screen.getByText(/3 of 30 runs used in the last hour/i)).toBeInTheDocument();
     expect(analyticsMocks.trackVendorSandboxEvent).toHaveBeenCalledWith(
       "vendor_sandbox_run",
       "ncinm",
@@ -66,17 +76,17 @@ describe("vendor API sandbox", () => {
     );
   });
 
-  it("keeps simple and advanced inputs distinct while stating evaluation boundaries", () => {
+  it("shows NCICT and NCINM inputs directly while stating evaluation boundaries", () => {
     render(<VendorApiSandbox />);
 
+    expect(screen.getByRole("heading", { name: "Try the APIs live" })).toBeInTheDocument();
     expect(screen.getByText(/No identifiers/i)).toBeInTheDocument();
     expect(screen.getByText(/No production or clinical use/i)).toBeInTheDocument();
     expect(screen.getByText(/Single-case requests/i)).toBeInTheDocument();
     expect(screen.getByText(/30 runs \/ hour/i)).toBeInTheDocument();
     expect(screen.queryByText(/same hypothetical inputs in your current solution/i)).not.toBeInTheDocument();
-    expect(screen.getByText(/Advanced patient & scanner inputs/i)).toBeInTheDocument();
+    expect(screen.queryByText(/Advanced patient & scanner inputs/i)).not.toBeInTheDocument();
     expect(screen.getByRole("link", { name: /NCICT API manual/i })).toHaveAttribute("href", "/manuals/ncict-api");
-    fireEvent.click(screen.getByText(/Advanced patient & scanner inputs/i));
     fireEvent.change(screen.getByLabelText("Body-size matching"), { target: { value: "wed" } });
     expect(screen.getByLabelText("Water-equivalent diameter · WED (cm)")).toBeInTheDocument();
     fireEvent.change(screen.getByLabelText("Body-size matching"), { target: { value: "height-weight" } });
@@ -89,7 +99,10 @@ describe("vendor API sandbox", () => {
     fireEvent.click(screen.getByRole("tab", { name: /NCINM/i }));
     expect(screen.getByLabelText("Radiopharmaceutical name")).toHaveValue("F-18 FDG");
     expect(screen.getByText(/matched entry, method, and score/i)).toBeInTheDocument();
-    expect(screen.getByText(/Advanced phantom & patient inputs/i)).toBeInTheDocument();
+    expect(screen.queryByText(/Advanced phantom & patient inputs/i)).not.toBeInTheDocument();
+    expect(screen.getByLabelText("Phantom library")).toBeInTheDocument();
+    expect(screen.getByLabelText("Sex")).toBeInTheDocument();
+    expect(screen.getByText("Age")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /NCINM API manual/i })).toHaveAttribute("href", "/manuals/ncinm-api");
   });
 

@@ -125,7 +125,8 @@ describe("public vendor API demo", () => {
     }, { waitUntil: vi.fn() });
 
     expect(response.status).toBe(200);
-    expect(statements.some((sql) => sql.includes("request_ip_hash=? AND tool='ncirf'") && sql.includes("datetime('now', ?)"))).toBe(true);
+    expect(statements.some((sql) => sql.includes("request_ip_hash=? AND tool='ncirf'") && sql.includes("datetime('now', '-30 minutes')"))).toBe(true);
+    expect(await response.json()).toMatchObject({ usage: { used: 1, limit: 5, remaining: 4, windowMinutes: 30 } });
   });
 
   it("keeps the API key server-side while proxying the fixed payload", async () => {
@@ -158,6 +159,7 @@ describe("public vendor API demo", () => {
     const payload = await response.json();
 
     expect(response.status, JSON.stringify(payload)).toBe(200);
+    expect(payload.usage).toEqual({ used: 1, limit: 30, remaining: 29, windowMinutes: 60 });
     expect(payload.request).toMatchObject({ age: 10, sex: "m", start: 1001, end: 1003, kvp: 100, ctdivol: 20 });
     expect(JSON.stringify(payload)).not.toContain("unit-test-demo-key");
     expect(upstreamFetch).toHaveBeenCalledWith(

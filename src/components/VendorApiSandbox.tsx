@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { AlertCircle, CheckCircle2, Clock3, Loader2, Play } from "lucide-react";
 import { buildVendorApiDemoRequest, vendorApiDemoPresetForTool, vendorApiDemoPresets, type VendorApiDemoPreset } from "@/data/vendorApiDemo";
 import { trackVendorSandboxEvent } from "@/lib/analytics";
@@ -20,6 +20,14 @@ type DemoResponse = {
   };
   request?: Record<string, unknown>;
   response?: unknown;
+  usage?: DemoUsage;
+};
+
+type DemoUsage = {
+  used: number;
+  limit: number;
+  remaining: number;
+  windowMinutes: number;
 };
 
 const demoErrors: Record<string, string> = {
@@ -90,36 +98,29 @@ const ParameterControls = ({
     <div className="font-mono text-[11px] uppercase tracking-widest text-sky-300">Adjustable demo inputs</div>
     {preset.tool === "ncict" && (
       <div className="mt-3 space-y-4">
-        <div className="grid gap-3 sm:grid-cols-2">
+        <div className="grid gap-3 sm:grid-cols-3">
           <label className="text-xs text-slate-300">Scan protocol<select value={parameters.protocol} disabled={disabled} onChange={(event) => onChange("protocol", event.target.value)} className={selectClassName}><option value="head">Head</option><option value="neck">Neck</option><option value="chest">Chest</option><option value="abdomen">Abdomen</option><option value="pelvis">Pelvis</option><option value="abdomenPelvis">Abdomen–pelvis</option><option value="cap">Chest–abdomen–pelvis</option><option value="wholeBody">Whole body</option></select></label>
           <label className="text-xs text-slate-300"><span className="flex justify-between gap-3"><span>CTDIvol</span><output>{parameters.ctdivol} mGy</output></span><input type="range" min="1" max="50" step="1" value={parameters.ctdivol} disabled={disabled} onChange={(event) => onChange("ctdivol", Number(event.target.value))} className="mt-3 w-full accent-sky-400" /></label>
+          <NumberInput label="Age" name="age" value={parameters.age} min={0} max={90} unit="years" disabled={disabled} onChange={onChange} />
+          <label className="text-xs text-slate-300">Sex<select value={parameters.sex} disabled={disabled} onChange={(event) => onChange("sex", event.target.value)} className={selectClassName}><option value="f">Female</option><option value="m">Male</option></select></label>
+          <label className="text-xs text-slate-300">Body-size matching<select value={parameters.bodySizeMethod} disabled={disabled} onChange={(event) => onChange("bodySizeMethod", event.target.value)} className={selectClassName}><option value="age-sex">Age and sex</option><option value="wed">Water-equivalent diameter</option><option value="height-weight">Height and weight</option></select></label>
+          {parameters.bodySizeMethod === "wed" && (
+            <NumberInput label="Water-equivalent diameter · WED" name="wedCm" value={parameters.wedCm} min={5} max={80} step={0.1} unit="cm" disabled={disabled} onChange={onChange} />
+          )}
+          {parameters.bodySizeMethod === "height-weight" && (
+            <>
+              <NumberInput label="Height" name="heightCm" value={parameters.heightCm} min={40} max={220} step={0.1} unit="cm" disabled={disabled} onChange={onChange} />
+              <NumberInput label="Weight" name="weightKg" value={parameters.weightKg} min={2} max={300} step={0.1} unit="kg" disabled={disabled} onChange={onChange} />
+            </>
+          )}
+          <label className="text-xs text-slate-300">Tube potential<select value={parameters.kvp} disabled={disabled} onChange={(event) => onChange("kvp", Number(event.target.value))} className={selectClassName}>{[80, 100, 120, 140].map((kvp) => <option key={kvp} value={kvp}>{kvp} kVp</option>)}</select></label>
+          <label className="text-xs text-slate-300">CTDI phantom<select value={parameters.headBody} disabled={disabled} onChange={(event) => onChange("headBody", Number(event.target.value))} className={selectClassName}><option value={1}>16-cm head</option><option value={2}>32-cm body</option></select></label>
+          <label className="text-xs text-slate-300 sm:col-span-3"><span className="flex justify-between gap-3"><span>Tube current modulation strength</span><output>{Number(parameters.tcmStrength).toFixed(1)}</output></span><input type="range" min="0" max="1" step="0.1" value={parameters.tcmStrength} disabled={disabled} onChange={(event) => onChange("tcmStrength", Number(event.target.value))} className="mt-3 w-full accent-sky-400" /></label>
         </div>
-        <details className="border border-slate-700 bg-slate-950/30">
-          <summary className="cursor-pointer px-4 py-3 font-mono text-[11px] uppercase tracking-widest text-sky-300 hover:text-white">Advanced patient &amp; scanner inputs</summary>
-          <div className="border-t border-slate-700 p-4">
-            <p className="text-xs leading-5 text-slate-400">Choose age/sex, WED, or height/weight phantom matching as documented in the <a className="text-sky-300 underline decoration-sky-500/50 underline-offset-2 hover:text-white" href="/manuals/ncict-api">NCICT API manual</a>.</p>
-            <div className="mt-4 grid gap-3 sm:grid-cols-3">
-              <NumberInput label="Age" name="age" value={parameters.age} min={0} max={90} unit="years" disabled={disabled} onChange={onChange} />
-              <label className="text-xs text-slate-300">Sex<select value={parameters.sex} disabled={disabled} onChange={(event) => onChange("sex", event.target.value)} className={selectClassName}><option value="f">Female</option><option value="m">Male</option></select></label>
-              <label className="text-xs text-slate-300">Body-size matching<select value={parameters.bodySizeMethod} disabled={disabled} onChange={(event) => onChange("bodySizeMethod", event.target.value)} className={selectClassName}><option value="age-sex">Age and sex</option><option value="wed">Water-equivalent diameter</option><option value="height-weight">Height and weight</option></select></label>
-              {parameters.bodySizeMethod === "wed" && (
-                <NumberInput label="Water-equivalent diameter · WED" name="wedCm" value={parameters.wedCm} min={5} max={80} step={0.1} unit="cm" disabled={disabled} onChange={onChange} />
-              )}
-              {parameters.bodySizeMethod === "height-weight" && (
-                <>
-                  <NumberInput label="Height" name="heightCm" value={parameters.heightCm} min={40} max={220} step={0.1} unit="cm" disabled={disabled} onChange={onChange} />
-                  <NumberInput label="Weight" name="weightKg" value={parameters.weightKg} min={2} max={300} step={0.1} unit="kg" disabled={disabled} onChange={onChange} />
-                </>
-              )}
-              <label className="text-xs text-slate-300">Tube potential<select value={parameters.kvp} disabled={disabled} onChange={(event) => onChange("kvp", Number(event.target.value))} className={selectClassName}>{[80, 100, 120, 140].map((kvp) => <option key={kvp} value={kvp}>{kvp} kVp</option>)}</select></label>
-              <label className="text-xs text-slate-300">CTDI phantom<select value={parameters.headBody} disabled={disabled} onChange={(event) => onChange("headBody", Number(event.target.value))} className={selectClassName}><option value={1}>16-cm head</option><option value={2}>32-cm body</option></select></label>
-              <label className="text-xs text-slate-300 sm:col-span-3"><span className="flex justify-between gap-3"><span>Tube current modulation strength</span><output>{Number(parameters.tcmStrength).toFixed(1)}</output></span><input type="range" min="0" max="1" step="0.1" value={parameters.tcmStrength} disabled={disabled} onChange={(event) => onChange("tcmStrength", Number(event.target.value))} className="mt-3 w-full accent-sky-400" /></label>
-            </div>
-            {parameters.bodySizeMethod === "wed" && !["chest", "abdomen", "pelvis", "abdomenPelvis", "cap"].includes(String(parameters.protocol)) && (
-              <p className="mt-3 text-xs leading-5 text-amber-200">WED matching is applied only to supported chest, abdomen, pelvis, AP, and CAP landmark ranges; other ranges fall back to age/sex matching.</p>
-            )}
-          </div>
-        </details>
+        <p className="text-xs leading-5 text-slate-400">Choose age/sex, WED, or height/weight phantom matching as documented in the <a className="text-sky-300 underline decoration-sky-500/50 underline-offset-2 hover:text-white" href="/manuals/ncict-api">NCICT API manual</a>.</p>
+        {parameters.bodySizeMethod === "wed" && !["chest", "abdomen", "pelvis", "abdomenPelvis", "cap"].includes(String(parameters.protocol)) && (
+          <p className="text-xs leading-5 text-amber-200">WED matching is applied only to supported chest, abdomen, pelvis, AP, and CAP landmark ranges; other ranges fall back to age/sex matching.</p>
+        )}
       </div>
     )}
     {preset.tool === "ncinm" && (
@@ -130,19 +131,12 @@ const ParameterControls = ({
             <input type="text" value={parameters.radiopharmaceutical} maxLength={120} placeholder="e.g., Tc99m MDP bone scan" disabled={disabled} onChange={(event) => onChange("radiopharmaceutical", event.target.value)} className={textInputClassName} />
           </label>
           <label className="text-xs text-slate-300"><span className="flex justify-between gap-3"><span>Administered activity</span><output>{parameters.administeredActivityMbq} MBq</output></span><input type="range" min="10" max="1000" step="10" value={parameters.administeredActivityMbq} disabled={disabled} onChange={(event) => onChange("administeredActivityMbq", Number(event.target.value))} className="mt-3 w-full accent-sky-400" /></label>
+          <label className="text-xs text-slate-300">Phantom library<select value={parameters.phantomLibrary} disabled={disabled} onChange={(event) => onChange("phantomLibrary", Number(event.target.value))} className={selectClassName}><option value={1}>NCI</option><option value={2}>ICRP</option></select></label>
+          <label className="text-xs text-slate-300">Sex<select value={parameters.sex} disabled={disabled} onChange={(event) => onChange("sex", event.target.value)} className={selectClassName}><option value="female">Female</option><option value="male">Male</option></select></label>
+          <label className="text-xs text-slate-300 sm:col-span-2"><span className="flex justify-between gap-3"><span>Age</span><output>{parameters.age} years</output></span><input type="range" min="0" max="90" step="1" value={parameters.age} disabled={disabled} onChange={(event) => onChange("age", Number(event.target.value))} className="mt-3 w-full accent-sky-400" /></label>
           <p className="text-xs leading-5 text-slate-400 sm:col-span-2">Try a library name, ID, alternate radionuclide notation, or clinical-style text. The response reports the original text, matched entry, method, and score.</p>
         </div>
-        <details className="border border-slate-700 bg-slate-950/30">
-          <summary className="cursor-pointer px-4 py-3 font-mono text-[11px] uppercase tracking-widest text-sky-300 hover:text-white">Advanced phantom &amp; patient inputs</summary>
-          <div className="border-t border-slate-700 p-4">
-            <p className="text-xs leading-5 text-slate-400">Match phantom and patient settings using the <a className="text-sky-300 underline decoration-sky-500/50 underline-offset-2 hover:text-white" href="/manuals/ncinm-api">NCINM API manual</a>.</p>
-            <div className="mt-4 grid gap-3 sm:grid-cols-2">
-              <label className="text-xs text-slate-300">Phantom library<select value={parameters.phantomLibrary} disabled={disabled} onChange={(event) => onChange("phantomLibrary", Number(event.target.value))} className={selectClassName}><option value={1}>NCI</option><option value={2}>ICRP</option></select></label>
-              <label className="text-xs text-slate-300">Sex<select value={parameters.sex} disabled={disabled} onChange={(event) => onChange("sex", event.target.value)} className={selectClassName}><option value="female">Female</option><option value="male">Male</option></select></label>
-              <label className="text-xs text-slate-300 sm:col-span-2"><span className="flex justify-between gap-3"><span>Age</span><output>{parameters.age} years</output></span><input type="range" min="0" max="90" step="1" value={parameters.age} disabled={disabled} onChange={(event) => onChange("age", Number(event.target.value))} className="mt-3 w-full accent-sky-400" /></label>
-            </div>
-          </div>
-        </details>
+        <p className="text-xs leading-5 text-slate-400">Match phantom and patient settings using the <a className="text-sky-300 underline decoration-sky-500/50 underline-offset-2 hover:text-white" href="/manuals/ncinm-api">NCINM API manual</a>.</p>
       </div>
     )}
     {preset.tool === "ncirf" && (
@@ -233,11 +227,29 @@ export const VendorApiSandbox = ({ initialTool }: { initialTool?: string | null 
   const [status, setStatus] = useState<"idle" | "running" | "success" | "error">("idle");
   const [result, setResult] = useState<DemoResponse | null>(null);
   const [error, setError] = useState("");
+  const [usage, setUsage] = useState<DemoUsage | null>(null);
   const requestSequence = useRef(0);
   const selected = vendorApiDemoPresets.find((preset) => preset.id === selectedId) ?? initialPreset;
   const selectedParameters = parameterSets[selected.id] ?? selected.defaultParameters;
   const displayedRequest = buildVendorApiDemoRequest(selected, selectedParameters);
   const rateLimitLabel = selected.tool === "ncirf" ? "5 runs / 30 min" : "30 runs / hour";
+  const usageLabel = usage
+    ? `${usage.used} of ${usage.limit} runs used in the last ${usage.windowMinutes === 60 ? "hour" : `${usage.windowMinutes} min`}`
+    : `Limit: ${rateLimitLabel}`;
+
+  useEffect(() => {
+    const controller = new AbortController();
+    setUsage(null);
+    const usageUrl = new URL(demoEndpoint, window.location.href);
+    usageUrl.searchParams.set("tool", selected.tool);
+    fetch(usageUrl.toString(), { signal: controller.signal })
+      .then(async (response) => response.ok ? response.json() as Promise<DemoResponse> : null)
+      .then((payload) => {
+        if (payload?.usage) setUsage(payload.usage);
+      })
+      .catch(() => undefined);
+    return () => controller.abort();
+  }, [selected.tool]);
 
   const updateParameter = (name: string, value: ParameterValue) => {
     setParameterSets((current) => ({
@@ -279,6 +291,7 @@ export const VendorApiSandbox = ({ initialTool }: { initialTool?: string | null 
       });
       const payload = await response.json().catch(() => ({ error: "demo_upstream_error" })) as DemoResponse;
       if (requestSequence.current !== sequence) return;
+      if (payload.usage) setUsage(payload.usage);
       if (!response.ok || payload.ok !== true) {
         const message = demoErrors[payload.error || ""] || "The live demo could not complete this request.";
         const retry = payload.retryAfter ? ` Try again in about ${Math.ceil(payload.retryAfter / 60)} minutes.` : "";
@@ -317,9 +330,9 @@ export const VendorApiSandbox = ({ initialTool }: { initialTool?: string | null 
         <div className="mx-auto max-w-6xl">
           <div className="max-w-3xl">
             <span className="font-mono text-xs uppercase tracking-widest text-sky-300">Live Vendor Sandbox</span>
-            <h2 className="mt-4 text-section-md text-white lg:text-section">Try the APIs with a verified sample case</h2>
+            <h2 className="mt-4 text-section-md text-white lg:text-section">Try the APIs live</h2>
             <p className="mt-4 text-base leading-7 text-slate-300">
-              Start with the simple inputs, or expand the advanced section to match a single de-identified case. No account or API key is required.
+              Adjust the inputs to match a single de-identified case. No account or API key is required.
             </p>
           </div>
 
@@ -382,22 +395,25 @@ export const VendorApiSandbox = ({ initialTool }: { initialTool?: string | null 
                       </p>
                     )}
                   </div>
-                  <button
-                    type="button"
-                    onClick={runDemo}
-                    disabled={status === "running"}
-                    className="btn-precision inline-flex flex-none items-center gap-2 disabled:cursor-not-allowed disabled:opacity-60"
-                    data-analytics-location="vendor_api_sandbox"
-                    data-analytics-tool={selected.tool}
-                    data-analytics-audience="vendor"
-                    data-analytics-action="run_live_demo"
-                  >
-                    {status === "running" ? (
-                      <><Loader2 className="h-4 w-4 animate-spin" /> Running</>
-                    ) : (
-                      <><Play className="h-4 w-4" /> Run {selected.modality} demo</>
-                    )}
-                  </button>
+                  <div className="flex flex-none flex-col items-end gap-1.5">
+                    <button
+                      type="button"
+                      onClick={runDemo}
+                      disabled={status === "running"}
+                      className="btn-precision inline-flex flex-none items-center gap-2 disabled:cursor-not-allowed disabled:opacity-60"
+                      data-analytics-location="vendor_api_sandbox"
+                      data-analytics-tool={selected.tool}
+                      data-analytics-audience="vendor"
+                      data-analytics-action="run_live_demo"
+                    >
+                      {status === "running" ? (
+                        <><Loader2 className="h-4 w-4 animate-spin" /> Running</>
+                      ) : (
+                        <><Play className="h-4 w-4" /> Run {selected.modality} demo</>
+                      )}
+                    </button>
+                    <p className="text-right text-[11px] text-slate-500" aria-live="polite">{usageLabel}</p>
+                  </div>
                 </div>
 
                 {status === "idle" && (
@@ -443,7 +459,7 @@ export const VendorApiSandbox = ({ initialTool }: { initialTool?: string | null 
             </div>
           </div>
           <p className="mt-5 text-xs leading-5 text-slate-400">
-            Technical testing only · Single-case requests · {rateLimitLabel} · No identifiers · No production or clinical use · No SLA
+            Technical testing only · Single-case requests · No identifiers · No production or clinical use · No SLA
           </p>
         </div>
       </div>
