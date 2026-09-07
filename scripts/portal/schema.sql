@@ -200,6 +200,7 @@ CREATE TABLE IF NOT EXISTS qa_attachments (
 );
 
 CREATE INDEX IF NOT EXISTS idx_user_identities_email ON user_identities(normalized_email);
+CREATE INDEX IF NOT EXISTS idx_user_identities_user_primary ON user_identities(user_id, is_primary DESC, created_at ASC);
 CREATE INDEX IF NOT EXISTS idx_login_challenges_email_created ON login_challenges(normalized_email, created_at);
 CREATE INDEX IF NOT EXISTS idx_login_challenges_ip_created ON login_challenges(request_ip_hash, created_at);
 CREATE INDEX IF NOT EXISTS idx_portal_sessions_token ON portal_sessions(token_hash);
@@ -207,6 +208,7 @@ CREATE INDEX IF NOT EXISTS idx_portal_sessions_user ON portal_sessions(user_id, 
 CREATE INDEX IF NOT EXISTS idx_group_memberships_import ON group_memberships(last_import_id);
 CREATE INDEX IF NOT EXISTS idx_access_requests_status ON access_requests(workflow_status, created_at);
 CREATE INDEX IF NOT EXISTS idx_access_events_user_time ON access_events(user_id, occurred_at);
+CREATE INDEX IF NOT EXISTS idx_access_events_type_time ON access_events(event_type, occurred_at DESC);
 CREATE INDEX IF NOT EXISTS idx_vendor_demo_ip_time ON vendor_demo_requests(request_ip_hash, created_at);
 CREATE INDEX IF NOT EXISTS idx_vendor_demo_tool_time ON vendor_demo_requests(tool, created_at);
 CREATE INDEX IF NOT EXISTS idx_vendor_demo_result_time ON vendor_demo_requests(result, created_at);

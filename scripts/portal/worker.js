@@ -37,6 +37,33 @@ export const vendorDemoLimits = Object.freeze({
   concurrent: 10,
   concurrentNcirf: 1,
 });
+export const adminRecentActivityQuery = `
+  WITH recent_events AS (
+    SELECT * FROM (
+      SELECT id, user_id, event_type, object_key, occurred_at
+      FROM access_events
+      WHERE event_type='login'
+      ORDER BY occurred_at DESC
+      LIMIT 100
+    )
+    UNION ALL
+    SELECT * FROM (
+      SELECT id, user_id, event_type, object_key, occurred_at
+      FROM access_events
+      WHERE event_type='download'
+      ORDER BY occurred_at DESC
+      LIMIT 100
+    )
+  )
+  SELECT events.id, events.user_id, events.event_type, events.object_key, events.occurred_at,
+    users.display_name, identities.normalized_email AS email
+  FROM recent_events events
+  LEFT JOIN users ON users.id=events.user_id
+  LEFT JOIN user_identities identities
+    ON identities.user_id=events.user_id AND identities.is_primary=1
+  ORDER BY events.occurred_at DESC
+  LIMIT 100
+`;
 export const vendorDemoPresetForInput = (input = {}) =>
   typeof input.presetId === "string" ? vendorDemoPresets[input.presetId] || null : null;
 const vendorDemoProtocolRanges = Object.freeze({
@@ -1596,18 +1623,7 @@ export default {
             ORDER BY downloads DESC, object_key ASC
             LIMIT 20
           `).all(),
-          env.DB.prepare(`
-            SELECT events.id, events.user_id, events.event_type, events.object_key, events.occurred_at,
-              users.display_name,
-              (SELECT identities.normalized_email FROM user_identities identities
-                WHERE identities.user_id=events.user_id
-                ORDER BY identities.is_primary DESC, identities.created_at ASC LIMIT 1) AS email
-            FROM access_events events
-            LEFT JOIN users ON users.id=events.user_id
-            WHERE events.event_type IN ('login', 'download')
-            ORDER BY events.occurred_at DESC
-            LIMIT 100
-          `).all(),
+          env.DB.prepare(adminRecentActivityQuery).all(),
           env.DB.prepare(`
             SELECT
               SUM(CASE WHEN counts_toward_limit=1 AND created_at >= datetime('now', '-1 day') THEN 1 ELSE 0 END) AS requests_today,

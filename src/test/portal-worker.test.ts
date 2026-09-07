@@ -1,5 +1,15 @@
 import { describe, expect, it, vi } from "vitest";
-import portalWorker, { announcementEmailHtml, canPublishQuestion, canViewDiscussion, discussionAuthorForUser, folderArchiveKeys, generateLoginCode, isFolderDownloadPrefix, linkedEmailWelcomeHtml, loginCodeEmailHtml, normalizeAdminUserDetails, normalizePortalEmail, normalizeQuestionVisibility, portalSessionCookieHeader, qaAttachmentValidationError, secondaryEmailAddedHtml, shouldNotifyDiscussionReplyRecipient, shouldNotifyNewDiscussionRecipient, vendorDemoLimits, vendorDemoLocationForRequest, vendorDemoPresetForInput, vendorDemoPresets, vendorDemoRequestForInput, welcomeEmailHtml } from "../../scripts/portal/worker.js";
+import portalWorker, { adminRecentActivityQuery, announcementEmailHtml, canPublishQuestion, canViewDiscussion, discussionAuthorForUser, folderArchiveKeys, generateLoginCode, isFolderDownloadPrefix, linkedEmailWelcomeHtml, loginCodeEmailHtml, normalizeAdminUserDetails, normalizePortalEmail, normalizeQuestionVisibility, portalSessionCookieHeader, qaAttachmentValidationError, secondaryEmailAddedHtml, shouldNotifyDiscussionReplyRecipient, shouldNotifyNewDiscussionRecipient, vendorDemoLimits, vendorDemoLocationForRequest, vendorDemoPresetForInput, vendorDemoPresets, vendorDemoRequestForInput, welcomeEmailHtml } from "../../scripts/portal/worker.js";
+
+describe("admin activity query", () => {
+  it("uses an indexed primary-identity join instead of a per-event correlated lookup", () => {
+    expect(adminRecentActivityQuery).toContain("LEFT JOIN user_identities identities");
+    expect(adminRecentActivityQuery).toContain("identities.user_id=events.user_id AND identities.is_primary=1");
+    expect(adminRecentActivityQuery).toContain("WHERE event_type='login'");
+    expect(adminRecentActivityQuery).toContain("WHERE event_type='download'");
+    expect(adminRecentActivityQuery).not.toContain("(SELECT identities.normalized_email");
+  });
+});
 
 describe("public vendor API demo", () => {
   it("keeps only approximate Cloudflare location fields", () => {
