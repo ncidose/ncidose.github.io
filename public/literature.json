@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-01T03:09:30.202Z",
+  "generatedAt": "2026-09-07T13:12:33.573Z",
   "source": "NCBI E-utilities PubMed and PubMed Central searches",
   "note": "Searches combine tool-specific identifiers with modality terms to reduce unrelated full-text matches.",
   "tools": [
@@ -18,16 +18,16 @@
       },
       "counts": {
         "pubmedTitleAbstract": 42,
-        "pmcFullTextRecords": 71,
-        "pmcMappedPmids": 69,
+        "pmcFullTextRecords": 74,
+        "pmcMappedPmids": 72,
         "pmcWithoutPmid": 2,
-        "combinedUniquePmids": 93,
-        "displayedArticles": 93
+        "combinedUniquePmids": 95,
+        "displayedArticles": 95
       },
       "years": [
         {
           "year": "2026",
-          "count": 14,
+          "count": 16,
           "articles": [
             {
               "pmid": "42188702",
@@ -219,11 +219,11 @@
             },
             {
               "pmid": "42315308",
-              "pmcid": null,
+              "pmcid": "PMC13544246",
               "title": "MIRD Pamphlet No. 34, Part 2: Benchmarking of MIRDct Software for CT Organ Dose Estimation",
               "journal": "Journal of nuclear medicine : official publication, Society of Nuclear Medicine",
-              "pubdate": "2026 Jun 18",
-              "publicationDate": "2026-06-18",
+              "pubdate": "2026 Sep 2",
+              "publicationDate": "2026-09-02",
               "year": "2026",
               "authors": [
                 "Kayal G",
@@ -236,10 +236,11 @@
               "nciTeamAuthored": false,
               "doi": "10.2967/jnumed.125.271501",
               "sources": [
-                "PubMed title/abstract"
+                "PubMed title/abstract",
+                "PMC full text"
               ],
               "pubmedUrl": "https://pubmed.ncbi.nlm.nih.gov/42315308/",
-              "pmcUrl": null
+              "pmcUrl": "https://pmc.ncbi.nlm.nih.gov/articles/PMC13544246/"
             },
             {
               "pmid": "42346038",
@@ -308,6 +309,49 @@
               ],
               "pubmedUrl": "https://pubmed.ncbi.nlm.nih.gov/42511492/",
               "pmcUrl": "https://pmc.ncbi.nlm.nih.gov/articles/PMC13411452/"
+            },
+            {
+              "pmid": "42669967",
+              "pmcid": "PMC13527227",
+              "title": "Quantifying variation in DLP- to- effective-dose conversion factors in CT using a Monte Carlo-based dose-estimation software",
+              "journal": "Journal of applied clinical medical physics",
+              "pubdate": "2026 Sep",
+              "publicationDate": "2026-09-01",
+              "year": "2026",
+              "authors": [
+                "Mihailovic JM",
+                "Chu R",
+                "Zhang D",
+                "Hernandez AM",
+                "Yang K",
+                "Yu L"
+              ],
+              "nciTeamAuthored": false,
+              "doi": "10.1002/acm2.70724",
+              "sources": [
+                "PMC full text"
+              ],
+              "pubmedUrl": "https://pubmed.ncbi.nlm.nih.gov/42669967/",
+              "pmcUrl": "https://pmc.ncbi.nlm.nih.gov/articles/PMC13527227/"
+            },
+            {
+              "pmid": "42676647",
+              "pmcid": "PMC13527544",
+              "title": "Size-specific dose estimation in pediatric computed tomography: From dose characterization to individualized optimization",
+              "journal": "World journal of radiology",
+              "pubdate": "2026 Aug 28",
+              "publicationDate": "2026-08-28",
+              "year": "2026",
+              "authors": [
+                "Chen T"
+              ],
+              "nciTeamAuthored": false,
+              "doi": "10.4329/wjr.124887",
+              "sources": [
+                "PMC full text"
+              ],
+              "pubmedUrl": "https://pubmed.ncbi.nlm.nih.gov/42676647/",
+              "pmcUrl": "https://pmc.ncbi.nlm.nih.gov/articles/PMC13527544/"
             },
             {
               "pmid": "41313371",
