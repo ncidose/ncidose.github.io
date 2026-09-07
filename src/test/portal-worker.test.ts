@@ -1,7 +1,16 @@
 import { describe, expect, it, vi } from "vitest";
-import portalWorker, { announcementEmailHtml, canPublishQuestion, canViewDiscussion, discussionAuthorForUser, folderArchiveKeys, generateLoginCode, isFolderDownloadPrefix, linkedEmailWelcomeHtml, loginCodeEmailHtml, normalizeAdminUserDetails, normalizePortalEmail, normalizeQuestionVisibility, portalSessionCookieHeader, qaAttachmentValidationError, secondaryEmailAddedHtml, shouldNotifyDiscussionReplyRecipient, shouldNotifyNewDiscussionRecipient, vendorDemoLimits, vendorDemoPresetForInput, vendorDemoPresets, vendorDemoRequestForInput, welcomeEmailHtml } from "../../scripts/portal/worker.js";
+import portalWorker, { announcementEmailHtml, canPublishQuestion, canViewDiscussion, discussionAuthorForUser, folderArchiveKeys, generateLoginCode, isFolderDownloadPrefix, linkedEmailWelcomeHtml, loginCodeEmailHtml, normalizeAdminUserDetails, normalizePortalEmail, normalizeQuestionVisibility, portalSessionCookieHeader, qaAttachmentValidationError, secondaryEmailAddedHtml, shouldNotifyDiscussionReplyRecipient, shouldNotifyNewDiscussionRecipient, vendorDemoLimits, vendorDemoLocationForRequest, vendorDemoPresetForInput, vendorDemoPresets, vendorDemoRequestForInput, welcomeEmailHtml } from "../../scripts/portal/worker.js";
 
 describe("public vendor API demo", () => {
+  it("keeps only approximate Cloudflare location fields", () => {
+    expect(vendorDemoLocationForRequest({ cf: { country: "us", city: " Washington\nDC ", latitude: "38.9", longitude: "-77.0" } })).toEqual({
+      countryCode: "US",
+      city: "WashingtonDC",
+    });
+    expect(vendorDemoLocationForRequest({ cf: { country: "USA", city: "" } })).toEqual({ countryCode: null, city: null });
+    expect(vendorDemoLocationForRequest(new Request("https://portal.ncidosetools.com"))).toEqual({ countryCode: null, city: null });
+  });
+
   it("accepts bounded parameters and rejects arbitrary calculation input", () => {
     const valid = vendorDemoRequestForInput({
       presetId: "ncict-adult-chest",
@@ -127,6 +136,44 @@ describe("public vendor API demo", () => {
     expect(response.status).toBe(200);
     expect(statements.some((sql) => sql.includes("request_ip_hash=? AND tool='ncirf'") && sql.includes("datetime('now', '-30 minutes')"))).toBe(true);
     expect(await response.json()).toMatchObject({ usage: { used: 1, limit: 5, remaining: 4, windowMinutes: 30 } });
+  });
+
+  it("records rejected sandbox traffic without consuming more allowance", async () => {
+    const statements: string[] = [];
+    const db = {
+      prepare: vi.fn((sql: string) => {
+        statements.push(sql);
+        const statement = {
+          bind: vi.fn(() => statement),
+          first: vi.fn(async () => ({ total: sql.includes("request_ip_hash=?") ? 30 : 0 })),
+          run: vi.fn(async () => ({ success: true })),
+        };
+        return statement;
+      }),
+    };
+    const upstreamFetch = vi.fn();
+    vi.stubGlobal("fetch", upstreamFetch);
+
+    const response = await portalWorker.fetch(new Request("https://portal.ncidosetools.com/api/public/vendor-demo", {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        "origin": "https://ncidose.github.io",
+        "cf-connecting-ip": "192.0.2.4",
+      },
+      body: JSON.stringify({ presetId: "ncict-adult-chest", parameters: {} }),
+    }), {
+      ALLOWED_ORIGINS: "https://ncidose.github.io",
+      AUTH_SECRET: "unit-test-auth-secret",
+      NCIDOSE_VENDOR_DEMO_API_KEY: "unit-test-demo-key",
+      DB: db,
+    }, { waitUntil: vi.fn() });
+
+    expect(response.status).toBe(429);
+    expect(await response.json()).toMatchObject({ error: "too_many_demo_requests", usage: { used: 30, limit: 30, remaining: 0 } });
+    expect(statements.some((sql) => sql.includes("counts_toward_limit=1") && sql.includes("request_ip_hash=?"))).toBe(true);
+    expect(statements.some((sql) => sql.includes("counts_toward_limit, failure_reason, attempt_count") && sql.includes("ON CONFLICT(id) DO UPDATE"))).toBe(true);
+    expect(upstreamFetch).not.toHaveBeenCalled();
   });
 
   it("keeps the API key server-side while proxying the fixed payload", async () => {

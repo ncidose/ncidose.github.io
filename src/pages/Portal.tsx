@@ -85,6 +85,7 @@ const portalNav = [
   { id: "questions", label: "Discussions", icon: MessageCircleQuestion },
   { id: "account", label: "Account", icon: CircleUserRound },
 ] satisfies Array<{ id: PortalSection; label: string; icon: typeof LayoutDashboard }>;
+const portalAdminNavItem = { id: "admin" as const, label: "Admin", icon: Settings };
 
 const publicSiteUrl = "https://ncidose.github.io/";
 const publicAccessRequestUrl = `${publicSiteUrl}portal/request-access/`;
@@ -948,15 +949,15 @@ const PortalTopbar = ({ user, onSignOut }: { user: PortalUser; onSignOut: () => 
 const PortalSidebar = ({ section, isAdmin }: { section: PortalSection; isAdmin: boolean }) => (
   <aside className="sticky top-16 z-30 hidden h-[calc(100vh-4rem)] w-56 shrink-0 flex-col self-start overflow-y-auto border-r border-border bg-white px-4 py-6 md:flex xl:w-64">
     <nav className="space-y-1">
+      {isAdmin && (
+        <>
+          <PortalNavLink item={portalAdminNavItem} active={section === "admin"} layout="sidebar" />
+          <div className="my-5 border-t border-border" />
+        </>
+      )}
       {portalNav.map((item) => (
         <PortalNavLink key={item.id} item={item} active={section === item.id} layout="sidebar" />
       ))}
-      {isAdmin && (
-        <>
-          <div className="my-5 border-t border-border" />
-          <PortalNavLink item={{ id: "admin", label: "Admin", icon: Settings }} active={section === "admin"} layout="sidebar" />
-        </>
-      )}
       <div className="my-5 border-t border-border" />
       <div className="px-4 pb-2 font-mono text-[10px] uppercase tracking-[0.18em] text-slate-400">Resources</div>
       {portalResources.map((item) => (
@@ -972,7 +973,7 @@ const PortalSidebar = ({ section, isAdmin }: { section: PortalSection; isAdmin: 
 
 const PortalMobileNav = ({ section, isAdmin }: { section: PortalSection; isAdmin: boolean }) => (
   <nav className="fixed inset-x-0 top-16 z-40 flex overflow-x-auto border-b border-border bg-white px-3 py-2 md:hidden">
-    {[...portalNav, ...(isAdmin ? [{ id: "admin" as const, label: "Admin", icon: Settings }] : [])].map((item) => (
+    {[...(isAdmin ? [portalAdminNavItem] : []), ...portalNav].map((item) => (
       <PortalNavLink key={item.id} item={item} active={section === item.id} layout="tabs" />
     ))}
     {portalResources.map((item) => (
@@ -1294,6 +1295,30 @@ const latestPortalTimestamp = (left: string | null | undefined, right: string | 
 const activityDate = (value: string) => {
   const normalized = value.includes(" ") ? `${value.replace(" ", "T")}Z` : value;
   return new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric", year: "numeric", hour: "numeric", minute: "2-digit" }).format(new Date(normalized));
+};
+
+const apiDuration = (value: number | null) => {
+  if (value === null) return "—";
+  if (value < 1000) return `${Math.round(value)} ms`;
+  return `${(value / 1000).toFixed(value < 10000 ? 1 : 0)} s`;
+};
+
+const apiCountryName = (countryCode: string | null) => {
+  if (!countryCode) return "Unknown country";
+  try {
+    return new Intl.DisplayNames(["en"], { type: "region" }).of(countryCode) || countryCode;
+  } catch {
+    return countryCode;
+  }
+};
+
+const apiFailureLabel = (reason: string | null, upstreamStatus: number | null) => {
+  if (reason === "rate_limited") return "Rate limit";
+  if (reason === "busy") return "Server busy";
+  if (reason === "timeout") return "Timeout";
+  if (reason === "upstream_unavailable") return "API unavailable";
+  if (upstreamStatus) return `Upstream HTTP ${upstreamStatus}`;
+  return "Upstream error";
 };
 
 const Announcements = ({ demoMode }: { demoMode: boolean }) => {
@@ -1767,6 +1792,27 @@ type AdminActivityData = {
   tools: Array<{ tool: string; downloads: number }>;
   files: Array<{ file: string; downloads: number }>;
   recent: Array<{ id: string; userId: string | null; eventType: "login" | "download"; file: string | null; occurredAt: string; name: string | null; email: string | null }>;
+  sandbox: {
+    summary: {
+      requestsToday: number;
+      requests7Days: number;
+      requests30Days: number;
+      uniqueClients30Days: number;
+      succeeded30Days: number;
+      failed30Days: number;
+      unfinished30Days: number;
+      rateLimited30Days: number;
+      busy30Days: number;
+      successRate30Days: number | null;
+      averageDurationMs30Days: number | null;
+      medianDurationMs30Days: number | null;
+      p95DurationMs30Days: number | null;
+    };
+    tools: Array<{ tool: string; requests: number; uniqueClients: number; succeeded: number; failed: number; rateLimited: number; busy: number; successRate: number | null; averageDurationMs: number | null }>;
+    locations: Array<{ countryCode: string | null; city: string | null; requests: number; uniqueClients: number }>;
+    recentFailures: Array<{ id: string; tool: string; upstreamStatus: number | null; durationMs: number | null; reason: string | null; attemptCount: number; countryCode: string | null; city: string | null; occurredAt: string }>;
+    locationNotice: string;
+  };
 };
 
 type EmailAudienceStatus = {
@@ -1784,6 +1830,27 @@ const emptyAdminActivity: AdminActivityData = {
   tools: [],
   files: [],
   recent: [],
+  sandbox: {
+    summary: {
+      requestsToday: 0,
+      requests7Days: 0,
+      requests30Days: 0,
+      uniqueClients30Days: 0,
+      succeeded30Days: 0,
+      failed30Days: 0,
+      unfinished30Days: 0,
+      rateLimited30Days: 0,
+      busy30Days: 0,
+      successRate30Days: null,
+      averageDurationMs30Days: null,
+      medianDurationMs30Days: null,
+      p95DurationMs30Days: null,
+    },
+    tools: [],
+    locations: [],
+    recentFailures: [],
+    locationNotice: "Approximate network location; VPNs, gateways, and cloud infrastructure may affect accuracy.",
+  },
 };
 
 const AdminQuestions = ({ demoMode }: { demoMode: boolean }) => {
@@ -1918,7 +1985,7 @@ const AdminQuestions = ({ demoMode }: { demoMode: boolean }) => {
 
 const Admin = ({ demoMode }: { demoMode: boolean }) => {
   const { toast } = useToast();
-  const [adminSection, setAdminSection] = useState<"users" | "announcements" | "questions" | "activity">("users");
+  const [adminSection, setAdminSection] = useState<"users" | "announcements" | "questions" | "activity">("activity");
   const [announcementTitle, setAnnouncementTitle] = useState("");
   const [announcementBody, setAnnouncementBody] = useState("");
   const [announcementCategory, setAnnouncementCategory] = useState<"Release" | "Maintenance" | "Access">("Release");
@@ -2402,10 +2469,10 @@ const Admin = ({ demoMode }: { demoMode: boolean }) => {
   return (
     <div className="space-y-8">
       <nav aria-label="Admin sections" className="flex overflow-x-auto border border-border bg-white p-1">
-        <button type="button" onClick={() => setAdminSection("users")} className={cn("flex flex-1 items-center justify-center gap-2 whitespace-nowrap px-4 py-3 text-sm transition-colors sm:flex-none", adminSection === "users" ? "bg-primary text-primary-foreground" : "text-slate-600 hover:bg-slate-50 hover:text-primary")}><Users className="h-4 w-4" /> User Management</button>
-        <button type="button" onClick={() => setAdminSection("announcements")} className={cn("flex flex-1 items-center justify-center gap-2 whitespace-nowrap px-4 py-3 text-sm transition-colors sm:flex-none", adminSection === "announcements" ? "bg-primary text-primary-foreground" : "text-slate-600 hover:bg-slate-50 hover:text-primary")}><Megaphone className="h-4 w-4" /> Announcements</button>
-        <button type="button" onClick={() => setAdminSection("questions")} className={cn("flex flex-1 items-center justify-center gap-2 whitespace-nowrap px-4 py-3 text-sm transition-colors sm:flex-none", adminSection === "questions" ? "bg-primary text-primary-foreground" : "text-slate-600 hover:bg-slate-50 hover:text-primary")}><MessageCircleQuestion className="h-4 w-4" /> Discussions</button>
         <button type="button" onClick={() => setAdminSection("activity")} className={cn("flex flex-1 items-center justify-center gap-2 whitespace-nowrap px-4 py-3 text-sm transition-colors sm:flex-none", adminSection === "activity" ? "bg-primary text-primary-foreground" : "text-slate-600 hover:bg-slate-50 hover:text-primary")}><BarChart3 className="h-4 w-4" /> Activity</button>
+        <button type="button" onClick={() => setAdminSection("questions")} className={cn("flex flex-1 items-center justify-center gap-2 whitespace-nowrap px-4 py-3 text-sm transition-colors sm:flex-none", adminSection === "questions" ? "bg-primary text-primary-foreground" : "text-slate-600 hover:bg-slate-50 hover:text-primary")}><MessageCircleQuestion className="h-4 w-4" /> Discussions</button>
+        <button type="button" onClick={() => setAdminSection("announcements")} className={cn("flex flex-1 items-center justify-center gap-2 whitespace-nowrap px-4 py-3 text-sm transition-colors sm:flex-none", adminSection === "announcements" ? "bg-primary text-primary-foreground" : "text-slate-600 hover:bg-slate-50 hover:text-primary")}><Megaphone className="h-4 w-4" /> Announcements</button>
+        <button type="button" onClick={() => setAdminSection("users")} className={cn("flex flex-1 items-center justify-center gap-2 whitespace-nowrap px-4 py-3 text-sm transition-colors sm:flex-none", adminSection === "users" ? "bg-primary text-primary-foreground" : "text-slate-600 hover:bg-slate-50 hover:text-primary")}><Users className="h-4 w-4" /> User Management</button>
       </nav>
 
       {adminSection === "questions" && <AdminQuestions demoMode={demoMode} />}
@@ -2518,6 +2585,48 @@ const Admin = ({ demoMode }: { demoMode: boolean }) => {
         <div className="flex items-center justify-center gap-3 border border-border bg-white p-12 text-sm text-muted-foreground"><Loader2 className="h-5 w-5 animate-spin text-primary" /> Loading activity…</div>
       ) : (
         <>
+          <section className="border border-border bg-white">
+            <div className="flex flex-col gap-3 border-b border-border px-6 py-5 sm:flex-row sm:items-end sm:justify-between">
+              <div><div className="font-mono text-xs uppercase tracking-widest text-primary">Vendor evaluation</div><h2 className="mt-2 text-xl font-light">API sandbox usage</h2></div>
+              <div className="text-xs text-muted-foreground">Valid sandbox requests only · no payloads or raw IP addresses stored</div>
+            </div>
+            <div className="grid gap-px bg-border sm:grid-cols-2 xl:grid-cols-6">
+              <StatusCard icon={BarChart3} label="Today" value={String(activityData.sandbox.summary.requestsToday)} note="Accepted runs" />
+              <StatusCard icon={BarChart3} label="Last 7 days" value={String(activityData.sandbox.summary.requests7Days)} note="Accepted runs" />
+              <StatusCard icon={BarChart3} label="Last 30 days" value={String(activityData.sandbox.summary.requests30Days)} note="Accepted runs" />
+              <StatusCard icon={Users} label="Trial clients" value={String(activityData.sandbox.summary.uniqueClients30Days)} note="Anonymous, 30 days" />
+              <StatusCard icon={ShieldCheck} label="Success rate" value={activityData.sandbox.summary.successRate30Days === null ? "—" : `${activityData.sandbox.summary.successRate30Days}%`} note={`${activityData.sandbox.summary.failed30Days} failed`} />
+              <StatusCard icon={BarChart3} label="P95 response" value={apiDuration(activityData.sandbox.summary.p95DurationMs30Days)} note={`Median ${apiDuration(activityData.sandbox.summary.medianDurationMs30Days)}`} />
+            </div>
+            <div className="flex flex-wrap gap-x-6 gap-y-2 border-t border-border bg-slate-50 px-6 py-3 text-xs text-muted-foreground">
+              <span>Average response: <strong className="font-medium text-slate-700">{apiDuration(activityData.sandbox.summary.averageDurationMs30Days)}</strong></span>
+              <span>Rate limited: <strong className="font-medium text-slate-700">{activityData.sandbox.summary.rateLimited30Days}</strong></span>
+              <span>Server busy: <strong className="font-medium text-slate-700">{activityData.sandbox.summary.busy30Days}</strong></span>
+              {activityData.sandbox.summary.unfinished30Days > 0 && <span>Incomplete: <strong className="font-medium text-amber-700">{activityData.sandbox.summary.unfinished30Days}</strong></span>}
+            </div>
+          </section>
+
+          <div className="grid gap-6 xl:grid-cols-2">
+            <section className="overflow-hidden border border-border bg-white">
+              <div className="border-b border-border px-6 py-5"><div className="font-mono text-xs uppercase tracking-widest text-primary">Last 30 days</div><h2 className="mt-2 text-xl font-light">Usage by API</h2></div>
+              {activityData.sandbox.tools.length === 0 ? <div className="p-8 text-sm text-muted-foreground">No sandbox runs recorded yet.</div> : (
+                <div className="overflow-x-auto"><table className="w-full min-w-[560px] text-left text-sm"><thead className="bg-slate-50 text-xs uppercase tracking-wide text-muted-foreground"><tr><th className="px-5 py-3 font-medium">API</th><th className="px-4 py-3 font-medium">Runs</th><th className="px-4 py-3 font-medium">Clients</th><th className="px-4 py-3 font-medium">Success</th><th className="px-4 py-3 font-medium">Average</th><th className="px-4 py-3 font-medium">Limited / busy</th></tr></thead><tbody className="divide-y divide-border">{activityData.sandbox.tools.map((entry) => <tr key={entry.tool}><td className="px-5 py-4 font-mono font-medium uppercase text-primary">{entry.tool}</td><td className="px-4 py-4">{entry.requests}</td><td className="px-4 py-4">{entry.uniqueClients}</td><td className="px-4 py-4">{entry.successRate === null ? "—" : `${entry.successRate}%`}</td><td className="px-4 py-4">{apiDuration(entry.averageDurationMs)}</td><td className="px-4 py-4">{entry.rateLimited} / {entry.busy}</td></tr>)}</tbody></table></div>
+              )}
+            </section>
+
+            <section className="overflow-hidden border border-border bg-white">
+              <div className="border-b border-border px-6 py-5"><div className="font-mono text-xs uppercase tracking-widest text-primary">Last 30 days</div><h2 className="mt-2 text-xl font-light">Approximate locations</h2><p className="mt-2 text-xs text-muted-foreground">{activityData.sandbox.locationNotice}</p></div>
+              {activityData.sandbox.locations.length === 0 ? <div className="p-8 text-sm text-muted-foreground">Location data will appear after new sandbox runs.</div> : <div className="divide-y divide-border">{activityData.sandbox.locations.slice(0, 12).map((entry, index) => <div key={`${entry.countryCode || "unknown"}-${entry.city || "unknown"}-${index}`} className="grid grid-cols-[minmax(0,1fr)_5rem_5rem] items-center gap-3 px-6 py-4"><div className="min-w-0"><div className="truncate text-sm font-medium text-slate-800">{apiCountryName(entry.countryCode)}</div><div className="mt-1 truncate text-xs text-muted-foreground">{entry.city || "City unavailable"}</div></div><div className="text-right"><div className="font-mono text-sm text-primary">{entry.requests}</div><div className="text-[10px] uppercase text-muted-foreground">runs</div></div><div className="text-right"><div className="font-mono text-sm text-slate-700">{entry.uniqueClients}</div><div className="text-[10px] uppercase text-muted-foreground">clients</div></div></div>)}</div>}
+            </section>
+          </div>
+
+          <section className="border border-border bg-white">
+            <div className="border-b border-border px-6 py-5"><div className="font-mono text-xs uppercase tracking-widest text-primary">Operational review</div><h2 className="mt-2 text-xl font-light">Recent sandbox failures</h2></div>
+            {activityData.sandbox.recentFailures.length === 0 ? <div className="p-8 text-sm text-muted-foreground">No sandbox failures recorded in the last 30 days.</div> : <div className="divide-y divide-border">{activityData.sandbox.recentFailures.map((entry) => <div key={entry.id} className="grid gap-2 px-6 py-4 sm:grid-cols-[6rem_minmax(0,1fr)_8rem_12rem] sm:items-center"><span className="font-mono text-xs uppercase text-primary">{entry.tool}</span><div><div className="text-sm text-slate-800">{apiFailureLabel(entry.reason, entry.upstreamStatus)}{entry.attemptCount > 1 ? ` × ${entry.attemptCount}` : ""}</div><div className="mt-1 text-xs text-muted-foreground">{apiCountryName(entry.countryCode)}{entry.city ? ` · ${entry.city}` : ""}</div></div><div className="font-mono text-xs text-muted-foreground">{apiDuration(entry.durationMs)}</div><div className="text-xs text-muted-foreground">{activityDate(entry.occurredAt)}</div></div>)}</div>}
+          </section>
+
+          <div className="pt-2"><div className="font-mono text-xs uppercase tracking-widest text-primary">Approved user portal</div><h2 className="mt-2 text-xl font-light">Sign-ins and downloads</h2></div>
+
           <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
             <StatusCard icon={Download} label="Today" value={String(activityData.summary.downloadsToday)} note="Downloads in 24 hours" />
             <StatusCard icon={Download} label="Last 7 days" value={String(activityData.summary.downloads7Days)} note="File downloads" />

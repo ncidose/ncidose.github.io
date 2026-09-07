@@ -63,6 +63,19 @@ const plainObject = (value) => Boolean(value && typeof value === "object" && !Ar
 const onlyKeys = (value, allowed) => Object.keys(value).every((key) => allowed.has(key));
 const finiteNumber = (value, minimum, maximum) =>
   typeof value === "number" && Number.isFinite(value) && value >= minimum && value <= maximum;
+const cleanVendorDemoLocation = (value, maximumLength) => {
+  const cleaned = String(value || "").replace(/[\u0000-\u001f\u007f]/g, "").trim();
+  return cleaned ? cleaned.slice(0, maximumLength) : null;
+};
+
+export const vendorDemoLocationForRequest = (request) => {
+  const cf = request && typeof request.cf === "object" && request.cf ? request.cf : {};
+  const rawCountryCode = cleanVendorDemoLocation(cf.country, 16)?.toUpperCase() || null;
+  return {
+    countryCode: rawCountryCode && /^[A-Z]{2}$/.test(rawCountryCode) ? rawCountryCode : null,
+    city: cleanVendorDemoLocation(cf.city, 120),
+  };
+};
 
 export const vendorDemoRequestForInput = (input = {}) => {
   if (!plainObject(input) || !onlyKeys(input, new Set(["presetId", "parameters"]))) return null;
@@ -257,8 +270,8 @@ const vendorDemoUsageForRequest = async (request, env, tool) => {
   const windowMinutes = isNcirf ? 30 : 60;
   const limit = isNcirf ? vendorDemoLimits.perIpThirtyMinutesNcirf : vendorDemoLimits.perIpHourly;
   const statement = isNcirf
-    ? env.DB.prepare("SELECT COUNT(*) AS total FROM vendor_demo_requests WHERE request_ip_hash=? AND tool='ncirf' AND created_at >= datetime('now', '-30 minutes')").bind(requestIpHash)
-    : env.DB.prepare("SELECT COUNT(*) AS total FROM vendor_demo_requests WHERE request_ip_hash=? AND tool!='ncirf' AND created_at >= datetime('now', '-1 hour')").bind(requestIpHash);
+    ? env.DB.prepare("SELECT COUNT(*) AS total FROM vendor_demo_requests WHERE request_ip_hash=? AND tool='ncirf' AND counts_toward_limit=1 AND created_at >= datetime('now', '-30 minutes')").bind(requestIpHash)
+    : env.DB.prepare("SELECT COUNT(*) AS total FROM vendor_demo_requests WHERE request_ip_hash=? AND tool!='ncirf' AND counts_toward_limit=1 AND created_at >= datetime('now', '-1 hour')").bind(requestIpHash);
   const recent = await statement.first();
   const used = Number(recent?.total) || 0;
   return { requestIpHash, used, limit, remaining: Math.max(0, limit - used), windowMinutes };
@@ -267,26 +280,45 @@ const vendorDemoUsageForRequest = async (request, env, tool) => {
 async function reserveVendorDemoRequest(request, env, preset) {
   const isNcirf = preset.tool === "ncirf";
   const activeWindow = preset.tool === "ncirf" ? "-10 minutes" : "-2 minutes";
+  const location = vendorDemoLocationForRequest(request);
   const [usage, globalRecent, toolRecent, active] = await Promise.all([
     vendorDemoUsageForRequest(request, env, preset.tool),
-    env.DB.prepare("SELECT COUNT(*) AS total FROM vendor_demo_requests WHERE created_at >= datetime('now', '-1 day')").first(),
-    env.DB.prepare("SELECT COUNT(*) AS total FROM vendor_demo_requests WHERE tool=? AND created_at >= datetime('now', '-1 day')").bind(preset.tool).first(),
-    env.DB.prepare("SELECT COUNT(*) AS total FROM vendor_demo_requests WHERE tool=? AND result='started' AND created_at >= datetime('now', ?)").bind(preset.tool, activeWindow).first(),
+    env.DB.prepare("SELECT COUNT(*) AS total FROM vendor_demo_requests WHERE counts_toward_limit=1 AND created_at >= datetime('now', '-1 day')").first(),
+    env.DB.prepare("SELECT COUNT(*) AS total FROM vendor_demo_requests WHERE tool=? AND counts_toward_limit=1 AND created_at >= datetime('now', '-1 day')").bind(preset.tool).first(),
+    env.DB.prepare("SELECT COUNT(*) AS total FROM vendor_demo_requests WHERE tool=? AND result='started' AND counts_toward_limit=1 AND created_at >= datetime('now', ?)").bind(preset.tool, activeWindow).first(),
   ]);
   const toolLimit = isNcirf ? vendorDemoLimits.globalDailyNcirf : vendorDemoLimits.globalDaily;
   const concurrentLimit = isNcirf ? vendorDemoLimits.concurrentNcirf : vendorDemoLimits.concurrent;
   const publicUsage = ({ used, limit, remaining, windowMinutes }) => ({ used, limit, remaining, windowMinutes });
   if (usage.used >= usage.limit || Number(globalRecent?.total) >= vendorDemoLimits.globalDaily || Number(toolRecent?.total) >= toolLimit) {
+    await recordVendorDemoRejection(env, usage.requestIpHash, preset, location, "rate_limited");
     return { error: "too_many_demo_requests", retryAfter: isNcirf ? 1800 : 3600, usage: publicUsage(usage) };
   }
-  if (Number(active?.total) >= concurrentLimit) return { error: "demo_busy", retryAfter: preset.tool === "ncirf" ? 120 : 30, usage: publicUsage(usage) };
+  if (Number(active?.total) >= concurrentLimit) {
+    await recordVendorDemoRejection(env, usage.requestIpHash, preset, location, "busy");
+    return { error: "demo_busy", retryAfter: preset.tool === "ncirf" ? 120 : 30, usage: publicUsage(usage) };
+  }
   const id = crypto.randomUUID();
-  await env.DB.prepare("INSERT INTO vendor_demo_requests (id, request_ip_hash, tool, preset_id, result) VALUES (?, ?, ?, ?, 'started')").bind(id, usage.requestIpHash, preset.tool, preset.id).run();
+  await env.DB.prepare(`
+    INSERT INTO vendor_demo_requests (id, request_ip_hash, tool, preset_id, result, country_code, city)
+    VALUES (?, ?, ?, ?, 'started', ?, ?)
+  `).bind(id, usage.requestIpHash, preset.tool, preset.id, location.countryCode, location.city).run();
   return { id, usage: publicUsage({ ...usage, used: usage.used + 1, remaining: Math.max(0, usage.limit - usage.used - 1) }) };
 }
 
-async function completeVendorDemoRequest(env, id, result, upstreamStatus, durationMs) {
-  await env.DB.prepare("UPDATE vendor_demo_requests SET result=?, upstream_status=?, duration_ms=?, completed_at=CURRENT_TIMESTAMP WHERE id=?").bind(result, upstreamStatus || null, durationMs, id).run();
+async function recordVendorDemoRejection(env, requestIpHash, preset, location, reason) {
+  const fiveMinuteBucket = Math.floor(Date.now() / 300_000);
+  const id = await keyedHash(`vendor-demo-rejection:${requestIpHash}:${preset.tool}:${reason}:${fiveMinuteBucket}`, env.AUTH_SECRET);
+  await env.DB.prepare(`
+    INSERT INTO vendor_demo_requests
+      (id, request_ip_hash, tool, preset_id, result, upstream_status, duration_ms, completed_at, country_code, city, counts_toward_limit, failure_reason, attempt_count)
+    VALUES (?, ?, ?, ?, 'failed', NULL, 0, CURRENT_TIMESTAMP, ?, ?, 0, ?, 1)
+    ON CONFLICT(id) DO UPDATE SET attempt_count=vendor_demo_requests.attempt_count + 1, completed_at=CURRENT_TIMESTAMP
+  `).bind(id, requestIpHash, preset.tool, preset.id, location.countryCode, location.city, reason).run();
+}
+
+async function completeVendorDemoRequest(env, id, result, upstreamStatus, durationMs, failureReason = null) {
+  await env.DB.prepare("UPDATE vendor_demo_requests SET result=?, upstream_status=?, duration_ms=?, failure_reason=?, completed_at=CURRENT_TIMESTAMP WHERE id=?").bind(result, upstreamStatus || null, durationMs, failureReason, id).run();
 }
 
 async function runVendorDemo(request, env, context, cors) {
@@ -317,15 +349,15 @@ async function runVendorDemo(request, env, context, cors) {
     const upstreamBody = (() => { try { return JSON.parse(upstreamText); } catch { return null; } })();
     const durationMs = Date.now() - startedAt;
     if (!upstream.ok || upstreamBody === null) {
-      await completeVendorDemoRequest(env, reservation.id, "failed", upstreamStatus, durationMs);
+      await completeVendorDemoRequest(env, reservation.id, "failed", upstreamStatus, durationMs, "upstream_error");
       return json({ error: "demo_upstream_error", usage: reservation.usage }, 502, cors);
     }
     await completeVendorDemoRequest(env, reservation.id, "succeeded", upstreamStatus, durationMs);
     context.waitUntil(env.DB.prepare("DELETE FROM vendor_demo_requests WHERE created_at < datetime('now', '-30 days')").run());
     return json({ ok: true, demo: { tool: preset.tool, presetId: preset.id, parameters, upstreamStatus, durationMs, completedAt: new Date().toISOString() }, usage: reservation.usage, request: payload, response: upstreamBody }, 200, cors);
-  } catch {
+  } catch (error) {
     const durationMs = Date.now() - startedAt;
-    await completeVendorDemoRequest(env, reservation.id, "failed", upstreamStatus, durationMs);
+    await completeVendorDemoRequest(env, reservation.id, "failed", upstreamStatus, durationMs, error?.name === "AbortError" ? "timeout" : "upstream_unavailable");
     return json({ error: "demo_upstream_error", usage: reservation.usage }, 502, cors);
   } finally {
     clearTimeout(timeout);
@@ -1538,7 +1570,7 @@ export default {
 
       if (request.method === "GET" && url.pathname === "/api/admin/activity") {
         if (user.role !== "admin") return json({ error: "administrator_required" }, 403, cors);
-        const [summary, toolResult, fileResult, recentResult] = await Promise.all([
+        const [summary, toolResult, fileResult, recentResult, sandboxSummary, sandboxPercentiles, sandboxToolResult, sandboxLocationResult, sandboxFailureResult] = await Promise.all([
           env.DB.prepare(`
             SELECT
               SUM(CASE WHEN event_type='download' AND occurred_at >= datetime('now', '-1 day') THEN 1 ELSE 0 END) AS downloads_today,
@@ -1576,7 +1608,69 @@ export default {
             ORDER BY events.occurred_at DESC
             LIMIT 100
           `).all(),
+          env.DB.prepare(`
+            SELECT
+              SUM(CASE WHEN counts_toward_limit=1 AND created_at >= datetime('now', '-1 day') THEN 1 ELSE 0 END) AS requests_today,
+              SUM(CASE WHEN counts_toward_limit=1 AND created_at >= datetime('now', '-7 days') THEN 1 ELSE 0 END) AS requests_7_days,
+              SUM(CASE WHEN counts_toward_limit=1 AND created_at >= datetime('now', '-30 days') THEN 1 ELSE 0 END) AS requests_30_days,
+              COUNT(DISTINCT CASE WHEN counts_toward_limit=1 AND created_at >= datetime('now', '-30 days') THEN request_ip_hash END) AS unique_clients_30_days,
+              SUM(CASE WHEN counts_toward_limit=1 AND result='succeeded' AND created_at >= datetime('now', '-30 days') THEN 1 ELSE 0 END) AS succeeded_30_days,
+              SUM(CASE WHEN counts_toward_limit=1 AND result='failed' AND created_at >= datetime('now', '-30 days') THEN 1 ELSE 0 END) AS failed_30_days,
+              SUM(CASE WHEN counts_toward_limit=1 AND result='started' AND created_at >= datetime('now', '-30 days') THEN 1 ELSE 0 END) AS unfinished_30_days,
+              SUM(CASE WHEN failure_reason='rate_limited' AND created_at >= datetime('now', '-30 days') THEN attempt_count ELSE 0 END) AS rate_limited_30_days,
+              SUM(CASE WHEN failure_reason='busy' AND created_at >= datetime('now', '-30 days') THEN attempt_count ELSE 0 END) AS busy_30_days,
+              AVG(CASE WHEN counts_toward_limit=1 AND result='succeeded' AND created_at >= datetime('now', '-30 days') THEN duration_ms END) AS average_duration_ms_30_days
+            FROM vendor_demo_requests
+          `).first(),
+          env.DB.prepare(`
+            WITH ranked AS (
+              SELECT duration_ms,
+                ROW_NUMBER() OVER (ORDER BY duration_ms) AS row_number,
+                COUNT(*) OVER () AS total
+              FROM vendor_demo_requests
+              WHERE counts_toward_limit=1 AND result='succeeded' AND duration_ms IS NOT NULL
+                AND created_at >= datetime('now', '-30 days')
+            )
+            SELECT
+              MAX(CASE WHEN row_number=CAST(((total - 1) * 0.50) AS INTEGER) + 1 THEN duration_ms END) AS median_duration_ms,
+              MAX(CASE WHEN row_number=CAST((total * 95 + 99) / 100 AS INTEGER) THEN duration_ms END) AS p95_duration_ms
+            FROM ranked
+          `).first(),
+          env.DB.prepare(`
+            SELECT tool,
+              SUM(CASE WHEN counts_toward_limit=1 THEN 1 ELSE 0 END) AS requests,
+              COUNT(DISTINCT CASE WHEN counts_toward_limit=1 THEN request_ip_hash END) AS unique_clients,
+              SUM(CASE WHEN counts_toward_limit=1 AND result='succeeded' THEN 1 ELSE 0 END) AS succeeded,
+              SUM(CASE WHEN counts_toward_limit=1 AND result='failed' THEN 1 ELSE 0 END) AS failed,
+              SUM(CASE WHEN failure_reason='rate_limited' THEN attempt_count ELSE 0 END) AS rate_limited,
+              SUM(CASE WHEN failure_reason='busy' THEN attempt_count ELSE 0 END) AS busy,
+              AVG(CASE WHEN counts_toward_limit=1 AND result='succeeded' THEN duration_ms END) AS average_duration_ms
+            FROM vendor_demo_requests
+            WHERE created_at >= datetime('now', '-30 days')
+            GROUP BY tool
+            ORDER BY CASE tool WHEN 'ncict' THEN 1 WHEN 'ncinm' THEN 2 ELSE 3 END
+          `).all(),
+          env.DB.prepare(`
+            SELECT country_code, city, COUNT(*) AS requests,
+              COUNT(DISTINCT request_ip_hash) AS unique_clients
+            FROM vendor_demo_requests
+            WHERE counts_toward_limit=1 AND created_at >= datetime('now', '-30 days')
+            GROUP BY country_code, city
+            ORDER BY requests DESC, country_code ASC, city ASC
+            LIMIT 20
+          `).all(),
+          env.DB.prepare(`
+            SELECT id, tool, upstream_status, duration_ms, failure_reason, country_code, city, attempt_count,
+              COALESCE(completed_at, created_at) AS occurred_at
+            FROM vendor_demo_requests
+            WHERE result='failed' AND created_at >= datetime('now', '-30 days')
+            ORDER BY COALESCE(completed_at, created_at) DESC
+            LIMIT 20
+          `).all(),
         ]);
+        const sandboxSucceeded = Number(sandboxSummary.succeeded_30_days || 0);
+        const sandboxFailed = Number(sandboxSummary.failed_30_days || 0);
+        const sandboxCompleted = sandboxSucceeded + sandboxFailed;
         return json({
           summary: {
             downloadsToday: Number(summary.downloads_today || 0),
@@ -1596,6 +1690,57 @@ export default {
             name: entry.display_name,
             email: entry.email,
           })),
+          sandbox: {
+            summary: {
+              requestsToday: Number(sandboxSummary.requests_today || 0),
+              requests7Days: Number(sandboxSummary.requests_7_days || 0),
+              requests30Days: Number(sandboxSummary.requests_30_days || 0),
+              uniqueClients30Days: Number(sandboxSummary.unique_clients_30_days || 0),
+              succeeded30Days: sandboxSucceeded,
+              failed30Days: sandboxFailed,
+              unfinished30Days: Number(sandboxSummary.unfinished_30_days || 0),
+              rateLimited30Days: Number(sandboxSummary.rate_limited_30_days || 0),
+              busy30Days: Number(sandboxSummary.busy_30_days || 0),
+              successRate30Days: sandboxCompleted > 0 ? Math.round((sandboxSucceeded / sandboxCompleted) * 1000) / 10 : null,
+              averageDurationMs30Days: sandboxSummary.average_duration_ms_30_days === null ? null : Math.round(Number(sandboxSummary.average_duration_ms_30_days || 0)),
+              medianDurationMs30Days: sandboxPercentiles?.median_duration_ms === null ? null : Number(sandboxPercentiles?.median_duration_ms || 0),
+              p95DurationMs30Days: sandboxPercentiles?.p95_duration_ms === null ? null : Number(sandboxPercentiles?.p95_duration_ms || 0),
+            },
+            tools: sandboxToolResult.results.map((entry) => {
+              const succeeded = Number(entry.succeeded || 0);
+              const failed = Number(entry.failed || 0);
+              const completed = succeeded + failed;
+              return {
+                tool: entry.tool,
+                requests: Number(entry.requests || 0),
+                uniqueClients: Number(entry.unique_clients || 0),
+                succeeded,
+                failed,
+                rateLimited: Number(entry.rate_limited || 0),
+                busy: Number(entry.busy || 0),
+                successRate: completed > 0 ? Math.round((succeeded / completed) * 1000) / 10 : null,
+                averageDurationMs: entry.average_duration_ms === null ? null : Math.round(Number(entry.average_duration_ms || 0)),
+              };
+            }),
+            locations: sandboxLocationResult.results.map((entry) => ({
+              countryCode: entry.country_code,
+              city: entry.city,
+              requests: Number(entry.requests || 0),
+              uniqueClients: Number(entry.unique_clients || 0),
+            })),
+            recentFailures: sandboxFailureResult.results.map((entry) => ({
+              id: entry.id,
+              tool: entry.tool,
+              upstreamStatus: entry.upstream_status === null ? null : Number(entry.upstream_status),
+              durationMs: entry.duration_ms === null ? null : Number(entry.duration_ms),
+              reason: entry.failure_reason,
+              attemptCount: Number(entry.attempt_count || 1),
+              countryCode: entry.country_code,
+              city: entry.city,
+              occurredAt: entry.occurred_at,
+            })),
+            locationNotice: "Approximate network location; VPNs, gateways, and cloud infrastructure may affect accuracy.",
+          },
         }, 200, cors);
       }
 

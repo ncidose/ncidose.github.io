@@ -269,6 +269,10 @@ describe("portal migration experience", () => {
       </MemoryRouter>,
     );
 
+    const primaryPortalNavLabels = screen.getAllByRole("link").map((link) => link.textContent?.trim()).filter((label) => ["Admin", "Overview", "Downloads", "Announcements", "Discussions", "Account"].includes(label || ""));
+    expect(primaryPortalNavLabels[0]).toBe("Admin");
+    expect(screen.getByRole("heading", { name: /api sandbox usage/i })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: /user management/i }));
     expect(screen.getByRole("heading", { name: /add an approved user/i })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: /approved user directory/i })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: /unmatched sign-in requests/i })).toBeInTheDocument();
@@ -293,6 +297,7 @@ describe("portal migration experience", () => {
       </MemoryRouter>,
     );
 
+    fireEvent.click(screen.getByRole("button", { name: /user management/i }));
     expect(screen.queryByRole("button", { name: /make team member/i })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /^suspend$/i })).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: /^edit$/i }));
