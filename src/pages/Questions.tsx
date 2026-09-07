@@ -199,7 +199,7 @@ const Questions = () => {
       <Header />
       <main className="pt-16">
         <section className="border-b border-sky-100 bg-gradient-to-br from-white via-sky-50 to-blue-50">
-          <div className="container mx-auto px-6 py-16 lg:py-24">
+          <div className="container mx-auto px-6 pb-12 pt-8 sm:pb-16 sm:pt-12">
             <div className="font-mono text-xs uppercase tracking-[0.22em] text-primary">Community knowledge &amp; support</div>
             <div className="mt-5 grid gap-10 lg:grid-cols-[1fr_360px] lg:items-end">
               <div>

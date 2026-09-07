@@ -147,7 +147,7 @@ const ManualsIndex = () => {
     <div className="min-h-screen bg-background">
       <Header />
       <main className="pt-16">
-        <section className="border-b border-border bg-slate-50 py-20 lg:py-28">
+        <section className="border-b border-border bg-slate-50 pb-12 pt-8 sm:pb-16 sm:pt-12">
           <div className="container mx-auto px-6">
             <div className="grid gap-10 lg:grid-cols-[1fr_420px] lg:items-end">
               <div className="max-w-4xl">

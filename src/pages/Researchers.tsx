@@ -34,9 +34,9 @@ const Researchers = () => {
     <div className="min-h-screen bg-background text-foreground">
       <Header />
       
-      <main className="pt-24">
+      <main className="pt-16">
         {/* Hero Section */}
-        <section className="relative overflow-hidden py-24">
+        <section className="relative overflow-hidden pb-8 pt-8 sm:pb-10 sm:pt-12">
           <div className="absolute inset-0 opacity-20">
             <div className="absolute top-1/3 left-0 right-0 h-px bg-border" />
             <div className="absolute top-2/3 left-0 right-0 h-px bg-border" />

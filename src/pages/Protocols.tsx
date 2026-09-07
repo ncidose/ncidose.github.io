@@ -367,8 +367,8 @@ const Protocols = () => {
     <div className="min-h-screen bg-background text-foreground">
       <Header />
 
-      <main className="pt-24">
-        <section className="py-24">
+      <main className="pt-16">
+        <section className="pb-8 pt-8 sm:pb-10 sm:pt-12">
           <div className="container mx-auto px-6">
             <motion.div
               initial={{ opacity: 0, y: 30 }}

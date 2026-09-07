@@ -85,8 +85,8 @@ const Engine = () => {
     <div className="min-h-screen bg-background text-foreground">
       <Header />
 
-      <main className="pt-24">
-        <section className="relative overflow-hidden py-24">
+      <main className="pt-16">
+        <section className="relative overflow-hidden pb-8 pt-8 sm:pb-10 sm:pt-12">
           <div className="absolute inset-0 opacity-20">
             <div className="absolute left-0 right-0 top-1/3 h-px bg-border" />
             <div className="absolute left-0 right-0 top-2/3 h-px bg-border" />
