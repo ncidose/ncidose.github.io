@@ -1,8 +1,8 @@
-import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { Link, useLocation } from "react-router-dom";
 import { Header } from "@/components/Header";
 import { Footer } from "@/components/Footer";
+import { VendorApiSandbox } from "@/components/VendorApiSandbox";
 import { portalLinks, tools } from "@/data/nciDoseTools";
 import { createLicensingMailto } from "@/lib/licensing";
 import {
@@ -14,30 +14,8 @@ import {
   Layers3,
   ScrollText,
   ShieldCheck,
-  TestTube2,
   Workflow,
 } from "lucide-react";
-
-const apiHighlights = [
-  {
-    icon: Code2,
-    title: "Structured request/response workflows",
-    description:
-      "Each dose tool is prepared for structured inputs and outputs that are practical for web services, enterprise platforms, and automated reporting.",
-  },
-  {
-    icon: Workflow,
-    title: "Product workflow fit",
-    description:
-      "Map dose-tool inputs and outputs into your platform's existing exam ingestion, analytics, reporting, or quality dashboards.",
-  },
-  {
-    icon: TestTube2,
-    title: "Licensing and approval pathway",
-    description:
-      "The NCI Technology Transfer Center coordinates vendor evaluation and defines the appropriate licensing path before product integration or commercial use.",
-  },
-];
 
 const strengths = [
   {
@@ -93,69 +71,8 @@ const apiManualLinks: Partial<Record<string, string>> = {
 const licensingProductForTool = (tool: (typeof tools)[number]) =>
   tool.id === "phantom" ? "PHANTOM libraries" : `${tool.name} REST API`;
 
-const apiExamples = [
-  {
-    tool: "NCICT REST API",
-    title: "Custom CT tube current profile",
-    endpoint: "/param",
-    payload: `{
-  "age": 10,
-  "sex": "f",
-  "wed": 25,
-  "start": 0,
-  "end": 20,
-  "kvp": 120,
-  "tcm_strength": -1,
-  "head_body": 1,
-  "ctdivol": 20,
-  "custom_ma": [100, 200, 300, 400, 500, 600, 700]
-}`,
-  },
-  {
-    tool: "NCIRF REST API",
-    title: "Projection geometry and phantom alignment",
-    endpoint: "/param",
-    payload: `{
-  "id": "vendor-demo-rf",
-  "phantom_library": 4,
-  "age": 30,
-  "sex": "f",
-  "height_cm": 150,
-  "weight_kg": 40,
-  "kvp": 28,
-  "hvl": 0.460,
-  "sid": 80,
-  "field_width_cm": 10,
-  "field_height_cm": 10,
-  "dap_gy_cm2": 100,
-  "ppa": 180,
-  "psa": 0,
-  "iso_x": 16.5,
-  "iso_y": 13.7,
-  "iso_z": 75.1,
-  "table_thickness_cm": 1,
-  "history": 5000000,
-  "threads": 6
-}`,
-  },
-  {
-    tool: "NCINM REST API",
-    title: "Radiopharmaceutical dose request",
-    endpoint: "/param",
-    payload: `{
-  "patientID": "vendor-demo-nm",
-  "phantom_library": 1,
-  "sex": "female",
-  "age": 36,
-  "radiopharmaceutical": "18FFDG",
-  "administered_activity_mbq": 185
-}`,
-  },
-];
-
 const Engine = () => {
   const { search } = useLocation();
-  const [activeApiExample, setActiveApiExample] = useState(0);
   const requestedToolId = new URLSearchParams(search).get("tool");
   const requestedTool = tools.find((tool) => tool.id === requestedToolId);
   const analyticsTool = requestedTool?.id ?? "suite";
@@ -163,14 +80,6 @@ const Engine = () => {
     ? licensingProductForTool(requestedTool)
     : "NCI Dose Tools REST APIs";
   const licensingHref = createLicensingMailto(licensingProduct);
-
-  useEffect(() => {
-    const timer = window.setInterval(() => {
-      setActiveApiExample((current) => (current + 1) % apiExamples.length);
-    }, 4200);
-
-    return () => window.clearInterval(timer);
-  }, []);
 
   return (
     <div className="min-h-screen bg-background text-foreground">
@@ -207,28 +116,24 @@ const Engine = () => {
               </p>
               <div className="mt-8 flex flex-wrap gap-3">
                 <a
-                  href={licensingHref}
+                  href="#api-sandbox"
                   className="btn-precision"
+                  data-analytics-location="vendor_hero"
+                  data-analytics-tool={analyticsTool}
+                  data-analytics-audience="vendor"
+                  data-analytics-action="open_live_demo"
+                >
+                  Try Live API Sandbox
+                </a>
+                <a
+                  href={licensingHref}
+                  className="btn-precision-outline"
                   data-analytics-location="vendor_hero"
                   data-analytics-tool={analyticsTool}
                   data-analytics-audience="vendor"
                   data-analytics-action="email_licensing"
                 >
                   Request {requestedTool ? requestedTool.name : "REST API"} Evaluation
-                </a>
-                <a
-                  href={portalLinks.userPortal}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  aria-label="Approved User Portal (opens in a new tab)"
-                  className="btn-precision-outline inline-flex items-center gap-2"
-                  data-analytics-event="portal_login_click"
-                  data-analytics-location="vendor_hero"
-                  data-analytics-tool={analyticsTool}
-                  data-analytics-audience="approved_user"
-                  data-analytics-action="open_portal"
-                >
-                  Approved User Portal <ExternalLink className="h-4 w-4" />
                 </a>
                 <Link
                   to="/vendors#components"
@@ -240,6 +145,8 @@ const Engine = () => {
             </motion.div>
           </div>
         </section>
+
+        <VendorApiSandbox initialTool={requestedToolId} />
 
         <section id="commercial-access" className="scroll-mt-24 border-y border-border bg-white py-20">
           <div className="container mx-auto px-6">
@@ -336,63 +243,6 @@ const Engine = () => {
                   </div>
                 </div>
               </motion.div>
-            </div>
-          </div>
-        </section>
-
-        <section className="bg-slate-50 py-20">
-          <div className="container mx-auto px-6">
-            <div className="grid gap-12 lg:grid-cols-[0.95fr_1.05fr] lg:items-start">
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
-              >
-                <span className="font-mono text-xs uppercase tracking-widest text-primary">
-                  REST API Integration
-                </span>
-                <h2 className="mt-4 text-section-md lg:text-section">
-                  Integration pathways for vendor-side implementation
-                </h2>
-                <p className="mt-5 text-muted-foreground">
-                  For vendors, the central question is not only whether dose
-                  estimates are scientifically credible, but whether the technical
-                  workflow is appropriate for an approved product-integration path.
-                  REST-style request and response workflows can be reviewed through
-                  web-based services or local REST API servers, depending on the
-                  evaluation and deployment environment.
-                </p>
-              </motion.div>
-
-              <div className="space-y-4">
-                <ApiRequestPreview
-                  activeIndex={activeApiExample}
-                  example={apiExamples[activeApiExample]}
-                />
-                <div className="grid gap-3">
-                  {apiHighlights.map((highlight, index) => (
-                    <motion.div
-                      key={highlight.title}
-                      initial={{ opacity: 0, y: 18 }}
-                      whileInView={{ opacity: 1, y: 0 }}
-                      viewport={{ once: true }}
-                      transition={{ duration: 0.5, delay: index * 0.08, ease: [0.16, 1, 0.3, 1] }}
-                      className="flex gap-5 border border-border bg-white p-5"
-                    >
-                      <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center border border-primary text-primary">
-                        <highlight.icon className="h-5 w-5" />
-                      </div>
-                      <div>
-                        <h3 className="font-medium text-slate-900">{highlight.title}</h3>
-                        <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
-                          {highlight.description}
-                        </p>
-                      </div>
-                    </motion.div>
-                  ))}
-                </div>
-              </div>
             </div>
           </div>
         </section>
@@ -570,75 +420,5 @@ const Engine = () => {
     </div>
   );
 };
-
-const ApiRequestPreview = ({
-  activeIndex,
-  example,
-}: {
-  activeIndex: number;
-  example: (typeof apiExamples)[number];
-}) => (
-  <motion.div
-    initial={{ opacity: 0, y: 18 }}
-    whileInView={{ opacity: 1, y: 0 }}
-    viewport={{ once: true }}
-    transition={{ duration: 0.55, ease: [0.16, 1, 0.3, 1] }}
-    className="overflow-hidden border border-border bg-white shadow-xl shadow-slate-900/5"
-  >
-    <div className="flex items-center justify-between border-b border-border bg-slate-50 px-4 py-3">
-      <div>
-        <div className="font-mono text-[11px] uppercase tracking-widest text-primary">
-          REST API request payload
-        </div>
-        <div className="mt-1 font-mono text-sm text-slate-900">
-          {example.title}
-        </div>
-      </div>
-      <div className="hidden items-center gap-1.5 sm:flex">
-        <span className="h-2.5 w-2.5 rounded-full bg-red-400" />
-        <span className="h-2.5 w-2.5 rounded-full bg-yellow-300" />
-        <span className="h-2.5 w-2.5 rounded-full bg-emerald-400" />
-      </div>
-    </div>
-
-    <div className="grid border-b border-border bg-white px-4 py-3 font-mono text-xs sm:grid-cols-[auto_1fr] sm:gap-x-4">
-      <span className="text-emerald-700">POST</span>
-      <span className="break-all text-slate-900">{example.endpoint}</span>
-      <span className="mt-2 text-muted-foreground sm:mt-0">Content-Type</span>
-      <span className="text-slate-700">application/json</span>
-    </div>
-
-    <motion.div
-      key={example.tool}
-      initial={{ opacity: 0, y: 8 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
-      className="relative"
-    >
-      <div className="absolute right-4 top-4 border border-primary/30 bg-primary/5 px-2 py-1 font-mono text-[10px] uppercase tracking-widest text-primary">
-        {example.tool}
-      </div>
-      <pre className="h-[520px] overflow-auto bg-white p-5 pt-12 text-[12px] leading-relaxed text-slate-800 sm:h-[600px] sm:text-sm">
-        <code>{example.payload}</code>
-      </pre>
-    </motion.div>
-
-    <div className="flex items-center justify-between border-t border-border bg-slate-50 px-4 py-3">
-      <span className="font-mono text-[11px] uppercase tracking-widest text-muted-foreground">
-        Web-based or local REST API server workflow
-      </span>
-      <div className="flex gap-1.5" aria-hidden="true">
-        {apiExamples.map((item, index) => (
-          <span
-            key={item.tool}
-            className={`h-1.5 w-6 transition-colors ${
-              index === activeIndex ? "bg-primary" : "bg-slate-300"
-            }`}
-          />
-        ))}
-      </div>
-    </div>
-  </motion.div>
-);
 
 export default Engine;

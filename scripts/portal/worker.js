@@ -6,6 +6,79 @@ const portalSessionLifetimeDays = 30;
 const qaAttachmentMaximumBytes = 10 * 1024 * 1024;
 const qaAttachmentMaximumCount = 3;
 const qaRequestTypes = new Set(["technical_question", "bug_report", "feature_request"]);
+export const vendorDemoPresets = Object.freeze({
+  "ncict-adult-chest": {
+    id: "ncict-adult-chest",
+    tool: "ncict",
+    endpoint: "https://ncict-api.ncidosetools.com/param",
+    timeoutMs: 30_000,
+    payload: { age: 40, sex: "f", start: 1004, end: 1007, kvp: 120, tcm_strength: 0, head_body: 2, ctdivol: 10 },
+  },
+  "ncinm-fdg-adult": {
+    id: "ncinm-fdg-adult",
+    tool: "ncinm",
+    endpoint: "https://ncinm-api.ncidosetools.com/param",
+    timeoutMs: 30_000,
+    payload: { phantom_library: 2, sex: "female", age: 58, radiopharmaceutical: "F-18 FDG", administered_activity_mbq: 200 },
+  },
+  "ncirf-size-demo": {
+    id: "ncirf-size-demo",
+    tool: "ncirf",
+    endpoint: "https://ncirf-api.ncidosetools.com/param",
+    timeoutMs: 90_000,
+    payload: { ID: "public-vendor-demo", PhtLib: 4, Age: 30, Sex: "f", HT: 150, WT: 40, kVp: 28, HVL: 0.46, SID: 80, FW: 10, FH: 10, DAP: 100, PPA: 180, PSA: 0, ISOX: 16.5, ISOY: 13.7, ISOZ: 75.1, Tbl: 1, Hist: 100000, Thread: 2 },
+  },
+});
+export const vendorDemoLimits = Object.freeze({
+  perIpHourly: 8,
+  perIpHourlyNcirf: 2,
+  globalDaily: 300,
+  globalDailyNcirf: 30,
+  concurrent: 3,
+  concurrentNcirf: 1,
+});
+export const vendorDemoPresetForInput = (input = {}) =>
+  typeof input.presetId === "string" ? vendorDemoPresets[input.presetId] || null : null;
+const vendorDemoProtocolRanges = Object.freeze({
+  head: [1001, 1003],
+  chest: [1004, 1007],
+  abdomen: [1006, 1008],
+  pelvis: [1008, 1009],
+  cap: [1004, 1009],
+});
+const vendorDemoParameterKeys = Object.freeze({
+  ncict: new Set(["age", "sex", "protocol", "kvp", "ctdivol"]),
+  ncinm: new Set(["phantomLibrary", "sex", "age", "administeredActivityMbq"]),
+  ncirf: new Set(["dapGyCm2"]),
+});
+const plainObject = (value) => Boolean(value && typeof value === "object" && !Array.isArray(value));
+const onlyKeys = (value, allowed) => Object.keys(value).every((key) => allowed.has(key));
+const finiteNumber = (value, minimum, maximum) =>
+  typeof value === "number" && Number.isFinite(value) && value >= minimum && value <= maximum;
+
+export const vendorDemoRequestForInput = (input = {}) => {
+  if (!plainObject(input) || !onlyKeys(input, new Set(["presetId", "parameters"]))) return null;
+  const preset = vendorDemoPresetForInput(input);
+  const parameters = input.parameters === undefined ? {} : input.parameters;
+  if (!preset || !plainObject(parameters) || !onlyKeys(parameters, vendorDemoParameterKeys[preset.tool])) return null;
+
+  if (preset.tool === "ncict") {
+    const normalized = { age: parameters.age ?? 40, sex: parameters.sex ?? "f", protocol: parameters.protocol ?? "chest", kvp: parameters.kvp ?? 120, ctdivol: parameters.ctdivol ?? 10 };
+    if (![5, 10, 15, 20, 40, 60].includes(normalized.age) || !["f", "m"].includes(normalized.sex) || !Object.hasOwn(vendorDemoProtocolRanges, normalized.protocol) || ![80, 100, 120, 140].includes(normalized.kvp) || !finiteNumber(normalized.ctdivol, 1, 50)) return null;
+    const [start, end] = vendorDemoProtocolRanges[normalized.protocol];
+    return { preset, parameters: normalized, payload: { ...preset.payload, age: normalized.age, sex: normalized.sex, start, end, kvp: normalized.kvp, ctdivol: normalized.ctdivol } };
+  }
+
+  if (preset.tool === "ncinm") {
+    const normalized = { phantomLibrary: parameters.phantomLibrary ?? 2, sex: parameters.sex ?? "female", age: parameters.age ?? 58, administeredActivityMbq: parameters.administeredActivityMbq ?? 200 };
+    if (![1, 2].includes(normalized.phantomLibrary) || !["female", "male"].includes(normalized.sex) || !finiteNumber(normalized.age, 0, 90) || !finiteNumber(normalized.administeredActivityMbq, 10, 1000)) return null;
+    return { preset, parameters: normalized, payload: { ...preset.payload, phantom_library: normalized.phantomLibrary, sex: normalized.sex, age: normalized.age, administered_activity_mbq: normalized.administeredActivityMbq } };
+  }
+
+  const normalized = { dapGyCm2: parameters.dapGyCm2 ?? 100 };
+  if (!finiteNumber(normalized.dapGyCm2, 1, 100)) return null;
+  return { preset, parameters: normalized, payload: { ...preset.payload, DAP: normalized.dapGyCm2 } };
+};
 const qaRequestTypeLabel = (value) => ({
   technical_question: "Technical question",
   bug_report: "Bug report",
@@ -45,6 +118,84 @@ const json = (body, status = 200, headers = {}) => {
   responseHeaders.set("cache-control", "no-store");
   return Response.json(body, { status, headers: responseHeaders });
 };
+
+const configuredOrigins = (env) =>
+  (env.ALLOWED_ORIGINS || "").split(",").map((value) => value.trim()).filter(Boolean);
+
+const requestHasAllowedOrigin = (request, env) => {
+  const origin = request.headers.get("origin");
+  return Boolean(origin && configuredOrigins(env).includes(origin));
+};
+
+async function reserveVendorDemoRequest(request, env, preset) {
+  const requestIp = request.headers.get("cf-connecting-ip") || "unknown";
+  const requestIpHash = await keyedHash(`vendor-demo-ip:${requestIp}`, env.AUTH_SECRET);
+  const activeWindow = preset.tool === "ncirf" ? "-10 minutes" : "-2 minutes";
+  const ipRecentStatement = preset.tool === "ncirf"
+    ? env.DB.prepare("SELECT COUNT(*) AS total FROM vendor_demo_requests WHERE request_ip_hash=? AND tool='ncirf' AND created_at >= datetime('now', '-1 hour')").bind(requestIpHash)
+    : env.DB.prepare("SELECT COUNT(*) AS total FROM vendor_demo_requests WHERE request_ip_hash=? AND created_at >= datetime('now', '-1 hour')").bind(requestIpHash);
+  const [ipRecent, globalRecent, toolRecent, active] = await Promise.all([
+    ipRecentStatement.first(),
+    env.DB.prepare("SELECT COUNT(*) AS total FROM vendor_demo_requests WHERE created_at >= datetime('now', '-1 day')").first(),
+    env.DB.prepare("SELECT COUNT(*) AS total FROM vendor_demo_requests WHERE tool=? AND created_at >= datetime('now', '-1 day')").bind(preset.tool).first(),
+    env.DB.prepare("SELECT COUNT(*) AS total FROM vendor_demo_requests WHERE tool=? AND result='started' AND created_at >= datetime('now', ?)").bind(preset.tool, activeWindow).first(),
+  ]);
+  const ipLimit = preset.tool === "ncirf" ? vendorDemoLimits.perIpHourlyNcirf : vendorDemoLimits.perIpHourly;
+  const toolLimit = preset.tool === "ncirf" ? vendorDemoLimits.globalDailyNcirf : vendorDemoLimits.globalDaily;
+  const concurrentLimit = preset.tool === "ncirf" ? vendorDemoLimits.concurrentNcirf : vendorDemoLimits.concurrent;
+  if (Number(ipRecent?.total) >= ipLimit || Number(globalRecent?.total) >= vendorDemoLimits.globalDaily || Number(toolRecent?.total) >= toolLimit) return { error: "too_many_demo_requests", retryAfter: 3600 };
+  if (Number(active?.total) >= concurrentLimit) return { error: "demo_busy", retryAfter: preset.tool === "ncirf" ? 120 : 30 };
+  const id = crypto.randomUUID();
+  await env.DB.prepare("INSERT INTO vendor_demo_requests (id, request_ip_hash, tool, preset_id, result) VALUES (?, ?, ?, ?, 'started')").bind(id, requestIpHash, preset.tool, preset.id).run();
+  return { id };
+}
+
+async function completeVendorDemoRequest(env, id, result, upstreamStatus, durationMs) {
+  await env.DB.prepare("UPDATE vendor_demo_requests SET result=?, upstream_status=?, duration_ms=?, completed_at=CURRENT_TIMESTAMP WHERE id=?").bind(result, upstreamStatus || null, durationMs, id).run();
+}
+
+async function runVendorDemo(request, env, context, cors) {
+  if (!requestHasAllowedOrigin(request, env)) return json({ error: "invalid_origin" }, 403, cors);
+  if (!env.AUTH_SECRET || !env.NCIDOSE_VENDOR_DEMO_API_KEY || !env.DB) return json({ error: "demo_not_configured" }, 503, cors);
+  const contentLength = Number(request.headers.get("content-length") || 0);
+  if (contentLength > 1024) return json({ error: "invalid_demo_parameters" }, 400, cors);
+  const input = await request.json().catch(() => null);
+  const demoRequest = input && vendorDemoRequestForInput(input);
+  if (!demoRequest) return json({ error: "invalid_demo_parameters" }, 400, cors);
+  const { preset, parameters, payload } = demoRequest;
+  const reservation = await reserveVendorDemoRequest(request, env, preset);
+  if (reservation.error) return json({ error: reservation.error, retryAfter: reservation.retryAfter }, 429, { ...cors, "retry-after": String(reservation.retryAfter) });
+
+  const startedAt = Date.now();
+  let upstreamStatus = 0;
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), preset.timeoutMs);
+  try {
+    const upstream = await fetch(preset.endpoint, {
+      method: "POST",
+      headers: { "content-type": "application/json", "x-api-key": env.NCIDOSE_VENDOR_DEMO_API_KEY, "user-agent": "NCI-Dose-Tools-Vendor-Sandbox/1.0" },
+      body: JSON.stringify(payload),
+      signal: controller.signal,
+    });
+    upstreamStatus = upstream.status;
+    const upstreamText = await upstream.text();
+    const upstreamBody = (() => { try { return JSON.parse(upstreamText); } catch { return null; } })();
+    const durationMs = Date.now() - startedAt;
+    if (!upstream.ok || upstreamBody === null) {
+      await completeVendorDemoRequest(env, reservation.id, "failed", upstreamStatus, durationMs);
+      return json({ error: "demo_upstream_error" }, 502, cors);
+    }
+    await completeVendorDemoRequest(env, reservation.id, "succeeded", upstreamStatus, durationMs);
+    context.waitUntil(env.DB.prepare("DELETE FROM vendor_demo_requests WHERE created_at < datetime('now', '-30 days')").run());
+    return json({ ok: true, demo: { tool: preset.tool, presetId: preset.id, parameters, upstreamStatus, durationMs, completedAt: new Date().toISOString() }, request: payload, response: upstreamBody }, 200, cors);
+  } catch {
+    const durationMs = Date.now() - startedAt;
+    await completeVendorDemoRequest(env, reservation.id, "failed", upstreamStatus, durationMs);
+    return json({ error: "demo_upstream_error" }, 502, cors);
+  } finally {
+    clearTimeout(timeout);
+  }
+}
 
 const base64UrlBytes = (value) => {
   const base64 = value.replaceAll("-", "+").replaceAll("_", "/").padEnd(Math.ceil(value.length / 4) * 4, "=");
@@ -823,7 +974,7 @@ async function sendAnnouncementBroadcast(env, announcement, requestedByUserId, r
 
 function corsHeaders(request, env) {
   const origin = request.headers.get("origin");
-  const allowed = (env.ALLOWED_ORIGINS || "").split(",").map((value) => value.trim()).filter(Boolean);
+  const allowed = configuredOrigins(env);
   return origin && allowed.includes(origin) ? {
     "access-control-allow-origin": origin,
     "access-control-allow-credentials": "true",
@@ -891,6 +1042,12 @@ export default {
     const cors = corsHeaders(request, env);
     if (request.method === "OPTIONS") return new Response(null, { status: 204, headers: cors });
     if (request.method === "GET" && url.pathname === "/health") return json({ ok: true, service: "ncidose-portal-api" }, 200, cors);
+    if (request.method === "GET" && url.pathname === "/api/public/vendor-demo") {
+      return Response.json({ ok: true, mode: "bounded_parameters", presets: Object.values(vendorDemoPresets).map(({ id, tool, endpoint }) => ({ id, tool, endpoint })) }, {
+        headers: { ...cors, "cache-control": "public, max-age=300, s-maxage=300" },
+      });
+    }
+    if (request.method === "POST" && url.pathname === "/api/public/vendor-demo") return runVendorDemo(request, env, context, cors);
     if (request.method === "POST" && url.pathname === "/api/auth/request-code") {
       return requestLoginCode(request, env, context, cors);
     }

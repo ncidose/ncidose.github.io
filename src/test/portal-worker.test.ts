@@ -1,5 +1,112 @@
-import { describe, expect, it } from "vitest";
-import { announcementEmailHtml, canPublishQuestion, canViewDiscussion, discussionAuthorForUser, folderArchiveKeys, generateLoginCode, isFolderDownloadPrefix, linkedEmailWelcomeHtml, loginCodeEmailHtml, normalizeAdminUserDetails, normalizePortalEmail, normalizeQuestionVisibility, portalSessionCookieHeader, qaAttachmentValidationError, secondaryEmailAddedHtml, shouldNotifyDiscussionReplyRecipient, shouldNotifyNewDiscussionRecipient, welcomeEmailHtml } from "../../scripts/portal/worker.js";
+import { describe, expect, it, vi } from "vitest";
+import portalWorker, { announcementEmailHtml, canPublishQuestion, canViewDiscussion, discussionAuthorForUser, folderArchiveKeys, generateLoginCode, isFolderDownloadPrefix, linkedEmailWelcomeHtml, loginCodeEmailHtml, normalizeAdminUserDetails, normalizePortalEmail, normalizeQuestionVisibility, portalSessionCookieHeader, qaAttachmentValidationError, secondaryEmailAddedHtml, shouldNotifyDiscussionReplyRecipient, shouldNotifyNewDiscussionRecipient, vendorDemoLimits, vendorDemoPresetForInput, vendorDemoPresets, vendorDemoRequestForInput, welcomeEmailHtml } from "../../scripts/portal/worker.js";
+
+describe("public vendor API demo", () => {
+  it("accepts bounded parameters and rejects arbitrary calculation input", () => {
+    const valid = vendorDemoRequestForInput({
+      presetId: "ncict-adult-chest",
+      parameters: { age: 10, sex: "m", protocol: "head", kvp: 100, ctdivol: 20 },
+    });
+    expect(valid?.payload).toMatchObject({ age: 10, sex: "m", start: 1001, end: 1003, kvp: 100, ctdivol: 20 });
+    expect(vendorDemoRequestForInput({ presetId: "ncict-adult-chest", parameters: { history: 10000000 } })).toBeNull();
+    expect(vendorDemoRequestForInput({ presetId: "ncict-adult-chest", parameters: { ctdivol: 500 } })).toBeNull();
+    expect(vendorDemoRequestForInput({ presetId: "unknown", parameters: {} })).toBeNull();
+    expect(vendorDemoPresetForInput({ presetId: "ncict-adult-chest" })).toBe(vendorDemoPresets["ncict-adult-chest"]);
+  });
+
+  it("keeps the public NCIRF example computationally bounded", () => {
+    const preset = vendorDemoPresets["ncirf-size-demo"];
+    expect(preset.payload.Hist).toBe(100000);
+    expect(preset.payload.Thread).toBe(2);
+    expect(vendorDemoLimits.perIpHourlyNcirf).toBeLessThan(vendorDemoLimits.perIpHourly);
+    expect(vendorDemoLimits.concurrentNcirf).toBe(1);
+  });
+
+  it("counts the NCIRF hourly allowance separately from faster tool requests", async () => {
+    const statements: string[] = [];
+    const db = {
+      prepare: vi.fn((sql: string) => {
+        statements.push(sql);
+        const statement = {
+          bind: vi.fn(() => statement),
+          first: vi.fn(async () => ({ total: 0 })),
+          run: vi.fn(async () => ({ success: true })),
+        };
+        return statement;
+      }),
+    };
+    vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify({ ok: true }), {
+      status: 200,
+      headers: { "content-type": "application/json" },
+    })));
+
+    const response = await portalWorker.fetch(new Request("https://portal.ncidosetools.com/api/public/vendor-demo", {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        "origin": "https://ncidose.github.io",
+        "cf-connecting-ip": "192.0.2.4",
+      },
+      body: JSON.stringify({ presetId: "ncirf-size-demo", parameters: { dapGyCm2: 50 } }),
+    }), {
+      ALLOWED_ORIGINS: "https://ncidose.github.io",
+      AUTH_SECRET: "unit-test-auth-secret",
+      NCIDOSE_VENDOR_DEMO_API_KEY: "unit-test-demo-key",
+      DB: db,
+    }, { waitUntil: vi.fn() });
+
+    expect(response.status).toBe(200);
+    expect(statements.some((sql) => sql.includes("request_ip_hash=? AND tool='ncirf'"))).toBe(true);
+  });
+
+  it("keeps the API key server-side while proxying the fixed payload", async () => {
+    const statement = {
+      bind: vi.fn(() => statement),
+      first: vi.fn(async () => ({ total: 0 })),
+      run: vi.fn(async () => ({ success: true })),
+    };
+    const db = { prepare: vi.fn(() => statement) };
+    const upstreamFetch = vi.fn(async () => new Response(JSON.stringify({ ok: true, matched_phantom_id: "1050005" }), {
+      status: 200,
+      headers: { "content-type": "application/json" },
+    }));
+    vi.stubGlobal("fetch", upstreamFetch);
+    const waitUntil = vi.fn();
+    const response = await portalWorker.fetch(new Request("https://portal.ncidosetools.com/api/public/vendor-demo", {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        "origin": "https://ncidose.github.io",
+        "cf-connecting-ip": "192.0.2.4",
+      },
+      body: JSON.stringify({ presetId: "ncict-adult-chest", parameters: { age: 10, sex: "m", protocol: "head", kvp: 100, ctdivol: 20 } }),
+    }), {
+      ALLOWED_ORIGINS: "https://ncidose.github.io",
+      AUTH_SECRET: "unit-test-auth-secret",
+      NCIDOSE_VENDOR_DEMO_API_KEY: "unit-test-demo-key",
+      DB: db,
+    }, { waitUntil });
+    const payload = await response.json();
+
+    expect(response.status, JSON.stringify(payload)).toBe(200);
+    expect(payload.request).toMatchObject({ age: 10, sex: "m", start: 1001, end: 1003, kvp: 100, ctdivol: 20 });
+    expect(JSON.stringify(payload)).not.toContain("unit-test-demo-key");
+    expect(upstreamFetch).toHaveBeenCalledWith(
+      "https://ncict-api.ncidosetools.com/param",
+      expect.objectContaining({
+        headers: expect.objectContaining({ "x-api-key": "unit-test-demo-key" }),
+      }),
+    );
+    expect(JSON.parse(String(upstreamFetch.mock.calls[0][1].body))).toMatchObject({
+      age: 10,
+      sex: "m",
+      start: 1001,
+      end: 1003,
+      kvp: 100,
+      ctdivol: 20,
+    });
+  });
+});
 
 describe("portal email normalization", () => {
   it("normalizes a valid approved email", () => {

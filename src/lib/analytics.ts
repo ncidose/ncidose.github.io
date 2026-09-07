@@ -122,6 +122,33 @@ export const trackLicensingEmailClick = (
   });
 };
 
+export type VendorSandboxEvent =
+  | "vendor_sandbox_run"
+  | "vendor_sandbox_success"
+  | "vendor_sandbox_error";
+
+export const trackVendorSandboxEvent = (
+  eventName: VendorSandboxEvent,
+  tool: string,
+  presetId: string,
+  status?: number,
+  durationMs?: number,
+) => {
+  if (!measurementId || typeof window === "undefined" || typeof window.gtag !== "function") return;
+
+  window.gtag("event", eventName, {
+    ...eventContext(window.location.pathname + window.location.search, {
+      ctaLocation: "vendor_api_sandbox",
+      tool,
+      audience: "vendor",
+      action: "run_live_demo",
+    }),
+    preset_id: safeDimension(presetId),
+    ...(status === undefined ? {} : { http_status: status }),
+    ...(durationMs === undefined ? {} : { duration_ms: durationMs }),
+  });
+};
+
 export const trackResearchAccessPdfPrepared = (
   path: string,
   metadata: AnalyticsEventMetadata = {},

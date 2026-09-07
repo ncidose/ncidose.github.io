@@ -24,9 +24,15 @@ describe("commercial access guidance", () => {
     );
 
     const hero = screen.getByRole("heading", { name: /REST API-Ready Reference Dosimetry/i }).closest("section");
+    const sandbox = screen.getByRole("heading", { name: /Try the APIs with a sample case/i }).closest("section");
     const commercialAccess = screen.getByRole("heading", { name: /Start the commercial access conversation/i }).closest("section");
-    expect(hero?.nextElementSibling).toBe(commercialAccess);
+    expect(hero?.nextElementSibling).toBe(sandbox);
+    expect(sandbox?.nextElementSibling).toBe(commercialAccess);
+    expect(sandbox).toHaveAttribute("id", "api-sandbox");
     expect(commercialAccess).toHaveAttribute("id", "commercial-access");
+
+    expect(screen.getByRole("link", { name: /Try Live API Sandbox/i })).toHaveAttribute("href", "#api-sandbox");
+    expect(screen.getByRole("tab", { name: /NCICT Adult chest CT/i })).toHaveAttribute("aria-selected", "true");
 
     expect(screen.getAllByRole("link", { name: /Approved User Portal/i }).some(
       (link) => link.getAttribute("href") === "https://portal.ncidosetools.com",

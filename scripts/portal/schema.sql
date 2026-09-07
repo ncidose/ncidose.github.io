@@ -98,6 +98,18 @@ CREATE TABLE IF NOT EXISTS access_events (
   metadata_json TEXT
 );
 
+CREATE TABLE IF NOT EXISTS vendor_demo_requests (
+  id TEXT PRIMARY KEY,
+  request_ip_hash TEXT NOT NULL,
+  tool TEXT NOT NULL CHECK (tool IN ('ncict', 'ncinm', 'ncirf')),
+  preset_id TEXT NOT NULL,
+  result TEXT NOT NULL DEFAULT 'started' CHECK (result IN ('started', 'succeeded', 'failed')),
+  upstream_status INTEGER,
+  duration_ms INTEGER,
+  created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  completed_at TEXT
+);
+
 CREATE TABLE IF NOT EXISTS announcements (
   id TEXT PRIMARY KEY,
   title TEXT NOT NULL,
@@ -190,6 +202,9 @@ CREATE INDEX IF NOT EXISTS idx_portal_sessions_user ON portal_sessions(user_id, 
 CREATE INDEX IF NOT EXISTS idx_group_memberships_import ON group_memberships(last_import_id);
 CREATE INDEX IF NOT EXISTS idx_access_requests_status ON access_requests(workflow_status, created_at);
 CREATE INDEX IF NOT EXISTS idx_access_events_user_time ON access_events(user_id, occurred_at);
+CREATE INDEX IF NOT EXISTS idx_vendor_demo_ip_time ON vendor_demo_requests(request_ip_hash, created_at);
+CREATE INDEX IF NOT EXISTS idx_vendor_demo_tool_time ON vendor_demo_requests(tool, created_at);
+CREATE INDEX IF NOT EXISTS idx_vendor_demo_result_time ON vendor_demo_requests(result, created_at);
 CREATE INDEX IF NOT EXISTS idx_announcements_status_date ON announcements(status, published_at, original_published_at);
 CREATE INDEX IF NOT EXISTS idx_announcement_reads_user ON announcement_reads(user_id, read_at);
 CREATE INDEX IF NOT EXISTS idx_announcement_email_deliveries_announcement ON announcement_email_deliveries(announcement_id, created_at);
