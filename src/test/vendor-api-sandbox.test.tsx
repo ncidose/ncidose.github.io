@@ -125,7 +125,7 @@ describe("vendor API sandbox", () => {
     fireEvent.change(screen.getByLabelText("Phantom library"), { target: { value: "5" } });
     expect(screen.getByLabelText("Gestational age")).toBeInTheDocument();
     expect(screen.queryByLabelText("Height (cm)")).not.toBeInTheDocument();
-    expect(screen.getByRole("tabpanel").textContent).toContain("\"Hist\": 25000");
+    expect(screen.getByRole("tabpanel").textContent).toContain("\"Hist\": 10000");
     expect(screen.getByRole("tabpanel").textContent).toContain("\"Thread\": 2");
     expect(screen.getByText(/approved dedicated vendor deployment/i)).toBeInTheDocument();
   });

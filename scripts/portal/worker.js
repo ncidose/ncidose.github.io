@@ -26,7 +26,7 @@ export const vendorDemoPresets = Object.freeze({
     tool: "ncirf",
     endpoint: "https://ncirf-api.ncidosetools.com/param",
     timeoutMs: 90_000,
-    payload: { ID: "public-vendor-demo", PhtLib: 4, Age: 30, Sex: "f", HT: 150, WT: 40, kVp: 28, HVL: 0.46, SID: 80, FW: 10, FH: 10, DAP: 100, PPA: 180, PSA: 0, ISOX: 16.5, ISOY: 13.7, ISOZ: 75.1, Tbl: 1, Hist: 25000, Thread: 2 },
+    payload: { ID: "public-vendor-demo", PhtLib: 4, Age: 30, Sex: "f", HT: 150, WT: 40, kVp: 28, HVL: 0.46, SID: 80, FW: 10, FH: 10, DAP: 100, PPA: 180, PSA: 0, ISOX: 16.5, ISOY: 13.7, ISOZ: 75.1, Tbl: 1, Hist: 10000, Thread: 2 },
   },
 });
 export const vendorDemoLimits = Object.freeze({

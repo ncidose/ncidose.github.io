@@ -212,7 +212,7 @@ const ParameterControls = ({
           </div>
         </details>
 
-        <p className="text-xs leading-5 text-slate-400">Case ID is synthetic. Particle histories (25,000) and threads (2) are fixed for a functional demonstration. Higher-history or scaled testing requires an approved dedicated vendor deployment.</p>
+        <p className="text-xs leading-5 text-slate-400">Case ID is synthetic. Particle histories (10,000) and threads (2) are fixed for a fast functional demonstration. Higher-history or scaled testing requires an approved dedicated vendor deployment.</p>
       </div>
     )}
   </div>

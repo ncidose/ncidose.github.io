@@ -43,7 +43,7 @@ describe("public vendor API demo", () => {
 
   it("keeps the public NCIRF example computationally bounded", () => {
     const preset = vendorDemoPresets["ncirf-size-demo"];
-    expect(preset.payload.Hist).toBe(25000);
+    expect(preset.payload.Hist).toBe(10000);
     expect(preset.payload.Thread).toBe(2);
     const varied = vendorDemoRequestForInput({
       presetId: "ncirf-size-demo",
@@ -80,7 +80,7 @@ describe("public vendor API demo", () => {
       PPA: 90,
       PSA: -15,
       ISOZ: 90,
-      Hist: 25000,
+      Hist: 10000,
       Thread: 2,
     });
     expect(vendorDemoRequestForInput({ presetId: "ncirf-size-demo", parameters: { Hist: 5000000 } })).toBeNull();

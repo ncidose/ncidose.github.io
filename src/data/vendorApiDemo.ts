@@ -97,7 +97,7 @@ export const vendorApiDemoPresets: VendorApiDemoPreset[] = [
       ISOY: 13.7,
       ISOZ: 75.1,
       Tbl: 1,
-      Hist: 25000,
+      Hist: 10000,
       Thread: 2,
     },
     defaultParameters: {
