@@ -91,6 +91,19 @@ const publicSiteUrl = "https://ncidose.github.io/";
 const publicAccessRequestUrl = `${publicSiteUrl}portal/request-access/`;
 const commercialLicensingEmail = createLicensingMailto();
 const portalSupportEmail = "mailto:choonsik.lee@nih.gov?subject=NCI%20Dose%20Tools%20User%20Portal%20Help";
+const staResearchPurposeStatements: Record<string, string> = {
+  dose_research: "Non-clinical radiation dosimetry research",
+  method_development: "Non-clinical research method development and validation",
+  education: "Non-clinical academic teaching and training",
+  other_research: "Other non-commercial, non-clinical research",
+};
+
+const buildStaResearchScope = (purpose: string, tools: string[], detail: string) => {
+  const base = staResearchPurposeStatements[purpose] || staResearchPurposeStatements.dose_research;
+  const toolList = new Intl.ListFormat("en", { style: "long", type: "conjunction" }).format(tools);
+  const normalizedDetail = detail.trim().replace(/\s+/g, " ");
+  return `${base} using ${toolList}.${normalizedDetail ? ` Planned work: ${normalizedDetail}` : ""}`;
+};
 
 export const AnnouncementBody = ({ children }: { children: string }) => (
   <ReactMarkdown
@@ -709,7 +722,7 @@ const AccessRequest = () => {
             <div className="mt-7 font-mono text-xs uppercase tracking-widest text-primary">STA PDF prepared</div>
             <h1 className="mt-3 text-3xl font-light">Your prefilled STA has been downloaded.</h1>
             <p className="mx-auto mt-5 max-w-lg text-sm leading-relaxed text-muted-foreground">
-              Review every entry in the PDF, obtain the required recipient signatures, and attach the signed agreement to an email to Dr. Lee.
+              Review every entry in the official PDF, complete any signing-official details you left blank, obtain the required recipient signatures, and attach the signed agreement to an email to Dr. Lee.
             </p>
             <div className="mx-auto mt-8 max-w-lg border border-border bg-slate-50 p-5 text-left">
               <div className="font-mono text-xs uppercase tracking-wider text-slate-500">Next step</div>
@@ -735,16 +748,16 @@ const AccessRequest = () => {
       <main className="container mx-auto grid gap-10 px-6 py-12 lg:grid-cols-[0.85fr_1.15fr] lg:py-16">
         <section className="lg:sticky lg:top-10 lg:self-start">
           <div className="font-mono text-xs uppercase tracking-widest text-primary">New user access</div>
-          <h1 className="mt-4 text-4xl font-light tracking-tight sm:text-5xl">A clearer path from STA to downloads.</h1>
+          <h1 className="mt-4 text-4xl font-light tracking-tight sm:text-5xl">Prepare your research access agreement.</h1>
           <p className="mt-5 max-w-xl leading-relaxed text-muted-foreground">
-            The NCI Technology Transfer Center remains responsible for reviewing and executing the Software Transfer Agreement. This form prepares the request; signed agreements are submitted by email for review.
+            Start with three quick eligibility questions. If this research pathway fits, a short form will prepare the official NCI Software Transfer Agreement (STA) for you.
           </p>
           <div className="mt-9 space-y-3">
             {[
-              ["01", "Request access", "Provide your institutional contact information."],
-              ["02", "Complete the STA", "Follow the official NCI submission instructions."],
-              ["03", "NCI review", "The Technology Transfer Center reviews and executes the agreement."],
-              ["04", "Portal activation", "Verify your preferred login email and receive download access."],
+              ["01", "Check eligibility", "Confirm that this is non-commercial research use."],
+              ["02", "Prepare the official PDF", "Enter only the details needed to prefill the STA."],
+              ["03", "Review, sign, and email", "Complete any remaining PDF fields before signing."],
+              ["04", "Receive access", "NCI reviews the agreement and activates your portal account."],
             ].map(([number, title, detail]) => (
               <div key={number} className="grid grid-cols-[42px_1fr] gap-4 border border-border bg-white p-4">
                 <div className="font-mono text-sm text-primary">{number}</div>
@@ -770,14 +783,14 @@ const AccessRequest = () => {
                 nonprofit: eligibility.nonprofit as "yes" | "no",
                 commercialReplacement: eligibility.commercialReplacement as "yes" | "no",
                 clinicalUse: eligibility.clinicalUse as "yes" | "no",
-                researchUse: String(form.get("researchUse") || ""),
+                researchUse: buildStaResearchScope(String(form.get("researchPurpose") || "dose_research"), selectedTools, String(form.get("researchDetails") || "")),
                 officialName: String(form.get("officialName") || ""),
                 officialTitle: String(form.get("officialTitle") || ""),
                 investigatorName: String(form.get("fullName") || ""),
                 investigatorTitle: String(form.get("investigatorTitle") || ""),
                 mailingAddress: String(form.get("mailingAddress") || ""),
-                legalEmail: String(form.get("legalEmail") || ""),
-                legalPhone: String(form.get("legalPhone") || ""),
+                legalEmail: String(form.get("email") || ""),
+                legalPhone: String(form.get("phone") || ""),
                 tools: selectedTools,
               });
               trackResearchAccessPdfPrepared(`${location.pathname}${location.search}`, {
@@ -799,83 +812,118 @@ const AccessRequest = () => {
             <ShieldCheck className="h-6 w-6 shrink-0 text-primary" />
           </div>
 
-          <div className="mt-7 grid gap-5 sm:grid-cols-2">
-            <PortalField label="Recipient investigator name" name="fullName" placeholder="Full legal name" />
-            <PortalField label="Recipient investigator job title" name="investigatorTitle" placeholder="Job title" />
-            <PortalField label="Institutional email" name="email" placeholder="name@institution.edu" type="email" />
-            <PortalField label="Recipient institution" name="institution" placeholder="University or organization" />
-            <PortalField label="Country" name="country" placeholder="Country" />
-            <PortalField label="Phone" name="phone" placeholder="Phone number" type="tel" />
-          </div>
-
           <div className="mt-7 border border-border p-5 sm:p-6">
-            <div className="font-mono text-xs uppercase tracking-widest text-primary">STA eligibility questions</div>
+            <div className="font-mono text-xs uppercase tracking-widest text-primary">First, check your research use</div>
+            <p className="mt-2 text-sm leading-relaxed text-muted-foreground">These answers are copied into the official STA.</p>
             <div className="mt-5 space-y-5">
               <EligibilityQuestion
                 name="nonprofit"
-                question="Is your organization either non-profit or a government-run entity?"
+                question="Is your organization a nonprofit or government organization?"
                 value={eligibility.nonprofit}
                 onChange={(value) => setEligibility((current) => ({ ...current, nonprofit: value }))}
-                instruction="If the answer is NO, please do not continue with the Software Transfer Agreement. Please contact Dr. Kevin Chang (kevin.chang@nih.gov) for additional licensing information."
+                guidance="This research agreement is intended for nonprofit and government organizations."
                 stopAnswer="no"
               />
               <EligibilityQuestion
                 name="commercialReplacement"
-                question="Will the provided Software be used to replace commercially available radiation dosimetry tools?"
+                question="Will this software replace a commercially available dosimetry product?"
                 value={eligibility.commercialReplacement}
                 onChange={(value) => setEligibility((current) => ({ ...current, commercialReplacement: value }))}
-                instruction="If the answer is YES, please do not continue with the Software Transfer Agreement. Please contact Dr. Kevin Chang (kevin.chang@nih.gov) for additional licensing information."
+                guidance="This pathway does not cover replacing a commercial product."
                 stopAnswer="yes"
               />
               <EligibilityQuestion
                 name="clinicalUse"
-                question="Will the provided Software be used to treat or diagnose current or future patients?"
+                question="Will the software be used to diagnose or treat patients?"
                 value={eligibility.clinicalUse}
                 onChange={(value) => setEligibility((current) => ({ ...current, clinicalUse: value }))}
-                instruction="If the answer is YES, please do not continue with the Software Transfer Agreement. Please contact Dr. Kevin Chang (kevin.chang@nih.gov) for additional licensing information."
+                guidance="NCI Dose Tools are provided through this agreement for research, not clinical care."
                 stopAnswer="yes"
               />
             </div>
           </div>
 
-          <fieldset className="mt-7">
-            <legend className="font-mono text-xs uppercase tracking-wider text-slate-600">Tools requested</legend>
-            <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
-              {["NCICT", "NCINM", "NCIRF", "PHANTOM"].map((tool) => (
-                <label key={tool} className="flex cursor-pointer items-center gap-2 border border-border px-3 py-3 text-sm text-slate-700 has-[:checked]:border-primary has-[:checked]:bg-primary/5 has-[:checked]:text-primary">
-                  <input type="checkbox" name="tools" value={tool} className="accent-primary" /> {tool}
-                </label>
-              ))}
+          {!eligibilityComplete && (
+            <div className="mt-5 border-l-2 border-primary bg-primary/5 px-4 py-3 text-sm leading-relaxed text-slate-700">
+              Answer the three questions above to continue.
             </div>
-          </fieldset>
+          )}
 
-          <div className="mt-7">
-            <label htmlFor="research-use" className="font-mono text-xs uppercase tracking-wider text-slate-600">Intended research use</label>
-            <textarea id="research-use" name="researchUse" required className="mt-2 min-h-28 w-full border border-input bg-background p-3 text-sm outline-none focus:border-primary" placeholder="Briefly describe the planned research use." />
-          </div>
+          {eligibilityComplete && isIneligible && (
+            <section className="mt-7 border border-amber-300 bg-amber-50 p-5 sm:p-6">
+              <div className="font-mono text-xs uppercase tracking-widest text-amber-800">A different access path fits this use</div>
+              <h3 className="mt-2 text-xl font-light text-slate-900">Try the live Vendor Sandbox instead.</h3>
+              <p className="mt-3 text-sm leading-relaxed text-slate-700">
+                The non-commercial research STA form stops here. You can still evaluate the NCICT, NCINM, and NCIRF calculation APIs with bounded live trials—no agreement is required.
+              </p>
+              <Link
+                to="/vendors#api-sandbox"
+                className="mt-5 inline-flex items-center gap-2 bg-primary px-5 py-3 text-sm font-medium text-white"
+                data-analytics-event="vendor_sandbox_open"
+                data-analytics-location="research_access_eligibility"
+                data-analytics-tool="suite"
+                data-analytics-audience="vendor"
+                data-analytics-action="open_live_demo"
+              >
+                Open Vendor Sandbox <ChevronRight className="h-4 w-4" />
+              </Link>
+            </section>
+          )}
 
-          <fieldset className="mt-7 border border-border p-5 sm:p-6">
-            <legend className="px-2 font-mono text-xs uppercase tracking-widest text-primary">Authorized recipient official</legend>
-            <p className="text-xs leading-relaxed text-muted-foreground">This must be someone authorized to sign legal documents for the recipient institution.</p>
-            <div className="mt-5 grid gap-5 sm:grid-cols-2">
-              <PortalField label="Authorized official name" name="officialName" placeholder="Full legal name" />
-              <PortalField label="Authorized official job title" name="officialTitle" placeholder="Job title" />
-            </div>
-          </fieldset>
+          {eligibilityComplete && !isIneligible && (
+            <>
+              <section className="mt-7">
+                <div className="font-mono text-xs uppercase tracking-widest text-primary">About you</div>
+                <p className="mt-2 text-sm leading-relaxed text-muted-foreground">Use your institutional contact details. They will be copied into the official PDF.</p>
+                <div className="mt-5 grid gap-5 sm:grid-cols-2">
+                  <PortalField label="Your full name" name="fullName" placeholder="Full legal name" />
+                  <PortalField label="Your job title" name="investigatorTitle" placeholder="Job title" />
+                  <PortalField label="Organization" name="institution" placeholder="University or organization" />
+                  <PortalField label="Work email" name="email" placeholder="name@institution.edu" type="email" />
+                  <PortalField label="Phone" name="phone" placeholder="Phone number" type="tel" />
+                  <label className="block sm:col-span-2"><span className="font-mono text-xs uppercase tracking-wider text-slate-600">Organization mailing address</span><textarea required name="mailingAddress" className="mt-2 min-h-20 w-full border border-input bg-background p-3 text-sm outline-none focus:border-primary" placeholder="Street, city, state or region, postal code, country" /></label>
+                </div>
+              </section>
 
-          <fieldset className="mt-7 border border-border p-5 sm:p-6">
-            <legend className="px-2 font-mono text-xs uppercase tracking-widest text-primary">Legal notices</legend>
-            <div className="grid gap-5 sm:grid-cols-2">
-              <label className="block sm:col-span-2"><span className="font-mono text-xs uppercase tracking-wider text-slate-600">Recipient mailing address</span><textarea required name="mailingAddress" className="mt-2 min-h-24 w-full border border-input bg-background p-3 text-sm outline-none focus:border-primary" placeholder="Complete institutional mailing address" /></label>
-              <PortalField label="Legal notice email" name="legalEmail" placeholder="name@institution.edu" type="email" />
-              <PortalField label="Legal notice phone" name="legalPhone" placeholder="Phone number" type="tel" />
-            </div>
-          </fieldset>
+              <fieldset className="mt-7">
+                <legend className="font-mono text-xs uppercase tracking-wider text-slate-600">Tools requested</legend>
+                <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
+                  {["NCICT", "NCINM", "NCIRF", "PHANTOM"].map((tool) => (
+                    <label key={tool} className="flex cursor-pointer items-center gap-2 border border-border px-3 py-3 text-sm text-slate-700 has-[:checked]:border-primary has-[:checked]:bg-primary/5 has-[:checked]:text-primary">
+                      <input type="checkbox" name="tools" value={tool} className="accent-primary" /> {tool}
+                    </label>
+                  ))}
+                </div>
+              </fieldset>
 
-          <div className="mt-7 flex flex-col-reverse items-stretch justify-between gap-4 border-t border-border pt-6 sm:flex-row sm:items-center">
-            <p className="max-w-sm text-xs leading-relaxed text-muted-foreground">Submitting this request does not itself constitute NCI approval or grant software access.</p>
-            <Button type="submit" disabled={!eligibilityComplete || isIneligible || preparingPdf} className="h-11 rounded-none px-6"><Send className="h-4 w-4" /> {preparingPdf ? "Preparing PDF…" : "Prepare STA request"}</Button>
-          </div>
+              <section className="mt-7">
+                <label htmlFor="research-purpose" className="font-mono text-xs uppercase tracking-wider text-slate-600">Main research purpose</label>
+                <select id="research-purpose" name="researchPurpose" defaultValue="dose_research" className="mt-2 h-11 w-full border border-input bg-background px-3 text-sm outline-none focus:border-primary">
+                  <option value="dose_research">Radiation dose research</option>
+                  <option value="method_development">Research method development or validation</option>
+                  <option value="education">Academic teaching or training</option>
+                  <option value="other_research">Other non-commercial research</option>
+                </select>
+                <label htmlFor="research-details" className="mt-4 block text-xs font-medium text-slate-700">Optional: one sentence about your study</label>
+                <textarea id="research-details" name="researchDetails" className="mt-2 min-h-20 w-full border border-input bg-background p-3 text-sm outline-none focus:border-primary" placeholder="Example: Retrospective organ-dose estimates for CT examinations." />
+                <p className="mt-2 text-xs leading-relaxed text-muted-foreground">We will combine your selection, requested tools, and optional detail into the STA’s scope-of-use statement. You can edit it in the PDF.</p>
+              </section>
+
+              <details className="mt-7 border border-border p-5 sm:p-6">
+                <summary className="cursor-pointer text-sm font-medium text-slate-800">Person authorized to sign for your organization <span className="font-normal text-muted-foreground">(you can add this later)</span></summary>
+                <p className="mt-3 text-xs leading-relaxed text-muted-foreground">The STA calls this the “Authorized Recipient Official.” This may be your supervisor or principal investigator, but only if your organization has authorized that person to sign legal agreements such as this STA. It may instead be someone in research administration, contracts, or technology transfer. If you are unsure, leave these fields blank and complete the editable PDF after checking with your organization.</p>
+                <div className="mt-5 grid gap-5 sm:grid-cols-2">
+                  <PortalField label="Authorized signer’s name" name="officialName" placeholder="Full legal name" required={false} />
+                  <PortalField label="Authorized signer’s job title" name="officialTitle" placeholder="Job title" required={false} />
+                </div>
+              </details>
+
+              <div className="mt-7 flex flex-col-reverse items-stretch justify-between gap-4 border-t border-border pt-6 sm:flex-row sm:items-center">
+                <p className="max-w-sm text-xs leading-relaxed text-muted-foreground">This prepares the original NCI STA. It does not itself grant software access.</p>
+                <Button type="submit" disabled={preparingPdf} className="h-11 rounded-none px-6"><Send className="h-4 w-4" /> {preparingPdf ? "Preparing PDF…" : "Download prefilled STA"}</Button>
+              </div>
+            </>
+          )}
           {pdfError && <div role="alert" className="mt-4 border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">{pdfError}</div>}
         </form>
       </main>
@@ -892,14 +940,14 @@ const PortalPublicHeader = () => (
   </header>
 );
 
-const PortalField = ({ label, name, placeholder, type = "text" }: { label: string; name: string; placeholder: string; type?: string }) => (
+const PortalField = ({ label, name, placeholder, type = "text", required = true }: { label: string; name: string; placeholder: string; type?: string; required?: boolean }) => (
   <label className="block">
     <span className="font-mono text-xs uppercase tracking-wider text-slate-600">{label}</span>
-    <Input required type={type} name={name} placeholder={placeholder} className="mt-2 h-11 rounded-none" />
+    <Input required={required} type={type} name={name} placeholder={placeholder} className="mt-2 h-11 rounded-none" />
   </label>
 );
 
-const EligibilityQuestion = ({ name, question, value, onChange, instruction, stopAnswer }: { name: string; question: string; value: string; onChange: (value: string) => void; instruction: string; stopAnswer: string }) => (
+const EligibilityQuestion = ({ name, question, value, onChange, guidance, stopAnswer }: { name: string; question: string; value: string; onChange: (value: string) => void; guidance: string; stopAnswer: string }) => (
   <fieldset>
     <legend className="text-sm leading-relaxed text-slate-800">{question}</legend>
     <div className="mt-2 flex gap-2">
@@ -910,18 +958,7 @@ const EligibilityQuestion = ({ name, question, value, onChange, instruction, sto
       ))}
     </div>
     <p className={cn("mt-3 text-xs leading-relaxed", value === stopAnswer ? "border-l-2 border-amber-500 bg-amber-50 px-3 py-2 text-amber-900" : "text-muted-foreground")}>
-      {instruction.split("kevin.chang@nih.gov")[0]}
-      <a
-        className="font-medium underline"
-        href={commercialLicensingEmail}
-        data-analytics-location="research_access_eligibility"
-        data-analytics-tool="suite"
-        data-analytics-audience="vendor"
-        data-analytics-action="email_licensing"
-      >
-        kevin.chang@nih.gov
-      </a>
-      {instruction.split("kevin.chang@nih.gov")[1]}
+      {guidance}
     </p>
   </fieldset>
 );

@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { getPortalHeaderEmail, selectPrimaryPortalIdentity } from "@/lib/portalUser";
@@ -16,6 +16,15 @@ vi.mock("@/lib/staPdf", () => ({
 vi.mock("@/lib/analytics", () => ({
   trackResearchAccessPdfPrepared: portalTestMocks.trackResearchAccessPdfPrepared,
 }));
+
+const answerStaEligibility = (eligible = true) => {
+  const nonprofit = screen.getByRole("group", { name: /nonprofit or government organization/i });
+  const commercialReplacement = screen.getByRole("group", { name: /replace a commercially available dosimetry product/i });
+  const clinicalUse = screen.getByRole("group", { name: /diagnose or treat patients/i });
+  fireEvent.click(within(nonprofit).getByRole("radio", { name: eligible ? /yes/i : /no/i }));
+  fireEvent.click(within(commercialReplacement).getByRole("radio", { name: /no/i }));
+  fireEvent.click(within(clinicalUse).getByRole("radio", { name: /no/i }));
+};
 
 describe("portal migration experience", () => {
   beforeEach(() => {
@@ -182,12 +191,47 @@ describe("portal migration experience", () => {
       </MemoryRouter>,
     );
 
-    expect(screen.getByRole("heading", { name: /clearer path from STA to downloads/i })).toBeInTheDocument();
-    expect(screen.getByText(/Technology Transfer Center remains responsible/i)).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /prepare your research access agreement/i })).toBeInTheDocument();
+    expect(screen.getByText(/three quick eligibility questions/i)).toBeInTheDocument();
     expect(screen.getByText(/No signed agreement document is uploaded/i)).toBeInTheDocument();
     expect(screen.queryByText("DCC")).not.toBeInTheDocument();
-    expect(screen.getByText(/If the answer is NO, please do not continue with the Software Transfer Agreement/i)).toBeInTheDocument();
-    expect(screen.getAllByText(/If the answer is YES, please do not continue with the Software Transfer Agreement/i)).toHaveLength(2);
+    expect(screen.getByText(/Answer the three questions above to continue/i)).toBeInTheDocument();
+    expect(screen.queryByLabelText(/Your full name/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/kevin\.chang@nih\.gov/i)).not.toBeInTheDocument();
+  });
+
+  it("sends an ineligible visitor to the live vendor sandbox instead of email", () => {
+    render(
+      <MemoryRouter initialEntries={["/portal/request-access"]}>
+        <Portal />
+      </MemoryRouter>,
+    );
+
+    answerStaEligibility(false);
+
+    expect(screen.getByRole("heading", { name: /try the live vendor sandbox instead/i })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /open vendor sandbox/i })).toHaveAttribute("href", "/vendors#api-sandbox");
+    expect(screen.queryByText(/kevin\.chang@nih\.gov/i)).not.toBeInTheDocument();
+    expect(screen.queryByLabelText(/Your full name/i)).not.toBeInTheDocument();
+  });
+
+  it("reveals a shorter STA form and explains the authorized signer", () => {
+    render(
+      <MemoryRouter initialEntries={["/portal/request-access"]}>
+        <Portal />
+      </MemoryRouter>,
+    );
+
+    answerStaEligibility();
+
+    expect(screen.getByLabelText(/Your full name/i)).toBeRequired();
+    expect(screen.getByLabelText(/Work email/i)).toBeRequired();
+    expect(screen.getByLabelText(/Phone/i)).toBeRequired();
+    expect(screen.queryByLabelText(/^Country$/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Legal notices/i)).not.toBeInTheDocument();
+    fireEvent.click(screen.getByText(/Person authorized to sign for your organization/i));
+    expect(screen.getByText(/may be your supervisor or principal investigator, but only if/i)).toBeInTheDocument();
+    expect(screen.getByLabelText(/Authorized signer’s name/i)).not.toBeRequired();
   });
 
   it("opens the STA workflow directly for the generated trailing-slash URL", () => {
@@ -197,7 +241,7 @@ describe("portal migration experience", () => {
       </MemoryRouter>,
     );
 
-    expect(screen.getByRole("heading", { name: /clearer path from STA to downloads/i })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /prepare your research access agreement/i })).toBeInTheDocument();
     expect(screen.queryByRole("heading", { name: /^sign in$/i })).not.toBeInTheDocument();
   });
 
@@ -208,12 +252,21 @@ describe("portal migration experience", () => {
       </MemoryRouter>,
     );
 
+    answerStaEligibility();
     fireEvent.click(screen.getByRole("checkbox", { name: "NCICT" }));
-    const form = screen.getByRole("button", { name: /prepare STA request/i }).closest("form");
+    fireEvent.change(screen.getByLabelText(/Work email/i), { target: { value: "researcher@example.edu" } });
+    fireEvent.change(screen.getByLabelText(/Phone/i), { target: { value: "+1 555 0100" } });
+    fireEvent.change(screen.getByLabelText(/one sentence about your study/i), { target: { value: "Retrospective CT organ-dose study." } });
+    const form = screen.getByRole("button", { name: /download prefilled STA/i }).closest("form");
     expect(form).not.toBeNull();
     fireEvent.submit(form!);
 
     expect(await screen.findByRole("heading", { name: /prefilled STA has been downloaded/i })).toBeInTheDocument();
+    expect(portalTestMocks.downloadStaPdf).toHaveBeenCalledWith(expect.objectContaining({
+      legalEmail: "researcher@example.edu",
+      legalPhone: "+1 555 0100",
+      researchUse: "Non-clinical radiation dosimetry research using NCICT. Planned work: Retrospective CT organ-dose study.",
+    }));
     expect(portalTestMocks.trackResearchAccessPdfPrepared).toHaveBeenCalledWith(
       "/portal/request-access?source=home",
       {
@@ -235,8 +288,9 @@ describe("portal migration experience", () => {
       </MemoryRouter>,
     );
 
+    answerStaEligibility();
     fireEvent.click(screen.getByRole("checkbox", { name: "NCICT" }));
-    const form = screen.getByRole("button", { name: /prepare STA request/i }).closest("form");
+    const form = screen.getByRole("button", { name: /download prefilled STA/i }).closest("form");
     expect(form).not.toBeNull();
     fireEvent.submit(form!);
 
