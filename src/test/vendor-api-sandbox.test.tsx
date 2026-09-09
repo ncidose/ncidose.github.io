@@ -88,6 +88,7 @@ describe("vendor API sandbox", () => {
     expect(screen.queryByText(/Adjust the bounded inputs/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/Adjust scan coverage/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/Choose age\/sex, WED/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Starting values/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/same hypothetical inputs in your current solution/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/Advanced patient & scanner inputs/i)).not.toBeInTheDocument();
     expect(screen.getByRole("link", { name: /NCICT API manual/i })).toHaveAttribute("href", "/manuals/ncict-api");
@@ -118,10 +119,14 @@ describe("vendor API sandbox", () => {
 
     expect(screen.getByText(/Advanced RDSR-derived geometry/i)).toBeInTheDocument();
     expect(screen.getByText(/5 runs \/ 30 min/i)).toBeInTheDocument();
-    expect(screen.getByText(/Reduced-history demonstration; usually under 30 seconds/i)).toBeInTheDocument();
+    const expectedTime = screen.getByText(/Reduced-history demonstration; usually under 30 seconds/i);
+    const particleHistories = screen.getByText(/Particle histories \(10,000\)/i);
+    expect(expectedTime).toBeInTheDocument();
+    expect(expectedTime.compareDocumentPosition(particleHistories) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(screen.queryByText(/Case ID is synthetic/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/Adjust the bounded inputs/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/Adjust phantom, spectrum/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Enter one normalized irradiation event/i)).not.toBeInTheDocument();
     expect(screen.getByRole("link", { name: /NCIRF API manual/i })).toHaveAttribute("href", "/manuals/ncirf-api");
     fireEvent.click(screen.getByText(/Advanced RDSR-derived geometry/i));
     expect(screen.getByLabelText("Phantom library")).toBeInTheDocument();

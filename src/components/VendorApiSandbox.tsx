@@ -193,11 +193,7 @@ const ParameterControls = ({
         <details className="border border-slate-700 bg-slate-950/30">
           <summary className="cursor-pointer px-4 py-3 font-mono text-[11px] uppercase tracking-widest text-sky-300 hover:text-white">Advanced RDSR-derived geometry</summary>
           <div className="border-t border-slate-700 p-4">
-            <p className="text-xs leading-5 text-slate-400">
-              Enter one normalized irradiation event from your RDSR workflow. Confirm NCIRF angle and phantom-coordinate conventions in the{" "}
-              <a className="text-sky-300 underline decoration-sky-500/50 underline-offset-2 hover:text-white" href="/manuals/ncirf-api">NCIRF API manual</a>.
-            </p>
-            <div className="mt-4 grid gap-3 sm:grid-cols-2">
+            <div className="grid gap-3 sm:grid-cols-2">
               <NumberInput label="SID" name="sidCm" value={parameters.sidCm} min={30} max={200} unit="cm" disabled={disabled} onChange={onChange} />
               <NumberInput label="Field width · FW" name="fieldWidthCm" value={parameters.fieldWidthCm} min={0.5} max={60} step={0.5} unit="cm" disabled={disabled} onChange={onChange} />
               <NumberInput label="Field height · FH" name="fieldHeightCm" value={parameters.fieldHeightCm} min={0.5} max={60} step={0.5} unit="cm" disabled={disabled} onChange={onChange} />
@@ -211,7 +207,13 @@ const ParameterControls = ({
           </div>
         </details>
 
+        {preset.expectedTime && (
+          <p className="flex items-center gap-2 text-xs text-slate-400">
+            <Clock3 className="h-3.5 w-3.5" /> {preset.expectedTime}
+          </p>
+        )}
         <p className="text-xs leading-5 text-slate-400">Particle histories (10,000) and threads (2) are fixed for a fast functional demonstration. Higher-history or scaled testing requires an approved dedicated vendor deployment.</p>
+        <p className="text-xs leading-5 text-slate-400">See the <a className="text-sky-300 underline decoration-sky-500/50 underline-offset-2 hover:text-white" href="/manuals/ncirf-api">NCIRF API manual</a>.</p>
       </div>
     )}
   </div>
@@ -365,16 +367,6 @@ export const VendorApiSandbox = ({ initialTool }: { initialTool?: string | null 
 
             <div id="vendor-api-demo-panel" role="tabpanel" className="grid lg:grid-cols-2">
               <div className="border-b border-slate-700 lg:border-b-0 lg:border-r">
-                <div className="border-b border-slate-700 px-5 py-4">
-                  <div className="font-mono text-[11px] uppercase tracking-widest text-sky-300">
-                    Starting values
-                  </div>
-                  {selected.expectedTime && (
-                    <p className="mt-2 flex items-center gap-2 text-xs text-slate-400">
-                      <Clock3 className="h-3.5 w-3.5" /> {selected.expectedTime}
-                    </p>
-                  )}
-                </div>
                 <ParameterControls preset={selected} parameters={selectedParameters} disabled={status === "running"} onChange={updateParameter} />
                 <details>
                   <summary className="cursor-pointer px-5 py-4 font-mono text-xs text-sky-300 hover:text-white">View request JSON</summary>
