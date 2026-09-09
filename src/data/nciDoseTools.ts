@@ -214,7 +214,7 @@ export const publicationSearches = [
   {
     id: "phantom",
     tool: "PHANTOM",
-    modality: "Computational phantom literature",
+    modality: "Computational phantom",
     pubmedHref: pubmedUrl(literatureQueries.phantomPubmed),
     pmcHref: pmcUrl(literatureQueries.phantomPmc),
     summary:
