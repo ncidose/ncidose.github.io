@@ -84,6 +84,8 @@ describe("vendor API sandbox", () => {
     expect(screen.getByText(/No production or clinical use/i)).toBeInTheDocument();
     expect(screen.getByText(/Single-case requests/i)).toBeInTheDocument();
     expect(screen.getByText(/30 runs \/ hour/i)).toBeInTheDocument();
+    expect(screen.queryByText(/Usually completes/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Adjust the bounded inputs/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/same hypothetical inputs in your current solution/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/Advanced patient & scanner inputs/i)).not.toBeInTheDocument();
     expect(screen.getByRole("link", { name: /NCICT API manual/i })).toHaveAttribute("href", "/manuals/ncict-api");
@@ -98,7 +100,8 @@ describe("vendor API sandbox", () => {
 
     fireEvent.click(screen.getByRole("tab", { name: /NCINM/i }));
     expect(screen.getByLabelText("Radiopharmaceutical name")).toHaveValue("F-18 FDG");
-    expect(screen.getByText(/matched entry, method, and score/i)).toBeInTheDocument();
+    expect(screen.queryByText(/matched entry, method, and score/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Usually completes/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/Advanced phantom & patient inputs/i)).not.toBeInTheDocument();
     expect(screen.getByLabelText("Phantom library")).toBeInTheDocument();
     expect(screen.getByLabelText("Sex")).toBeInTheDocument();
@@ -111,6 +114,9 @@ describe("vendor API sandbox", () => {
 
     expect(screen.getByText(/Advanced RDSR-derived geometry/i)).toBeInTheDocument();
     expect(screen.getByText(/5 runs \/ 30 min/i)).toBeInTheDocument();
+    expect(screen.getByText(/Reduced-history demonstration; usually under 30 seconds/i)).toBeInTheDocument();
+    expect(screen.queryByText(/Case ID is synthetic/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Adjust the bounded inputs/i)).not.toBeInTheDocument();
     expect(screen.getByRole("link", { name: /NCIRF API manual/i })).toHaveAttribute("href", "/manuals/ncirf-api");
     fireEvent.click(screen.getByText(/Advanced RDSR-derived geometry/i));
     expect(screen.getByLabelText("Phantom library")).toBeInTheDocument();

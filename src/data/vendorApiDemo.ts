@@ -9,7 +9,7 @@ export type VendorApiDemoPreset = {
   endpoint: string;
   request: Record<string, unknown>;
   defaultParameters: Record<string, string | number>;
-  expectedTime: string;
+  expectedTime?: string;
 };
 
 export const vendorApiDemoPresets: VendorApiDemoPreset[] = [
@@ -44,7 +44,6 @@ export const vendorApiDemoPresets: VendorApiDemoPreset[] = [
       headBody: 2,
       ctdivol: 10,
     },
-    expectedTime: "Usually completes in a few seconds",
   },
   {
     id: "ncinm-fdg-adult",
@@ -68,7 +67,6 @@ export const vendorApiDemoPresets: VendorApiDemoPreset[] = [
       radiopharmaceutical: "F-18 FDG",
       administeredActivityMbq: 200,
     },
-    expectedTime: "Usually completes in a few seconds",
   },
   {
     id: "ncirf-size-demo",

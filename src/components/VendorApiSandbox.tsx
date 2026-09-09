@@ -134,7 +134,6 @@ const ParameterControls = ({
           <label className="text-xs text-slate-300">Phantom library<select value={parameters.phantomLibrary} disabled={disabled} onChange={(event) => onChange("phantomLibrary", Number(event.target.value))} className={selectClassName}><option value={1}>NCI</option><option value={2}>ICRP</option></select></label>
           <label className="text-xs text-slate-300">Sex<select value={parameters.sex} disabled={disabled} onChange={(event) => onChange("sex", event.target.value)} className={selectClassName}><option value="female">Female</option><option value="male">Male</option></select></label>
           <label className="text-xs text-slate-300 sm:col-span-2"><span className="flex justify-between gap-3"><span>Age</span><output>{parameters.age} years</output></span><input type="range" min="0" max="90" step="1" value={parameters.age} disabled={disabled} onChange={(event) => onChange("age", Number(event.target.value))} className="mt-3 w-full accent-sky-400" /></label>
-          <p className="text-xs leading-5 text-slate-400 sm:col-span-2">Try a library name, ID, alternate radionuclide notation, or clinical-style text. The response reports the original text, matched entry, method, and score.</p>
         </div>
         <p className="text-xs leading-5 text-slate-400">Match phantom and patient settings using the <a className="text-sky-300 underline decoration-sky-500/50 underline-offset-2 hover:text-white" href="/manuals/ncinm-api">NCINM API manual</a>.</p>
       </div>
@@ -212,7 +211,7 @@ const ParameterControls = ({
           </div>
         </details>
 
-        <p className="text-xs leading-5 text-slate-400">Case ID is synthetic. Particle histories (10,000) and threads (2) are fixed for a fast functional demonstration. Higher-history or scaled testing requires an approved dedicated vendor deployment.</p>
+        <p className="text-xs leading-5 text-slate-400">Particle histories (10,000) and threads (2) are fixed for a fast functional demonstration. Higher-history or scaled testing requires an approved dedicated vendor deployment.</p>
       </div>
     )}
   </div>
@@ -371,9 +370,11 @@ export const VendorApiSandbox = ({ initialTool }: { initialTool?: string | null 
                     Starting values
                   </div>
                   <p className="mt-2 text-sm text-slate-300">{selected.description}</p>
-                  <p className="mt-2 flex items-center gap-2 text-xs text-slate-400">
-                    <Clock3 className="h-3.5 w-3.5" /> {selected.expectedTime}
-                  </p>
+                  {selected.expectedTime && (
+                    <p className="mt-2 flex items-center gap-2 text-xs text-slate-400">
+                      <Clock3 className="h-3.5 w-3.5" /> {selected.expectedTime}
+                    </p>
+                  )}
                 </div>
                 <ParameterControls preset={selected} parameters={selectedParameters} disabled={status === "running"} onChange={updateParameter} />
                 <details>
@@ -419,9 +420,6 @@ export const VendorApiSandbox = ({ initialTool }: { initialTool?: string | null 
                 {status === "idle" && (
                   <div className="flex flex-1 flex-col items-center justify-center px-8 py-14 text-center">
                     <Play className="h-9 w-9 text-slate-300" />
-                    <p className="mt-5 max-w-sm text-sm leading-6 text-slate-600">
-                      Adjust the bounded inputs, then run the example to see the calculation server's unedited JSON response.
-                    </p>
                   </div>
                 )}
 
