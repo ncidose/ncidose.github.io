@@ -5,7 +5,6 @@ export type VendorApiDemoPreset = {
   tool: VendorApiDemoTool;
   name: string;
   modality: string;
-  description: string;
   endpoint: string;
   request: Record<string, unknown>;
   defaultParameters: Record<string, string | number>;
@@ -18,8 +17,6 @@ export const vendorApiDemoPresets: VendorApiDemoPreset[] = [
     tool: "ncict",
     name: "CT dosimetry",
     modality: "NCICT",
-    description:
-      "Adjust scan coverage, patient matching, scanner settings, and CTDIvol.",
     endpoint: "https://ncict-api.ncidosetools.com/param",
     request: {
       age: 40,
@@ -50,8 +47,6 @@ export const vendorApiDemoPresets: VendorApiDemoPreset[] = [
     tool: "ncinm",
     name: "Nuclear medicine dosimetry",
     modality: "NCINM",
-    description:
-      "Enter patient settings, activity, and a radiopharmaceutical name to test direct or fuzzy matching.",
     endpoint: "https://ncinm-api.ncidosetools.com/param",
     request: {
       phantom_library: 2,
@@ -73,8 +68,6 @@ export const vendorApiDemoPresets: VendorApiDemoPreset[] = [
     tool: "ncirf",
     name: "Radiography & fluoroscopy dosimetry",
     modality: "NCIRF",
-    description:
-      "Adjust phantom, spectrum, and projection geometry in a reduced-history GEANT4 calculation.",
     endpoint: "https://ncirf-api.ncidosetools.com/param",
     request: {
       ID: "public-vendor-demo",

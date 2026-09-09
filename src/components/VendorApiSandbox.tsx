@@ -117,7 +117,7 @@ const ParameterControls = ({
           <label className="text-xs text-slate-300">CTDI phantom<select value={parameters.headBody} disabled={disabled} onChange={(event) => onChange("headBody", Number(event.target.value))} className={selectClassName}><option value={1}>16-cm head</option><option value={2}>32-cm body</option></select></label>
           <label className="text-xs text-slate-300 sm:col-span-3"><span className="flex justify-between gap-3"><span>Tube current modulation strength</span><output>{Number(parameters.tcmStrength).toFixed(1)}</output></span><input type="range" min="0" max="1" step="0.1" value={parameters.tcmStrength} disabled={disabled} onChange={(event) => onChange("tcmStrength", Number(event.target.value))} className="mt-3 w-full accent-sky-400" /></label>
         </div>
-        <p className="text-xs leading-5 text-slate-400">Choose age/sex, WED, or height/weight phantom matching as documented in the <a className="text-sky-300 underline decoration-sky-500/50 underline-offset-2 hover:text-white" href="/manuals/ncict-api">NCICT API manual</a>.</p>
+        <p className="text-xs leading-5 text-slate-400">See the <a className="text-sky-300 underline decoration-sky-500/50 underline-offset-2 hover:text-white" href="/manuals/ncict-api">NCICT API manual</a>.</p>
         {parameters.bodySizeMethod === "wed" && !["chest", "abdomen", "pelvis", "abdomenPelvis", "cap"].includes(String(parameters.protocol)) && (
           <p className="text-xs leading-5 text-amber-200">WED matching is applied only to supported chest, abdomen, pelvis, AP, and CAP landmark ranges; other ranges fall back to age/sex matching.</p>
         )}
@@ -135,7 +135,7 @@ const ParameterControls = ({
           <label className="text-xs text-slate-300">Sex<select value={parameters.sex} disabled={disabled} onChange={(event) => onChange("sex", event.target.value)} className={selectClassName}><option value="female">Female</option><option value="male">Male</option></select></label>
           <label className="text-xs text-slate-300 sm:col-span-2"><span className="flex justify-between gap-3"><span>Age</span><output>{parameters.age} years</output></span><input type="range" min="0" max="90" step="1" value={parameters.age} disabled={disabled} onChange={(event) => onChange("age", Number(event.target.value))} className="mt-3 w-full accent-sky-400" /></label>
         </div>
-        <p className="text-xs leading-5 text-slate-400">Match phantom and patient settings using the <a className="text-sky-300 underline decoration-sky-500/50 underline-offset-2 hover:text-white" href="/manuals/ncinm-api">NCINM API manual</a>.</p>
+        <p className="text-xs leading-5 text-slate-400">See the <a className="text-sky-300 underline decoration-sky-500/50 underline-offset-2 hover:text-white" href="/manuals/ncinm-api">NCINM API manual</a>.</p>
       </div>
     )}
     {preset.tool === "ncirf" && (
@@ -369,7 +369,6 @@ export const VendorApiSandbox = ({ initialTool }: { initialTool?: string | null 
                   <div className="font-mono text-[11px] uppercase tracking-widest text-sky-300">
                     Starting values
                   </div>
-                  <p className="mt-2 text-sm text-slate-300">{selected.description}</p>
                   {selected.expectedTime && (
                     <p className="mt-2 flex items-center gap-2 text-xs text-slate-400">
                       <Clock3 className="h-3.5 w-3.5" /> {selected.expectedTime}
