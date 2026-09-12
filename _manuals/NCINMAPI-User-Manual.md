@@ -1,8 +1,8 @@
 # NCINM API
 
-Current documented release: **August 22, 2026**
-Current release type: **Maintenance Update**
-Latest scientific update: **May 10, 2026**
+Current documented release: **September 9, 2026 (3.20260909)**
+Current release type: **Scientific Corrections and Maintenance Update**
+Latest scientific update: **September 9, 2026**
 
 NCINMAPI provides REST-style access to the NCINM3 radiopharmaceutical dose
 calculation workflow. A client sends one JSON object to `/param`; the server
@@ -14,6 +14,12 @@ workflow. Fetus phantom calculations are available in the NCINM3 GUI through
 the Radionuclide tab with user-entered maternal source-region data; they are not
 included in the radiopharmaceutical API because pregnancy-specific
 radiopharmaceutical biokinetic models are not currently defined.
+
+The September 9, 2026 release corrects source-organ volume weighting for the
+ICRP phantom library, prevents shared calculation state from mixing concurrent
+API requests, and returns an explicit error when S-value data cannot be loaded.
+It also includes the residence-time, tissue-weighting, and S-value corrections
+described in the [NCINM release history](/versions/ncinm).
 
 Cloud endpoint:
 

@@ -92,7 +92,7 @@ const defaultStructuredData = (seo: PageSeo) => {
 
   if (seo.schemaType === "SoftwareApplication") {
     entity.applicationCategory = "ScientificApplication";
-    entity.operatingSystem = "Windows, macOS, Linux";
+    entity.operatingSystem = "Windows, macOS";
     entity.offers = {
       "@type": "Offer",
       price: "0",

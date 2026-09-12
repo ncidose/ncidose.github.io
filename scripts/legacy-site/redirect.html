@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex,follow">
+  <link rel="canonical" href="https://ncidose.github.io/">
+  <title>NCI Dose Tools — Website moved</title>
+  <script>
+    const destination = new URL("https://ncidose.github.io/");
+    let path = location.pathname.replace(/^\/ncidosetools(?=\/|$)/, "") || "/";
+    let search = location.search;
+    let hash = location.hash;
+    if (hash.startsWith("#/")) {
+      const legacy = new URL(hash.slice(1), destination);
+      path = legacy.pathname;
+      search = legacy.search;
+      hash = legacy.hash;
+    }
+    path = path.replace(/^\/documentation(?=\/|$)/, "/manuals")
+      .replace(/^\/questions(?=\/|$)/, "/discussions");
+    if (/^\/tools\/?$/.test(path) && /^#(ncict|ncirf|ncinm|phantom)$/.test(hash)) {
+      path = `/tools/${hash.slice(1)}`;
+      hash = "";
+    }
+    if (path === "/" && hash === "#how-to-access") {
+      path = "/researchers";
+      hash = "";
+    }
+    destination.pathname = path;
+    destination.search = search;
+    destination.hash = hash;
+    location.replace(destination.href);
+  </script>
+</head>
+<body>
+  <h1>NCI Dose Tools has moved</h1>
+  <p>Visit the <a href="https://ncidose.github.io/">current NCI Dose Tools website</a> for manuals, discussions, and access guidance.</p>
+</body>
+</html>

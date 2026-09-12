@@ -43,7 +43,7 @@ export const Footer = () => {
         analyticsAudience: "approved_user",
         analyticsAction: "open_user_portal",
       },
-      { label: "GitHub Development Repository", href: "https://github.com/ncidose/ncidosetools", external: true },
+      { label: "Website Source on GitHub", href: "https://github.com/ncidose/ncidose.github.io", external: true },
       { label: "Professional Updates", href: "https://www.linkedin.com/in/choonsiklee/", external: true },
     ],
   };

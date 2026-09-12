@@ -39,6 +39,22 @@ const featureRequestSample = {
 describe("public Q&A", () => {
   afterEach(() => vi.restoreAllMocks());
 
+  it("opens the retained imported thread from its duplicate URL, including the paper link", async () => {
+    const canonical = { ...sample, id: "github-7", answers: [{ ...sample.answers[0], body: "[Li et al. paper](https://example.org/li.pdf)" }] };
+    const duplicate = { ...sample, id: "github-1" };
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: true, json: async () => ({ questions: [duplicate, canonical] }) }));
+    render(<MemoryRouter initialEntries={["/discussions/github-1"]}><Routes><Route path="/discussions/:questionId" element={<Questions />} /></Routes></MemoryRouter>);
+    expect(await screen.findByRole("link", { name: "Li et al. paper" })).toHaveAttribute("href", "https://example.org/li.pdf");
+    expect(screen.getByRole("link", { name: /Reply as an approved user/ })).toHaveAttribute("href", "https://portal.ncidosetools.com/#/portal/questions?discussion=github-7");
+  });
+
+  it("lists a known imported duplicate only once", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: true, json: async () => ({ questions: [{ ...sample, id: "github-1" }, { ...sample, id: "github-7" }] }) }));
+    render(<MemoryRouter initialEntries={["/discussions"]}><Questions /></MemoryRouter>);
+    expect(await screen.findByText(sample.title)).toBeInTheDocument();
+    expect(screen.getAllByText(sample.title)).toHaveLength(1);
+  });
+
   it("loads published questions from the Cloudflare API without exposing GitHub controls", async () => {
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: true, json: async () => ({ questions: [sample] }) }));
     render(<MemoryRouter initialEntries={["/questions"]}><Routes><Route path="/questions" element={<Questions />} /></Routes></MemoryRouter>);

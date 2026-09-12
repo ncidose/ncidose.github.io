@@ -75,7 +75,7 @@ describe("portal migration experience", () => {
     await waitFor(() => expect(screen.getByText("nci_size")).toBeInTheDocument());
     expect(screen.queryByText("armless_highres")).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /Up/i })).not.toBeInTheDocument();
-    expect(fetchMock).toHaveBeenLastCalledWith("/api/files?prefix=PHANTOM%2F", { credentials: "include" });
+    expect(fetchMock).toHaveBeenLastCalledWith("/api/files?prefix=PHANTOM%2F", { credentials: "include", signal: expect.any(AbortSignal) });
   });
 
   it("shows the email used for the current sign-in in the portal header", () => {

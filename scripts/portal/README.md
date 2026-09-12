@@ -18,6 +18,17 @@ Wrangler authentication is stored locally after the browser login. Keep Worker
 secrets in Cloudflare and local credentials in the macOS Keychain; do not copy
 them to remote hosts.
 
+Before deploying administrator secondary-email changes, run the offline SQLite
+integration checks with the pinned Mac Node runtime (Node 24):
+
+```bash
+./scripts/macos-node.sh node --test scripts/portal/secondary-email.test.mjs
+```
+
+These use an in-memory database and mocked email delivery to check identity
+replacement, re-verification, session revocation, duplicate addresses,
+administrator authorization, transaction rollback, and delivery failure.
+
 ## Local storage
 
 Save the current export as:

@@ -43,27 +43,6 @@ export const vendorApiDemoPresets: VendorApiDemoPreset[] = [
     },
   },
   {
-    id: "ncinm-fdg-adult",
-    tool: "ncinm",
-    name: "Nuclear medicine dosimetry",
-    modality: "NCINM",
-    endpoint: "https://ncinm-api.ncidosetools.com/param",
-    request: {
-      phantom_library: 2,
-      sex: "female",
-      age: 58,
-      radiopharmaceutical: "F-18 FDG",
-      administered_activity_mbq: 200,
-    },
-    defaultParameters: {
-      phantomLibrary: 2,
-      sex: "female",
-      age: 58,
-      radiopharmaceutical: "F-18 FDG",
-      administeredActivityMbq: 200,
-    },
-  },
-  {
     id: "ncirf-size-demo",
     tool: "ncirf",
     name: "Radiography & fluoroscopy dosimetry",
@@ -112,7 +91,28 @@ export const vendorApiDemoPresets: VendorApiDemoPreset[] = [
       tableCm: 1,
     },
     expectedTime: "Reduced-history demonstration; usually under 30 seconds",
+  },  {
+    id: "ncinm-fdg-adult",
+    tool: "ncinm",
+    name: "Nuclear medicine dosimetry",
+    modality: "NCINM",
+    endpoint: "https://ncinm-api.ncidosetools.com/param",
+    request: {
+      phantom_library: 2,
+      sex: "female",
+      age: 58,
+      radiopharmaceutical: "F-18 FDG",
+      administered_activity_mbq: 200,
+    },
+    defaultParameters: {
+      phantomLibrary: 2,
+      sex: "female",
+      age: 58,
+      radiopharmaceutical: "F-18 FDG",
+      administeredActivityMbq: 200,
+    },
   },
+
 ];
 
 export const vendorApiDemoPresetForTool = (tool?: string | null) =>

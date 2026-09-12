@@ -30,16 +30,6 @@ export const manuals: ManualDefinition[] = [
     markdown: ncictMarkdown,
   },
   {
-    id: "ncinm",
-    title: "NCINM 3 User Manual",
-    product: "NCINM",
-    category: "software",
-    eyebrow: "Nuclear Medicine",
-    description:
-      "Reference documentation for radionuclide and radiopharmaceutical organ-dose calculations with NCINM 3.",
-    markdown: ncinmMarkdown,
-  },
-  {
     id: "ncirf",
     title: "NCIRF 4 User Manual",
     product: "NCIRF",
@@ -48,6 +38,16 @@ export const manuals: ManualDefinition[] = [
     description:
       "Exposure geometry, phantom configuration, Monte Carlo calculation, batch processing, and output guidance for NCIRF 4.",
     markdown: ncirfMarkdown,
+  },
+  {
+    id: "ncinm",
+    title: "NCINM 3 User Manual",
+    product: "NCINM",
+    category: "software",
+    eyebrow: "Nuclear Medicine",
+    description:
+      "Reference documentation for radionuclide and radiopharmaceutical organ-dose calculations with NCINM 3.",
+    markdown: ncinmMarkdown,
   },
   {
     id: "phantom",
@@ -70,6 +70,15 @@ export const manuals: ManualDefinition[] = [
     markdown: ncictApiMarkdown,
   },
   {
+    id: "ncirf-api",
+    title: "NCIRF API Manual",
+    product: "NCIRF API",
+    category: "api",
+    eyebrow: "Vendor Integration",
+    description:
+      "REST request, GEANT4 calculation, output, and integration documentation for the NCIRF API.",
+    markdown: ncirfApiMarkdown,
+  },  {
     id: "ncinm-api",
     title: "NCINM API Manual",
     product: "NCINM API",
@@ -79,16 +88,7 @@ export const manuals: ManualDefinition[] = [
       "REST documentation for radiopharmaceutical dose-calculation workflows using the NCINM API.",
     markdown: ncinmApiMarkdown,
   },
-  {
-    id: "ncirf-api",
-    title: "NCIRF API Manual",
-    product: "NCIRF API",
-    category: "api",
-    eyebrow: "Vendor Integration",
-    description:
-      "REST request, GEANT4 calculation, output, and integration documentation for the NCIRF API.",
-    markdown: ncirfApiMarkdown,
-  },
+
 ];
 
 export const getManual = (id?: string) => manuals.find((manual) => manual.id === id);

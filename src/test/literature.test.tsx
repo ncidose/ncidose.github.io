@@ -1,6 +1,6 @@
 import { render, screen, within } from "@testing-library/react";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import Literature from "@/pages/Literature";
 
 const article = (pmid: string, title: string, publicationDate: string) => ({
@@ -42,14 +42,34 @@ const payload = {
 };
 
 describe("literature registry activity", () => {
-  afterEach(() => vi.restoreAllMocks());
-
-  it("shows the five most recently published papers by PubMed publication date", async () => {
+  beforeEach(() => {
     vi.stubGlobal("IntersectionObserver", class {
       observe() {}
       unobserve() {}
       disconnect() {}
     });
+  });
+  afterEach(() => vi.restoreAllMocks());
+
+  it("counts a paper listed for two tools once in both the total and growth chart", async () => {
+    const sharedPayload = {
+      ...payload,
+      tools: [...payload.tools, {
+        ...payload.tools[0], id: "ncirf", tool: "NCIRF",
+        counts: { ...payload.tools[0].counts, displayedArticles: 2 },
+        years: [{ year: "2026", count: 2, articles: [articles[0], article("7", "RF-only paper", "2026-09-01")] }],
+      }],
+    };
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: true, json: async () => sharedPayload }));
+    render(<MemoryRouter initialEntries={["/literature"]}><Literature /></MemoryRouter>);
+    const totalLabel = await screen.findByText("unique papers");
+    expect(totalLabel.previousElementSibling).toHaveTextContent("7");
+    expect(screen.getByText("Listed papers").nextElementSibling).toHaveTextContent("7");
+    expect(screen.getByText(/Papers listed for more than one tool are counted once/)).toBeInTheDocument();
+    expect(screen.getByText(/2 papers ·/)).toBeInTheDocument();
+  });
+
+  it("shows the five most recently published papers by PubMed publication date", async () => {
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: true, json: async () => payload }));
     render(
       <MemoryRouter initialEntries={["/literature"]}>

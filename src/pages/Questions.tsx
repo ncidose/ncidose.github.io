@@ -1,13 +1,13 @@
 import { useEffect, useMemo, useState } from "react";
-import { Link, useParams } from "react-router-dom";
-import ReactMarkdown from "react-markdown";
-import remarkGfm from "remark-gfm";
+import { Link, Navigate, useParams } from "react-router-dom";
+import { DiscussionMarkdown as Markdown } from "@/components/DiscussionMarkdown";
 import { ArrowLeft, ArrowRight, HelpCircle, Loader2, Paperclip, Pin, Search, Send } from "lucide-react";
 import { Header } from "@/components/Header";
 import { Footer } from "@/components/Footer";
 import { portalLinks } from "@/data/portalLinks";
 import { buildAnswerThreads, normalizePublicQuestion, publicQuestionsApi, questionAnswerLabel, questionAuthorLabel, questionRequestTypeLabels, questionRequestTypes, questionTools, type PublicQuestion, type QuestionAnswerThread, type QuestionRequestType, type QuestionTool } from "@/lib/questions";
 import { cn } from "@/lib/utils";
+import { canonicalDiscussionId, visibleDiscussions } from "@/data/discussionAliases";
 import { applyPageSeo } from "@/lib/seo";
 
 const displayDate = (value: string | null) => value
@@ -24,18 +24,6 @@ const plainText = (value: string) => value
 const schemaDate = (value: string | null) => value && /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/.test(value)
   ? `${value.replace(" ", "T")}Z`
   : value;
-
-const Markdown = ({ children }: { children: string }) => (
-  <ReactMarkdown
-    remarkPlugins={[remarkGfm]}
-    components={{
-      a: ({ children: label, ...props }) => <a {...props} target="_blank" rel="noreferrer" className="text-primary underline underline-offset-4">{label}</a>,
-      img: ({ alt, ...props }) => <img {...props} alt={alt || "Discussion attachment"} className="my-6 max-h-[560px] max-w-full border border-border object-contain" />,
-    }}
-  >
-    {children}
-  </ReactMarkdown>
-);
 
 const PublicReply = ({ answer, depth = 0 }: { answer: QuestionAnswerThread; depth?: number }) => (
   <div className={cn(depth > 0 && "ml-4 border-l border-slate-200 pl-4 sm:ml-8 sm:pl-6")}>
@@ -143,7 +131,7 @@ const Questions = () => {
     return () => controller.abort();
   }, []);
 
-  const selected = questionId ? questions.find((question) => question.id === questionId) : undefined;
+  const selected = questionId ? (questions.find((question) => question.id === canonicalDiscussionId(questionId)) || questions.find((question) => question.id === questionId)) : undefined;
 
   useEffect(() => {
     if (!selected) return;
@@ -187,12 +175,16 @@ const Questions = () => {
 
   const filtered = useMemo(() => {
     const normalized = query.trim().toLowerCase();
-    return questions.filter((question) =>
+    return visibleDiscussions(questions).filter((question) =>
       (requestType === "feature_request" || tool === "All" || question.tool === tool)
       && (requestType === "all" || question.requestType === requestType)
       && (!normalized || `${question.title} ${question.body} ${question.answers.map((answer) => answer.body).join(" ")}`.toLowerCase().includes(normalized)),
     );
   }, [questions, query, requestType, tool]);
+
+  if (questionId && selected && questionId !== selected.id) {
+    return <Navigate to={`/discussions/${selected.id}`} replace />;
+  }
 
   return (
     <div className="min-h-screen bg-white">
@@ -255,7 +247,7 @@ const Questions = () => {
               {loading ? <div className="flex items-center justify-center gap-3 py-24 text-sm text-muted-foreground"><Loader2 className="h-5 w-5 animate-spin text-primary" /> Loading discussions…</div>
                 : failed ? <div className="mt-10 border border-red-100 bg-red-50 p-8 text-center text-sm text-red-800">The discussion service is temporarily unavailable. Please try again shortly.</div>
                   : filtered.length === 0 ? <div className="mt-10 border border-border bg-slate-50 p-12 text-center"><HelpCircle className="mx-auto h-7 w-7 text-muted-foreground" /><p className="mt-4 text-sm text-muted-foreground">No matching public discussions.</p></div>
-                    : <div className="mt-8 divide-y divide-border border-y border-border">{filtered.map((question) => <Link key={question.id} to={`/discussions/${question.id}`} className={cn("group grid gap-4 py-6 transition-colors hover:bg-sky-50/50 sm:grid-cols-[150px_1fr_auto] sm:items-center sm:px-4", question.pinned && "bg-sky-50/60")}><div className="space-y-2 font-mono text-xs uppercase tracking-wider text-primary">{question.pinned && <div className="inline-flex items-center gap-1"><Pin className="h-3 w-3" /> Pinned</div>}<div>{questionRequestTypeLabels[question.requestType]}</div>{question.requestType !== "feature_request" && <div className="text-[10px] text-muted-foreground">{question.tool}</div>}</div><div><h2 className="text-lg font-light text-slate-900 group-hover:text-primary">{question.title}</h2><p className="mt-2 line-clamp-2 text-sm leading-relaxed text-muted-foreground">{question.body.replace(/[#*_`>]/g, "")}</p><div className="mt-2 text-xs text-slate-400">{question.answers.length} {question.answers.length === 1 ? "reply" : "replies"}</div></div><div className="flex items-center gap-3 text-xs text-muted-foreground"><span>{displayDate(question.publishedAt || question.createdAt)}</span><ArrowRight className="h-4 w-4 text-primary transition-transform group-hover:translate-x-1" /></div></Link>)}</div>}
+                    : <div className="mt-8 divide-y divide-border border-y border-border">{filtered.map((question) => <Link key={question.id} to={`/discussions/${question.id}`} className={cn("group grid gap-4 py-6 transition-colors hover:bg-sky-50/50 sm:grid-cols-[150px_1fr_auto] sm:items-center sm:px-4", question.pinned && "bg-sky-50/60")}><div className="space-y-2 font-mono text-xs uppercase tracking-wider text-primary">{question.pinned && <div className="inline-flex items-center gap-1"><Pin className="h-3 w-3" /> Pinned</div>}<div>{questionRequestTypeLabels[question.requestType]}</div>{question.requestType !== "feature_request" && <div className="text-[10px] text-muted-foreground">{question.tool}</div>}</div><div><h2 className="text-lg font-light text-slate-900 group-hover:text-primary">{question.title}</h2><p className="mt-2 line-clamp-2 text-sm leading-relaxed text-muted-foreground">{plainText(question.body)}</p><div className="mt-2 text-xs text-slate-400">{question.answers.length} {question.answers.length === 1 ? "reply" : "replies"}</div></div><div className="flex items-center gap-3 text-xs text-muted-foreground"><span>{displayDate(question.publishedAt || question.createdAt)}</span><ArrowRight className="h-4 w-4 text-primary transition-transform group-hover:translate-x-1" /></div></Link>)}</div>}
             </>
           )}
         </section>

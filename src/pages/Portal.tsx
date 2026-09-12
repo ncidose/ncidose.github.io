@@ -1,4 +1,4 @@
-import { type FormEvent, useEffect, useMemo, useState } from "react";
+import { type FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import { Link, Navigate, useLocation, useNavigate } from "react-router-dom";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
@@ -47,6 +47,11 @@ import {
   portalReleases,
 } from "@/data/portalDemo";
 import { portalLinks } from "@/data/portalLinks";
+import { portalProducts, portalDownloadPath, selectedDownloadTool } from "@/data/portalProducts";
+import { loadInstallerVersion } from "@/lib/portalReleases";
+import { canonicalDiscussionId, visibleDiscussions } from "@/data/discussionAliases";
+import { readableAnnouncementSummary } from "@/lib/announcementSummary";
+import { DiscussionMarkdown } from "@/components/DiscussionMarkdown";
 import { trackResearchAccessPdfPrepared } from "@/lib/analytics";
 import { createLicensingMailto } from "@/lib/licensing";
 import { cn } from "@/lib/utils";
@@ -324,7 +329,7 @@ export const Portal = ({ publicLanding = false }: { publicLanding?: boolean }) =
             </div>
 
             {section === "overview" && <Overview user={user} demoMode={demoMode} />}
-            {section === "downloads" && <Downloads demoMode={demoMode} />}
+            {section === "downloads" && <Downloads demoMode={demoMode} initialTool={new URLSearchParams(location.search).get("tool")} />}
             {section === "announcements" && <Announcements demoMode={demoMode} />}
             {section === "questions" && <PortalQuestions demoMode={demoMode} />}
             {section === "account" && <Account user={user} setUser={setUser} demoMode={demoMode} onSignOut={signOut} />}
@@ -1050,9 +1055,25 @@ const PortalResourceLink = ({ item, layout }: { item: { label: string; href: str
   </a>
 );
 
-const Overview = ({ user, demoMode }: { user: PortalUser; demoMode: boolean }) => {
+export const Overview = ({ user, demoMode }: { user: PortalUser; demoMode: boolean }) => {
   const [announcements, setAnnouncements] = useState<LiveAnnouncement[]>([]);
   const [loadingAnnouncements, setLoadingAnnouncements] = useState(!demoMode);
+  const [releaseVersions, setReleaseVersions] = useState<Record<string, string>>({});
+
+  useEffect(() => {
+    if (demoMode) return;
+    const controller = new AbortController();
+    for (const product of portalProducts.filter((item) => item.desktop)) {
+      loadInstallerVersion(product.tool, controller.signal)
+        .then((label) => {
+          if (!controller.signal.aborted) setReleaseVersions((current) => ({ ...current, [product.tool]: label }));
+        })
+        .catch(() => {
+          if (!controller.signal.aborted) setReleaseVersions((current) => ({ ...current, [product.tool]: "Version unavailable — open downloads" }));
+        });
+    }
+    return () => controller.abort();
+  }, [demoMode]);
 
   useEffect(() => {
     if (demoMode) return;
@@ -1086,7 +1107,7 @@ const Overview = ({ user, demoMode }: { user: PortalUser; demoMode: boolean }) =
 
   return <div className="space-y-8">
     <div className="grid gap-4 md:grid-cols-2">
-      <StatusCard icon={FileCheck2} label="STA status" value={user.staStatus} note={`Approved ${user.staApprovedOn}`} />
+      <StatusCard icon={FileCheck2} label="Agreement status" value={user.staStatus} note={user.staApprovedOn === "Existing approval" ? "Existing approval" : `Approved ${user.staApprovedOn}`} />
       <StatusCard icon={Bell} label="Unread updates" value={loadingAnnouncements ? "—" : String(unreadCount)} note={unreadCount === 1 ? "Announcement awaiting review" : "Announcements awaiting review"} />
     </div>
 
@@ -1097,10 +1118,10 @@ const Overview = ({ user, demoMode }: { user: PortalUser; demoMode: boolean }) =
           <Link to="/portal/downloads" className="inline-flex items-center gap-1 text-sm text-primary">View all <ChevronRight className="h-4 w-4" /></Link>
         </div>
         <div className="divide-y divide-border">
-          {portalReleases.slice(0, 3).map((release) => (
-            <div key={release.id} className="flex items-center justify-between gap-4 px-6 py-5">
-              <div><div className="font-mono text-sm text-primary">{release.tool}</div><div className="mt-1 text-sm text-muted-foreground">Version {release.version}</div></div>
-              <Link to="/portal/downloads" className="border border-border px-3 py-2 text-xs font-medium text-slate-700 hover:border-primary hover:text-primary">Download</Link>
+          {portalProducts.filter((product) => product.desktop).map((release) => (
+            <div key={release.tool} className="flex items-center justify-between gap-4 px-6 py-5">
+              <div><div className="font-mono text-sm text-primary">{release.tool}</div><div className="mt-1 text-sm text-muted-foreground">{demoMode ? `Version ${portalReleases.find((item) => item.tool === release.tool)?.version}` : releaseVersions[release.tool] || "Loading version…"}</div></div>
+              <Link to={portalDownloadPath(release.tool)} aria-label={`Download ${release.tool}`} className="border border-border px-3 py-2 text-xs font-medium text-slate-700 hover:border-primary hover:text-primary">Download</Link>
             </div>
           ))}
         </div>
@@ -1114,7 +1135,7 @@ const Overview = ({ user, demoMode }: { user: PortalUser; demoMode: boolean }) =
         {loadingAnnouncements ? <div className="mt-6 flex items-center gap-2 text-sm text-muted-foreground"><Loader2 className="h-4 w-4 animate-spin text-primary" /> Loading latest update…</div> : latest ? <>
         <div className="mt-5 flex flex-wrap items-center gap-2 font-mono text-[11px] uppercase tracking-wider text-muted-foreground"><span>{announcementDate(latest.originalPublishedAt || latest.publishedAt)}</span><span>·</span><span className="text-primary">{latest.category}</span></div>
         <h2 className="mt-4 text-xl font-light leading-snug">{latest.title}</h2>
-        <p className="mt-4 text-sm leading-relaxed text-muted-foreground">{latest.summary}</p>
+        <p className="mt-4 text-sm leading-relaxed text-muted-foreground">{readableAnnouncementSummary(latest.summary, latest.body)}</p>
         </> : <p className="mt-4 text-sm text-muted-foreground">No announcements have been published yet.</p>}
         <Link to="/portal/announcements" className="mt-8 inline-flex items-center gap-2 text-sm text-primary">{latest && !latest.read ? "Read latest announcement" : "View announcement archive"} <ChevronRight className="h-4 w-4" /></Link>
       </section>
@@ -1147,27 +1168,46 @@ const formatBytes = (bytes: number) => {
 
 const itemName = (key: string) => key.replace(/\/$/, "").split("/").pop() || key;
 
-export const Downloads = ({ demoMode }: { demoMode: boolean }) => {
+export const Downloads = ({ demoMode, initialTool }: { demoMode: boolean; initialTool?: string | null }) => {
   const { toast } = useToast();
   const [search, setSearch] = useState("");
-  const [rootPrefix, setRootPrefix] = useState("NCICT/");
-  const [prefix, setPrefix] = useState("NCICT/");
+  const [rootPrefix, setRootPrefix] = useState(`${selectedDownloadTool(initialTool)}/`);
+  const [prefix, setPrefix] = useState(`${selectedDownloadTool(initialTool)}/`);
   const [files, setFiles] = useState<PortalFile[]>([]);
   const [folders, setFolders] = useState<PortalFolder[]>([]);
   const [cursor, setCursor] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [loadError, setLoadError] = useState("");
+  const folderRequest = useRef<AbortController | null>(null);
+
+  useEffect(() => () => folderRequest.current?.abort(), []);
+
+  useEffect(() => {
+    const nextPrefix = `${selectedDownloadTool(initialTool)}/`;
+    setRootPrefix(nextPrefix);
+    setPrefix(nextPrefix);
+    setSearch("");
+  }, [initialTool]);
 
   const loadFolder = async (nextPrefix: string, nextCursor?: string) => {
     if (demoMode) return;
+    folderRequest.current?.abort();
+    const controller = new AbortController();
+    folderRequest.current = controller;
     setLoading(true);
     setLoadError("");
+    if (!nextCursor) {
+      setFiles([]);
+      setFolders([]);
+      setCursor(null);
+    }
     try {
       const query = new URLSearchParams({ prefix: nextPrefix });
       if (nextCursor) query.set("cursor", nextCursor);
-      const response = await fetch(`/api/files?${query}`, { credentials: "include" });
+      const response = await fetch(`/api/files?${query}`, { credentials: "include", signal: controller.signal });
       if (!response.ok) throw new Error("The file list could not be loaded.");
       const body = await response.json();
+      if (controller.signal.aborted) return;
       setFiles((current) => nextCursor ? [...current, ...body.objects] : body.objects);
       const nextFolders: PortalFolder[] = (body.folders || []).map((folder: string | PortalFolder) => (
         typeof folder === "string" ? { prefix: folder, downloadAvailable: false } : folder
@@ -1176,9 +1216,9 @@ export const Downloads = ({ demoMode }: { demoMode: boolean }) => {
       setCursor(body.cursor);
       setPrefix(nextPrefix);
     } catch (error) {
-      setLoadError(error instanceof Error ? error.message : "The file list could not be loaded.");
+      if (!controller.signal.aborted) setLoadError(error instanceof Error ? error.message : "The file list could not be loaded.");
     } finally {
-      setLoading(false);
+      if (!controller.signal.aborted) setLoading(false);
     }
   };
 
@@ -1227,19 +1267,20 @@ export const Downloads = ({ demoMode }: { demoMode: boolean }) => {
   return (
     <div className="space-y-6">
       <div className="flex flex-col justify-between gap-4 border border-border bg-white p-5 sm:flex-row sm:items-center">
-        <div><div className="text-sm font-medium text-slate-800">Approved research distributions</div><p className="mt-1 text-xs text-muted-foreground">Files are delivered from private NCI Dose Tools storage after each access check.</p></div>
+        <div><div className="text-sm font-medium text-slate-800">Approved software and data downloads</div><p className="mt-1 text-xs text-muted-foreground">Files are delivered from private NCI Dose Tools storage after each access check.</p></div>
         <div className="relative w-full sm:w-72"><Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" /><Input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search this folder" className="rounded-none pl-9" /></div>
       </div>
 
       <div className="grid grid-cols-2 gap-2 sm:grid-cols-5">
-        {portalReleases.map((release) => (
-          <button key={release.id} type="button" onClick={() => chooseTool(release.tool)} className={cn("border px-4 py-3 text-left transition-colors", rootPrefix === `${release.tool}/` ? "border-primary bg-primary text-white" : "border-border bg-white text-slate-700 hover:border-primary hover:text-primary")}>
+        {portalProducts.map((release) => (
+          <button key={release.tool} type="button" onClick={() => chooseTool(release.tool)} className={cn("border px-4 py-3 text-left transition-colors", rootPrefix === `${release.tool}/` ? "border-primary bg-primary text-white" : "border-border bg-white text-slate-700 hover:border-primary hover:text-primary")}>
             <div className="font-mono text-xs uppercase tracking-wider">{release.tool}</div>
             <div className={cn("mt-1 truncate text-xs", rootPrefix === `${release.tool}/` ? "text-white/75" : "text-muted-foreground")}>{release.name}</div>
           </button>
         ))}
       </div>
 
+      {selectedTool === "DCC" && <p className="text-sm leading-relaxed text-muted-foreground">Dose conversion coefficient data and supporting publications. Open a folder to browse its datasets or download the complete folder.</p>}
       <section className="border border-border bg-white">
         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border px-5 py-4">
           <div className="flex min-w-0 items-center gap-3">
@@ -1436,7 +1477,7 @@ const Announcements = ({ demoMode }: { demoMode: boolean }) => {
                     <button key={announcement.id} type="button" onClick={() => selectAnnouncement(announcement.id)} className={cn("block w-full px-5 py-5 text-left transition-colors", selected?.id === announcement.id ? "bg-primary/5 shadow-[inset_3px_0_0_hsl(var(--primary))]" : "hover:bg-slate-50")}>
                       <div className="flex flex-wrap items-center gap-2 font-mono text-[11px] uppercase tracking-wider text-muted-foreground"><span>{dateLabel(announcement)}</span><span>·</span><span className="text-primary">{announcement.category}</span><span className="ml-auto flex items-center gap-2">{!announcement.read && <span className="bg-amber-100 px-2 py-0.5 text-[10px] text-amber-800">Unread</span>}{index === 0 && <span className="bg-primary px-2 py-0.5 text-[10px] text-white">Latest</span>}</span></div>
                       <h2 className={cn("mt-2 text-sm leading-snug", selected?.id === announcement.id ? "font-medium text-slate-900" : "text-slate-700")}>{announcement.title}</h2>
-                      <p className="mt-2 line-clamp-2 text-xs leading-relaxed text-muted-foreground">{announcement.summary}</p>
+                      <p className="mt-2 line-clamp-2 text-xs leading-relaxed text-muted-foreground">{readableAnnouncementSummary(announcement.summary, announcement.body)}</p>
                     </button>
                   ))}
                 </div>
@@ -1457,7 +1498,7 @@ const PortalDiscussionReply = ({ answer, depth, onReply }: { answer: QuestionAns
   <div className={cn(depth > 0 && "ml-4 border-l border-slate-200 pl-4 sm:ml-7 sm:pl-5")}>
     <div className={cn("border p-4", answer.responseType === "team" ? "border-sky-200 bg-sky-50" : "border-border bg-white")}>
       <div className="flex flex-wrap items-center justify-between gap-2 font-mono text-[11px] uppercase tracking-wider"><span className="normal-case text-primary">{questionAnswerLabel(answer)}</span><span className="text-slate-400">{announcementDate(answer.createdAt)}</span></div>
-      <p className="mt-3 whitespace-pre-wrap text-sm leading-relaxed text-slate-700">{answer.body}</p>
+      <div className="prose prose-slate mt-3 max-w-none break-words text-sm leading-relaxed"><DiscussionMarkdown>{answer.body}</DiscussionMarkdown></div>
       {answer.attachments.length > 0 && <div className="mt-3 flex flex-wrap gap-2">{answer.attachments.map((attachment) => <a key={attachment.id} href={`/api/attachments/${attachment.id}`} className="inline-flex items-center gap-2 border border-border bg-white px-3 py-2 text-xs text-primary"><Paperclip className="h-3.5 w-3.5" /> {attachment.fileName}</a>)}</div>}
       {onReply && <button type="button" onClick={() => onReply(answer)} className="mt-4 text-xs font-medium text-primary hover:underline">Reply to this message</button>}
     </div>
@@ -1465,10 +1506,10 @@ const PortalDiscussionReply = ({ answer, depth, onReply }: { answer: QuestionAns
   </div>
 );
 
-const PortalQuestions = ({ demoMode }: { demoMode: boolean }) => {
+export const PortalQuestions = ({ demoMode }: { demoMode: boolean }) => {
   const { toast } = useToast();
   const location = useLocation();
-  const requestedDiscussion = new URLSearchParams(location.search).get("discussion");
+  const requestedDiscussion = canonicalDiscussionId(new URLSearchParams(location.search).get("discussion"));
   const [questions, setQuestions] = useState<ManagedQuestion[]>([]);
   const [loading, setLoading] = useState(!demoMode);
   const [submitting, setSubmitting] = useState(false);
@@ -1484,6 +1525,10 @@ const PortalQuestions = ({ demoMode }: { demoMode: boolean }) => {
   const [replyBody, setReplyBody] = useState("");
   const [replyFiles, setReplyFiles] = useState<File[]>([]);
   const [query, setQuery] = useState("");
+
+  useEffect(() => {
+    if (requestedDiscussion) setSelectedQuestionId(requestedDiscussion);
+  }, [requestedDiscussion]);
 
   const loadDiscussions = async () => {
     const response = await fetch("/api/questions", { credentials: "include" });
@@ -1565,7 +1610,7 @@ const PortalQuestions = ({ demoMode }: { demoMode: boolean }) => {
   };
 
   const selected = questions.find((question) => question.id === selectedQuestionId);
-  const filtered = questions.filter((question) => !query.trim() || `${question.title} ${question.body}`.toLowerCase().includes(query.trim().toLowerCase()));
+  const filtered = visibleDiscussions(questions).filter((question) => !query.trim() || `${question.title} ${question.body}`.toLowerCase().includes(query.trim().toLowerCase()));
 
   return (
     <div className="space-y-8">
@@ -1582,9 +1627,9 @@ const PortalQuestions = ({ demoMode }: { demoMode: boolean }) => {
       </section>
 
       <div className="grid gap-6 xl:grid-cols-[360px_minmax(0,1fr)] xl:items-start">
-        <section className="border border-border bg-white"><div className="border-b border-border p-5"><div className="font-mono text-xs uppercase tracking-widest text-primary">Discussion board</div><h2 className="mt-2 text-xl font-light">Community conversations</h2><Input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search discussions" className="mt-4 rounded-none" /></div>{loading ? <div className="flex items-center justify-center gap-3 p-10 text-sm text-muted-foreground"><Loader2 className="h-5 w-5 animate-spin text-primary" /> Loading discussions…</div> : filtered.length === 0 ? <div className="p-8 text-center text-sm text-muted-foreground">No matching discussions.</div> : <div className="max-h-[760px] divide-y divide-border overflow-y-auto">{filtered.map((question) => <button key={question.id} type="button" onClick={() => { setSelectedQuestionId(question.id); setReplyParent(null); setReplyBody(""); }} className={cn("block w-full p-5 text-left hover:bg-sky-50", selectedQuestionId === question.id && "bg-sky-50")}><div className="flex items-center justify-between gap-3 font-mono text-[10px] uppercase text-primary"><span>{question.pinned && <Pin className="mr-1 inline h-3 w-3" />}{questionRequestTypeLabels[question.requestType]}</span><span className={question.visibility === "team_only" ? "text-violet-700" : "text-slate-400"}>{question.visibility === "team_only" ? "Team only" : `${question.answers.length} replies`}</span></div><div className="mt-2 text-sm font-medium text-slate-800">{question.title}</div><div className="mt-2 text-xs text-muted-foreground">{questionAuthorLabel(question)}</div></button>)}</div>}</section>
+        <section className="border border-border bg-white"><div className="border-b border-border p-5"><div className="font-mono text-xs uppercase tracking-widest text-primary">Discussion board</div><h2 className="mt-2 text-xl font-light">Community conversations</h2><Input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search discussions" className="mt-4 rounded-none" /></div>{loading ? <div className="flex items-center justify-center gap-3 p-10 text-sm text-muted-foreground"><Loader2 className="h-5 w-5 animate-spin text-primary" /> Loading discussions…</div> : filtered.length === 0 ? <div className="p-8 text-center text-sm text-muted-foreground">No matching discussions.</div> : <div className="max-h-[760px] divide-y divide-border overflow-y-auto">{filtered.map((question) => <button key={question.id} type="button" onClick={() => { setSelectedQuestionId(question.id); setReplyParent(null); setReplyBody(""); }} className={cn("block w-full p-5 text-left hover:bg-sky-50", selectedQuestionId === question.id && "bg-sky-50")}><div className="flex items-center justify-between gap-3 font-mono text-[10px] uppercase text-primary"><span>{question.pinned && <Pin className="mr-1 inline h-3 w-3" />}{questionRequestTypeLabels[question.requestType]}</span><span className={question.visibility === "team_only" ? "text-violet-700" : "text-slate-400"}>{question.visibility === "team_only" ? "Team only" : `${question.answers.length} {question.answers.length === 1 ? "reply" : "replies"}`}</span></div><div className="mt-2 text-sm font-medium text-slate-800">{question.title}</div><div className="mt-2 text-xs text-muted-foreground">{questionAuthorLabel(question)}</div></button>)}</div>}</section>
 
-        <section className="border border-border bg-white p-6 sm:p-8">{!selected ? <div className="flex min-h-[320px] flex-col items-center justify-center text-center"><MessageCircleQuestion className="h-8 w-8 text-slate-300" /><p className="mt-4 text-sm text-muted-foreground">Select a discussion to read and reply.</p></div> : <div>{selected.visibility === "team_only" && <div className="mb-5 border border-violet-200 bg-violet-50 p-3 text-xs text-violet-800">Private conversation — visible only to the author and NCI Dose Team members.</div>}<div className="flex flex-wrap items-center gap-3 font-mono text-[11px] uppercase tracking-wider text-primary"><span>{questionRequestTypeLabels[selected.requestType]}</span>{selected.requestType !== "feature_request" && <span>{selected.tool}</span>}<span className="text-slate-400">{announcementDate(selected.createdAt)}</span><span className="normal-case">{questionAuthorLabel(selected)}</span></div><h2 className="mt-4 text-2xl font-light text-slate-950">{selected.title}</h2><p className="mt-5 whitespace-pre-wrap text-sm leading-7 text-slate-700">{selected.body}</p>{selected.attachments.length > 0 && <div className="mt-4 flex flex-wrap gap-2">{selected.attachments.map((attachment) => <a key={attachment.id} href={`/api/attachments/${attachment.id}`} className="inline-flex items-center gap-2 border border-border bg-slate-50 px-3 py-2 text-xs text-primary"><Paperclip className="h-3.5 w-3.5" /> {attachment.fileName}</a>)}</div>}<button type="button" onClick={() => { setReplyParent(null); setReplyBody(""); }} className="mt-5 text-sm font-medium text-primary hover:underline">Reply to discussion</button><div className="mt-8 space-y-4 border-t border-border pt-6">{buildAnswerThreads(selected.answers).map((answer) => <PortalDiscussionReply key={answer.id} answer={answer} depth={0} onReply={(item) => { setReplyParent(item); setReplyBody(""); }} />)}{selected.answers.length === 0 && <p className="text-sm text-muted-foreground">No replies yet. Approved users can start the conversation below.</p>}</div><form onSubmit={submitReply} className="mt-8 border border-sky-200 bg-sky-50/40 p-5"><div className="flex items-center justify-between gap-3"><div><div className="font-mono text-xs uppercase tracking-widest text-primary">{replyParent ? "Reply to message" : "Reply to discussion"}</div>{replyParent && <p className="mt-1 text-xs text-muted-foreground">Responding to {questionAnswerLabel(replyParent)}</p>}</div>{replyParent && <button type="button" onClick={() => setReplyParent(null)} className="text-xs text-slate-500 hover:text-primary">Reply to main post instead</button>}</div><textarea value={replyBody} onChange={(event) => setReplyBody(event.target.value)} maxLength={20000} placeholder="Write your reply" className="mt-4 min-h-32 w-full border border-input bg-white p-3 text-sm outline-none focus:border-primary" required /><div className="mt-3 flex flex-wrap items-center justify-between gap-3"><label className="inline-flex cursor-pointer items-center gap-2 text-xs text-primary"><Paperclip className="h-4 w-4" /> Attach files<input type="file" multiple accept={qaAttachmentAccept} className="sr-only" onChange={(event) => setReplyFiles(Array.from(event.target.files || []).slice(0, qaAttachmentMaximumCount))} /></label><Button type="submit" disabled={submittingReply || !replyBody.trim()} className="rounded-none">{submittingReply ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />} Post reply</Button></div>{replyFiles.length > 0 && <div className="mt-3 flex flex-wrap gap-2">{replyFiles.map((file) => <span key={`${file.name}-${file.size}`} className="border border-sky-200 bg-white px-2 py-1 text-xs text-slate-600">{file.name} · {attachmentSize(file.size)}</span>)}</div>}</form>{selected.status === "published" && <a href={`${publicSiteUrl}discussions/${selected.id}`} className="mt-6 inline-flex text-xs text-primary hover:underline">Open public discussion</a>}</div>}</section>
+        <section className="border border-border bg-white p-6 sm:p-8">{!selected ? <div className="flex min-h-[320px] flex-col items-center justify-center text-center"><MessageCircleQuestion className="h-8 w-8 text-slate-300" /><p className="mt-4 text-sm text-muted-foreground">Select a discussion to read and reply.</p></div> : <div>{selected.visibility === "team_only" && <div className="mb-5 border border-violet-200 bg-violet-50 p-3 text-xs text-violet-800">Private conversation — visible only to the author and NCI Dose Team members.</div>}<div className="flex flex-wrap items-center gap-3 font-mono text-[11px] uppercase tracking-wider text-primary"><span>{questionRequestTypeLabels[selected.requestType]}</span>{selected.requestType !== "feature_request" && <span>{selected.tool}</span>}<span className="text-slate-400">{announcementDate(selected.createdAt)}</span><span className="normal-case">{questionAuthorLabel(selected)}</span></div><h2 className="mt-4 text-2xl font-light text-slate-950">{selected.title}</h2><div className="prose prose-slate mt-5 max-w-none break-words text-sm leading-7"><DiscussionMarkdown>{selected.body}</DiscussionMarkdown></div>{selected.attachments.length > 0 && <div className="mt-4 flex flex-wrap gap-2">{selected.attachments.map((attachment) => <a key={attachment.id} href={`/api/attachments/${attachment.id}`} className="inline-flex items-center gap-2 border border-border bg-slate-50 px-3 py-2 text-xs text-primary"><Paperclip className="h-3.5 w-3.5" /> {attachment.fileName}</a>)}</div>}<button type="button" onClick={() => { setReplyParent(null); setReplyBody(""); }} className="mt-5 text-sm font-medium text-primary hover:underline">Reply to discussion</button><div className="mt-8 space-y-4 border-t border-border pt-6">{buildAnswerThreads(selected.answers).map((answer) => <PortalDiscussionReply key={answer.id} answer={answer} depth={0} onReply={(item) => { setReplyParent(item); setReplyBody(""); }} />)}{selected.answers.length === 0 && <p className="text-sm text-muted-foreground">No replies yet. Approved users can start the conversation below.</p>}</div><form onSubmit={submitReply} className="mt-8 border border-sky-200 bg-sky-50/40 p-5"><div className="flex items-center justify-between gap-3"><div><div className="font-mono text-xs uppercase tracking-widest text-primary">{replyParent ? "Reply to message" : "Reply to discussion"}</div>{replyParent && <p className="mt-1 text-xs text-muted-foreground">Responding to {questionAnswerLabel(replyParent)}</p>}</div>{replyParent && <button type="button" onClick={() => setReplyParent(null)} className="text-xs text-slate-500 hover:text-primary">Reply to main post instead</button>}</div><textarea value={replyBody} onChange={(event) => setReplyBody(event.target.value)} maxLength={20000} placeholder="Write your reply" className="mt-4 min-h-32 w-full border border-input bg-white p-3 text-sm outline-none focus:border-primary" required /><div className="mt-3 flex flex-wrap items-center justify-between gap-3"><label className="inline-flex cursor-pointer items-center gap-2 text-xs text-primary"><Paperclip className="h-4 w-4" /> Attach files<input type="file" multiple accept={qaAttachmentAccept} className="sr-only" onChange={(event) => setReplyFiles(Array.from(event.target.files || []).slice(0, qaAttachmentMaximumCount))} /></label><Button type="submit" disabled={submittingReply || !replyBody.trim()} className="rounded-none">{submittingReply ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />} Post reply</Button></div>{replyFiles.length > 0 && <div className="mt-3 flex flex-wrap gap-2">{replyFiles.map((file) => <span key={`${file.name}-${file.size}`} className="border border-sky-200 bg-white px-2 py-1 text-xs text-slate-600">{file.name} · {attachmentSize(file.size)}</span>)}</div>}</form>{selected.status === "published" && <a href={`${publicSiteUrl}discussions/${selected.id}`} className="mt-6 inline-flex text-xs text-primary hover:underline">Open public discussion</a>}</div>}</section>
       </div>
     </div>
   );
@@ -2829,7 +2874,7 @@ const Admin = ({ demoMode }: { demoMode: boolean }) => {
               {adminAnnouncements.map((announcement) => (
                 <div key={announcement.id} className="grid gap-4 px-6 py-5 md:grid-cols-[170px_minmax(0,1fr)_auto] md:items-center">
                   <div><div className="font-mono text-xs text-muted-foreground">{announcementDate(announcement.originalPublishedAt || announcement.publishedAt)}</div><div className="mt-2 flex flex-wrap gap-1"><span className={cn("inline-flex px-2 py-1 font-mono text-[11px] uppercase", announcement.status === "published" ? "bg-emerald-50 text-emerald-700" : "bg-amber-50 text-amber-800")}>{announcement.status}</span>{announcement.emailDelivery && <span className={cn("inline-flex px-2 py-1 font-mono text-[11px] uppercase", announcement.emailDelivery.status === "sent" ? "bg-sky-50 text-sky-700" : announcement.emailDelivery.status === "failed" ? "bg-red-50 text-red-700" : "bg-slate-100 text-slate-600")}>email {announcement.emailDelivery.status}</span>}</div></div>
-                  <div className="min-w-0"><div className="text-sm font-medium text-slate-800">{announcement.title}</div><p className="mt-1 line-clamp-2 text-xs leading-relaxed text-muted-foreground">{announcement.summary}</p></div>
+                  <div className="min-w-0"><div className="text-sm font-medium text-slate-800">{announcement.title}</div><p className="mt-1 line-clamp-2 text-xs leading-relaxed text-muted-foreground">{readableAnnouncementSummary(announcement.summary, announcement.body)}</p></div>
                   <Button type="button" variant="outline" onClick={() => editAnnouncement(announcement)} className="rounded-none">Edit</Button>
                 </div>
               ))}

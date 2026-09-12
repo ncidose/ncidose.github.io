@@ -6,6 +6,7 @@ import ReactMarkdown from "react-markdown";
 import rehypeSlug from "rehype-slug";
 import remarkGfm from "remark-gfm";
 import { getLatestUpdates } from "../src/data/latestUpdates.js";
+import { discussionAliases, visibleDiscussions } from "../src/data/discussionAliases.js";
 import {
   canonicalUrl,
   manualSeoPages,
@@ -156,7 +157,7 @@ const buildStructuredData = (route) => {
   };
   if (route.schemaType === "SoftwareApplication") {
     entity.applicationCategory = "ScientificApplication";
-    entity.operatingSystem = "Windows, macOS, Linux";
+    entity.operatingSystem = "Windows, macOS";
     entity.offers = {
       "@type": "Offer",
       price: "0",
@@ -354,7 +355,7 @@ const main = async () => {
     })),
   ));
   const literature = await loadLiterature();
-  const discussions = await loadDiscussions();
+  const discussions = visibleDiscussions(await loadDiscussions());
   const discussionRoutes = discussions
     .filter((question) => question?.id && /^[A-Za-z0-9._~-]+$/.test(question.id))
     .map(discussionRoute);
@@ -395,6 +396,14 @@ const main = async () => {
   for (const route of discussionRoutes) {
     const question = discussions.find((candidate) => candidate.id === route.path.split("/").pop());
     await writeRoute(template, route, discussionContent(question));
+  }
+
+  for (const [alias, canonical] of Object.entries(discussionAliases)) {
+    if (!discussions.some((question) => question.id === canonical)) continue;
+    const href = canonicalUrl(`/discussions/${canonical}`);
+    const directory = path.join(distRoot, "discussions", alias);
+    await mkdir(directory, { recursive: true });
+    await writeFile(path.join(directory, "index.html"), `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="robots" content="noindex,follow"><link rel="canonical" href="${href}"><meta http-equiv="refresh" content="0;url=${href}"><title>Discussion moved</title></head><body><a href="${href}">Continue to the discussion</a></body></html>`);
   }
 
   for (const route of portalSeoRoutes) {

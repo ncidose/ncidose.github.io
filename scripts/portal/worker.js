@@ -1,3 +1,4 @@
+import { summarizeAnnouncement } from "../../src/lib/announcementSummary.js";
 const allowedPrefixes = ["NCICT/", "NCINM/", "NCIRF/", "PHANTOM/", "DCC/"];
 const folderDownloadPrefixes = ["PHANTOM/", "DCC/"];
 const portalSessionCookie = "__Host-ncidose_session";
@@ -2245,7 +2246,7 @@ export default {
         const input = await request.json();
         const title = cleanText(input.title, 240);
         const body = cleanText(input.body, 20000);
-        const summary = cleanText(input.summary, 600) || body.slice(0, 300);
+        const summary = cleanText(input.summary, 600) || summarizeAnnouncement(body);
         const category = announcementCategories.has(input.category) ? input.category : "Release";
         const status = input.status === "published" ? "published" : "draft";
         const originalPublishedAt = cleanText(input.originalPublishedAt, 40) || null;
@@ -2298,7 +2299,7 @@ export default {
         const input = await request.json();
         const title = cleanText(input.title, 240);
         const body = cleanText(input.body, 20000);
-        const summary = cleanText(input.summary, 600) || body.slice(0, 300);
+        const summary = cleanText(input.summary, 600) || summarizeAnnouncement(body);
         const category = announcementCategories.has(input.category) ? input.category : "Release";
         const status = input.status === "published" ? "published" : "draft";
         const originalPublishedAt = cleanText(input.originalPublishedAt, 40) || null;

@@ -34,7 +34,7 @@ const App = () => (
       <BrowserRouter>
         <Seo />
         <Analytics />
-        <div onContextMenu={(event) => event.preventDefault()} onDragStart={(event) => event.preventDefault()}>
+        <div>
           <ScrollToTop />
           <Routes>
             <Route path="/" element={<Index />} />

@@ -97,21 +97,30 @@ const filteredNciTeamYears = (tool: LiteratureTool) =>
     })
     .filter((year) => year.articles.length > 0);
 
+const articleIdentity = (article: LiteratureArticle) =>
+  article.pmid?.trim() || article.doi?.toLowerCase().replace(/^https?:\/\/(?:dx\.)?doi\.org\//, "")
+  || article.pmcid || article.title.toLowerCase().replace(/\s+/g, " ").trim();
+
+const uniqueLiteratureArticles = (tools: LiteratureTool[]) => {
+  const articles = new Map<string, LiteratureArticle>();
+  for (const tool of tools) {
+    for (const group of tool.years) {
+      for (const article of group.articles) {
+        const key = articleIdentity(article);
+        if (!articles.has(key)) articles.set(key, article);
+      }
+    }
+  }
+  return [...articles.values()];
+};
+
 const cumulativeLiteratureSeries = (tools: LiteratureTool[]) => {
   const countsByYear = new Map<number, number>();
-
-  tools.forEach((tool) => {
-    tool.years.forEach((yearGroup) => {
-      const year = Number.parseInt(yearGroup.year, 10);
-
-      if (Number.isFinite(year)) {
-        countsByYear.set(year, (countsByYear.get(year) ?? 0) + yearGroup.count);
-      }
-    });
-  });
-
+  for (const article of uniqueLiteratureArticles(tools)) {
+    const year = Number.parseInt(article.year, 10);
+    if (Number.isFinite(year)) countsByYear.set(year, (countsByYear.get(year) ?? 0) + 1);
+  }
   let cumulative = 0;
-
   return Array.from(countsByYear.entries())
     .sort(([leftYear], [rightYear]) => leftYear - rightYear)
     .map(([year, count]) => {
@@ -131,10 +140,10 @@ const recentlyPublishedArticles = (tools: LiteratureTool[], limit = 5) => {
   for (const tool of tools) {
     for (const year of tool.years) {
       for (const article of year.articles) {
-        const existing = byPmid.get(article.pmid);
+        const existing = byPmid.get(articleIdentity(article));
         const toolReference = { id: tool.id, name: tool.tool };
         if (!existing) {
-          byPmid.set(article.pmid, {
+          byPmid.set(articleIdentity(article), {
             article,
             tools: [toolReference],
           });
@@ -203,7 +212,7 @@ const Literature = () => {
   );
 
   const totalArticles = useMemo(
-    () => data?.tools.reduce((sum, tool) => sum + tool.counts.displayedArticles, 0) ?? 0,
+    () => data ? uniqueLiteratureArticles(data.tools).length : 0,
     [data],
   );
 
@@ -399,13 +408,13 @@ const PublicationGrowthChart = ({
             Publication growth
           </div>
           <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
-            Cumulative listed papers across all NCI Dose Tools by publication year.
+            Cumulative unique papers across all NCI Dose Tools by publication year. Papers listed for more than one tool are counted once.
           </p>
         </div>
         <div className="text-right">
           <div className="text-3xl font-light text-slate-900">{total}</div>
           <div className="font-mono text-[11px] uppercase tracking-widest text-muted-foreground">
-            total papers
+            unique papers
           </div>
         </div>
       </div>
