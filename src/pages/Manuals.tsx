@@ -315,7 +315,7 @@ const ManualsIndex = () => {
                           <History className="h-5 w-5" />
                         </span>
                         <span className="font-mono text-[11px] uppercase tracking-wider text-slate-500">
-                          Updated {history.latestUpdate}
+                          Updated {history.latestRelease || history.latestUpdate}
                         </span>
                       </div>
                       <div className="mt-6 font-mono text-xs uppercase tracking-widest text-primary">

@@ -145,4 +145,20 @@ describe("vendor API sandbox", () => {
     expect(screen.getByRole("tabpanel").textContent).toContain("\"Thread\": 2");
     expect(screen.getByText(/approved dedicated vendor deployment/i)).toBeInTheDocument();
   });
+
+  it("explains licensed NCIRF custom spectra without implying the public demo supports them yet", () => {
+    render(<VendorApiSandbox initialTool="ncirf" />);
+
+    expect(screen.getByRole("heading", { name: "Custom spectrum support" })).toBeInTheDocument();
+    expect(screen.getByText(/equipment- and protocol-specific custom spectra/i)).toBeInTheDocument();
+    expect(screen.getByText("GET /spectra")).toBeInTheDocument();
+    expect(screen.getByText("SpectrumID")).toBeInTheDocument();
+    expect(screen.getByText(/This public demo currently uses built-in spectra selected by kVp\/HVL/i)).toBeInTheDocument();
+    expect(screen.getByLabelText("Tube potential (kVp)")).toBeEnabled();
+    expect(screen.getByLabelText("HVL (mm Al)")).toBeEnabled();
+    expect(screen.getByRole("tabpanel").querySelector("pre")?.textContent).not.toContain("SpectrumID");
+
+    fireEvent.click(screen.getByRole("tab", { name: /NCICT/i }));
+    expect(screen.queryByRole("heading", { name: "Custom spectrum support" })).not.toBeInTheDocument();
+  });
 });

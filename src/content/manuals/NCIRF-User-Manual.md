@@ -1,7 +1,9 @@
 # NCIRF 4
 _**NCI Dosimetry System for Radiography and Fluoroscopy**_
 
-Current documented release: **4.20260510**
+Current documented release: **September 10, 2026**
+Current release type: **Scientific Update**
+Latest scientific update: **September 10, 2026**
 
 ![NCIRF 4 main window overview](images/ncirf4-main-window.png)
 
@@ -37,6 +39,9 @@ or site-specific clinical optimization.
 | 4 | Run GEANT4 Monte Carlo simulations |
 | 5 | Review organ dose, error, PSD, and effective dose |
 | 6 | Optionally run multiple cases through Batch Manager |
+
+Numeric fields accept either dot or comma decimal notation regardless of the
+operating-system regional setting.
 
 ---
 
@@ -102,9 +107,10 @@ age-dependent dose response functions.
 
 ![Size-dependent height-weight phantom map](images/height-weight-map.png)
 
-### Pregnant Phantoms
+### Fetus Tab (Pregnant Phantoms)
 
-Pregnant phantoms are selected by gestational age. Available fetal ages are:
+Select the **Fetus** tab to use pregnant phantoms by gestational age. Available
+fetal ages are:
 
 - 8wk
 - 10wk
@@ -118,16 +124,91 @@ Pregnant phantoms are selected by gestational age. Available fetal ages are:
 These phantoms include detailed fetal models for gestational-age dose
 evaluation.
 
-When using pregnant phantoms, height and weight are not used.
+When using the Fetus tab, height and weight are not used. The first column of
+the organ-dose output table is labeled **Fetal Organ**.
 
-![Pregnant phantom selection panel](images/pregnant-phantom-selection.png)
+![Fetus tab for pregnant phantom selection](images/pregnant-phantom-selection.png)
 
 ---
 
 ## 2. X-ray Beam Data
 
 Users define the x-ray beam spectrum by selecting a kVp and half-value layer
-(HVL) combination. NCIRF 4 provides predefined kVp-HVL combinations.
+(HVL) combination. NCIRF 4 provides 114 predefined spectra and supports custom
+spectrum generation and import.
+
+The controls beside the spectrum selector are:
+
+- **+** — generate a custom spectrum with SpekPy.
+- **−** — remove the selected custom spectrum. Built-in spectra cannot be
+  removed; after removal, NCIRF selects the preceding spectrum.
+- **Import** — import a portable NCIRF `.ncirfspc` file or a legacy NCIRF
+  `.spc` JSON file.
+
+Custom spectra use the same Monte Carlo source definition and DAP
+normalization workflow as the built-in spectra. On both macOS and Windows,
+the compact selector shows `kVp,HVL` and marks custom entries with a trailing
+asterisk, for example `80,5.308 *`. Built-in entries have no asterisk. The
+selector tooltip explains `* Custom spectrum`. When a custom spectrum is
+selected, its user-defined name is still shown separately in blue above the
+selector.
+
+### Generating a Custom Spectrum with SpekPy
+
+NCIRF uses the NCI-hosted SpekPy service to generate a new spectrum. SpekPy's
+approximately 396 MiB Python environment is not bundled with the desktop
+application. Internet access is therefore required while generating a new
+spectrum, but not when using built-in spectra or a custom spectrum that has
+already been added or imported.
+
+The custom-spectrum window accepts:
+
+- A unique spectrum name containing 1-20 characters.
+- A target and target-supported tube potential:
+  - **W:** 20-125 kVp with `spekcalc`, `casim`, or `spekpy-v1`.
+  - **Mo or Rh:** 20-50 kVp with `casim`.
+- Anode angle.
+- Zero or more filtration rows applied in the displayed order.
+- Optional target HVL in mm Al.
+
+The filtration menu provides Al, Cu, Sn, Be, Air, Mo, Rh, Ag, Ti, Er, Gd,
+and Pb. W starts at 80 kVp with Al 2.5 mm and Cu 0.1 mm. Mo starts at 28 kVp
+with Mo 0.03 mm, and Rh starts at 30 kVp with Rh 0.025 mm. Target changes reset
+the target-dependent defaults so that a result cannot accidentally be saved
+under settings from another target.
+
+Select **Generate** to request and preview a spectrum. NCIRF validates the
+service version, supported settings, and returned energy grid before enabling
+the add/save actions. The preview shows normalized spectrum intensity. Blue
+status messages at the bottom identify invalid names or parameters, duplicate
+names, service errors, and returned warnings.
+
+![Custom spectrum generation window with SpekPy parameters and normalized spectrum preview](images/ncirf4-custom-spectrum.png)
+
+Generated spectra are normalized onto NCIRF's fixed 62-value energy grid for
+dose calculation. The desktop application and `.ncirfspc` format do not export
+the full raw SpekPyWeb fluence table. This interface is an NCIRF-focused subset
+of SpekPyWeb and does not expose all SpekPyWeb research options or materials.
+
+### Adding, Saving, and Reusing Custom Spectra
+
+- **Add** adds the generated spectrum to NCIRF and selects it.
+- **Save** writes a portable UTF-8 NCIRF-SPC JSON file using the `.ncirfspc`
+  extension.
+- **Add and Save** performs both operations.
+
+Every added spectrum is also stored automatically in the user's NCIRF
+Application Data folder and is restored at the next application launch. A
+portable `.ncirfspc` file can be shared, archived, or referenced from a Batch
+CSV file. Import also accepts legacy NCIRF `.spc` JSON files; unrelated
+standard or binary SPC formats are not supported. Once a spectrum has been
+added or imported, it can be used offline even if the hosted service is
+unavailable.
+
+To recreate the validated Lumos reference spectra, select W and `casim`, set a
+12-degree anode angle, remove the default filters, add only Al 1.7 mm, leave
+HVL matching off, and generate at 60, 65, or 70 kVp. Use a unique name such as
+`Lumos 60`, `Lumos 65`, or `Lumos 70`.
 
 Additional beam parameters include:
 
@@ -186,6 +267,10 @@ These views show:
 The field box can be moved by mouse drag. Users may drag inside the field box
 or click and drag the field center directly.
 
+The field-box border provides hover feedback before dragging. Moving the
+pointer inside the box darkens all four edges to indicate that the complete box
+can be moved. The highlighted border remains visible while the box is dragged.
+
 In the top, frontal, and lateral phantom views, the field box can also be
 resized by dragging a box edge. The field center remains fixed during resizing:
 dragging the upper edge changes the lower edge symmetrically, and dragging the
@@ -193,6 +278,10 @@ left or right edge changes the opposite edge symmetrically. The corresponding
 Field Width and Field Height input values are updated automatically. Because
 field width and height are defined on the beam-normal plane toward the source,
 the displayed resize behavior accounts for the current PPA and PSA projection.
+When the pointer is near a left or right edge, both vertical edges darken to
+show that they move symmetrically. When the pointer is near an upper or lower
+edge, both horizontal edges darken. The paired highlight remains visible during
+resizing and clears when the pointer leaves the phantom view.
 
 Phantom picture resolution has been improved in NCIRF 4 for clearer visual
 feedback.
@@ -282,6 +371,12 @@ Batch Manager uses compact headers:
 | Run | Check to run |
 | Progress | Batch calculation progress |
 
+Saved Batch CSV files may also contain `SpectrumID` and `SpectrumFile` after
+`Thread`. These fields are stored as spectrum metadata rather than displayed
+as additional Batch Manager columns. `SpectrumID` identifies a built-in or
+already-loaded custom spectrum. `SpectrumFile` can identify an absolute or
+Batch-file-relative `.ncirfspc` or legacy NCIRF `.spc` path.
+
 Hovering over the Batch Manager header displays a more detailed tooltip for
 each column.
 
@@ -369,12 +464,27 @@ During batch calculation:
 
 ### Saving and Loading Batch CSV Files
 
+Batch input accepts comma- or semicolon-delimited CSV files. Semicolon-delimited
+CSV is recommended when decimal commas are used. In a comma-delimited file, a
+value containing a decimal comma must be enclosed in double quotes. Saved Batch
+CSV output always uses comma delimiters and dot decimals for consistent reuse
+across regional settings.
+
 `Save Batch` writes:
 
 - Input parameters
+- Stable spectrum ID
+- Each referenced custom spectrum as a companion `.ncirfspc` file in the same
+  folder as the Batch CSV; the CSV records the companion filename as a
+  relative `SpectrumFile` path
 - Completion progress
 - Dose result columns
 - Error result columns
+
+Built-in spectra do not create companion files. Multiple Batch rows that use
+the same custom spectrum reuse the same companion file. Keep the Batch CSV and
+all accompanying `.ncirfspc` files together when sharing, moving, or archiving
+a Batch.
 
 Dose columns use the prefix `Dose`, such as:
 
@@ -392,9 +502,15 @@ Rows that have not completed are saved with `0%` progress and blank result
 fields. Completed rows are saved with `100%` progress and their stored dose and
 error result fields.
 
-`Load Batch` restores input parameters into Batch Manager. If the CSV contains
-completed results, NCIRF loads those results internally and displays them in the
-main GUI when the completed row is selected.
+`Load Batch` restores input parameters into Batch Manager and immediately
+loads, validates, and adds custom spectra referenced from the CSV folder. The
+imported spectra are also restored to NCIRF's Application Data library. A
+Batch therefore remains usable after NCIRF is removed and reinstalled, as long
+as its CSV and companion `.ncirfspc` files remain together. Missing, corrupt,
+or mismatched companion files are reported. Legacy files without spectrum
+metadata continue to use nearest kVp/HVL matching. If the CSV contains
+completed results, NCIRF loads those results internally and displays them in
+the main GUI when the completed row is selected.
 
 ![Saved Batch CSV showing input and Progress columns](images/saved-batch-csv.png)
 
@@ -418,6 +534,20 @@ run outside the NCIRF GUI.
 - Monte Carlo uncertainty depends on the number of particle histories.
 - Pregnant phantom calculations use gestational age rather than patient height
   and weight.
+- Internet access is required only to generate a new SpekPy spectrum. Built-in,
+  persisted, and imported custom spectra remain available offline.
+- Custom spectra are resampled onto NCIRF's fixed 62-value energy grid; the
+  desktop client does not retain the full raw SpekPyWeb fluence table.
 - Batch result values are only available for rows that have completed
   calculation or have been loaded from a saved Batch CSV containing completed
   results.
+
+---
+
+## Scientific Software Attribution
+
+Custom spectrum generation is powered by **SpekPy 2.5.4**, distributed under
+the MIT License. Upstream source and authorship information are available from
+the [SpekPy repository](https://bitbucket.org/spekpy/spekpy_release). NCIRF
+accesses SpekPy through the NCI Dose Tools hosted service and does not bundle
+the Python/SpekPy environment in the desktop application.

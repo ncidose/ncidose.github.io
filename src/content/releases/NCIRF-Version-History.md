@@ -1,14 +1,44 @@
 # NCIRF Release History
 
-_Public release and maintenance record for the National Cancer Institute dosimetry system for Radiography and Fluoroscopy._
+_Scientific and maintenance update record for the National Cancer Institute dosimetry system for Radiography and Fluoroscopy._
 
-Latest update: **May 10, 2026**
-Latest official release: **4.20260510**
+Latest release: **September 10, 2026**
+Latest scientific update: **September 10, 2026**
 Record begins: **2022**
 
 ## 2026
 
-### May 10, 2026 — Official Release 4.20260510
+### September 10, 2026 — Scientific Update
+
+#### Scientific changes
+
+##### GUI
+
+- Introduced an integrated **custom x-ray spectrum generator powered by SpekPy 2.5.4** through the NCI-hosted SpekPy service. It supports **W, Mo, and Rh targets**; Internet access is required only when generating a new spectrum, while spectra already added or imported remain available offline.
+- Added target-specific tube settings: **W from 20–125 kVp** using `spekcalc`, `casim`, or `spekpy-v1`, and **Mo or Rh from 20–50 kVp** using `casim`, with a user-selectable anode angle.
+- Added an ordered **multi-filter editor with 12 available filter materials**: Al, Cu, Sn, Be, Air, Mo, Rh, Ag, Ti, Er, Gd, and Pb. Multiple filters can be combined and are applied in the displayed order.
+- Added a normalized spectrum preview, optional matching to a specified **Al HVL**, and validation of spectrum names, target/model combinations, tube potential, filtration, service version, and returned energy data.
+- Converted each generated spectrum onto NCIRF's fixed **62-value energy grid** for use with the existing Monte Carlo source definition and DAP-normalization workflow.
+- Added persistent named custom spectra, portable `.ncirfspc` import/export, and self-contained Batch packages that save and reload companion spectrum files while retaining legacy `.spc` compatibility.
+
+##### API
+
+- Added **registered custom spectra for vendor- and protocol-specific beam modeling** in reference, size-dependent, and pregnant phantom calculations. Vendors can generate a spectrum in the GUI, export its `.ncirfspc` file, and submit it to the NCI Dose Tools administrator for server-side registration.
+- Added authenticated **`GET /spectra`** to list the **114 built-in spectra** and custom spectra registered for the requesting company, with stable IDs, kVp, HVL, and available target, filtration, and generator metadata. Vendors can review this catalog before requesting additional beams.
+- Added **`SpectrumID`** selection in `POST /param`, allowing equipment/protocol mappings to reuse a registered beam without resending SpekPy parameters or spectrum files for each calculation. Existing kVp/HVL-only requests continue to use the built-in library.
+- Applied the GUI's spectrum-file validation, fixed **62-value energy grid**, and DAP-normalization workflow to registered custom beams. Dose requests use the stored spectrum; the API does not generate spectra online or accept client-supplied server file paths.
+- Added **`matched.spectrum`** metadata to dose results for beam traceability while retaining the existing flat spectrum fields. Custom IDs are protected against reuse with changed beam content; changing a registered beam requires a new ID. Unknown or unauthorized IDs are rejected without silently substituting a built-in spectrum.
+
+#### Corrections and maintenance changes
+
+- Added **signed and notarized macOS distribution** support.
+- Improved decimal-format and **Batch CSV compatibility across locales**.
+- Corrected spectrum selection and reproducibility issues, including the size-dependent one-row shift, reused `SpectrumID` conflicts, and unsupported API kVp/HVL matching.
+- Corrected effective dose calculation to avoid weighting the separately reported rectosigmoid dose as colon a second time.
+- Restricted size-dependent phantom matching to the requested age and sex group.
+- Clarified the Fetus interface and improved field-box editing feedback.
+
+### May 10, 2026 — Scientific Update
 
 #### GUI
 
@@ -57,7 +87,7 @@ Record begins: **2022**
 
 ## 2024
 
-### December 17, 2024
+### December 17, 2024 — Maintenance Update
 
 #### Bug fixes
 
@@ -65,7 +95,7 @@ Record begins: **2022**
 - Resolved Windows packaging issues.
 - Corrected missing thread information in `ncirf_batch_input_sizespecific.csv`.
 
-### December 15, 2024 — Official Release 3.0.20241215
+### December 15, 2024 — Scientific Update
 
 #### New features
 
@@ -84,52 +114,52 @@ Record begins: **2022**
 - Corrected slight underestimation of active marrow and endosteum doses in abdominal skeletons.
 - Corrected field-height visualization for 15-year-old and adult phantoms.
 
-### March 1, 2024
+### March 1, 2024 — Scientific Update
 
 - Corrected GEANT4 simulation of field width and field height.
 - Corrected Monte Carlo particle accounting for generated and collimated particles.
 
-### February 8, 2024
+### February 8, 2024 — Maintenance Update
 
 - Added support for batch configurations with HVL formatted as `X.X0`.
 - Added peak skin dose to batch output.
 
-### January 24, 2024 — Official Release 2.0.20240124
+### January 24, 2024 — Scientific Update
 
 - Implemented peak skin dose calculation using Monte Carlo radiation transport.
 - Added an **arms-rotated** phantom library to better simulate upper-extremity radiography examinations.
 
 ## 2023
 
-### November 16, 2023
+### November 16, 2023 — Scientific Update
 
 - Fixed a hardcoded cone-beam divergence issue.
 - Enabled arm-rotated posture for upper-extremity radiography simulations.
 
-### August 12, 2023
+### August 12, 2023 — Scientific Update
 
 - Fixed errors in Batch Manager-based runs.
 - Increased the maximum number of threads to **24**.
 
-### May 6, 2023
+### May 6, 2023 — Maintenance Update
 
 - Added direct MCNP input-file generation from Batch Manager.
 - Corrected minor visualization issues.
 
 ## 2022
 
-### December 14, 2022 — Official Release 2.0.20220418
+### December 14, 2022 — Scientific Update
 
-### April 18, 2022
+### April 18, 2022 — Scientific Update
 
 - Corrected simulation handling of custom beam-angle inputs.
 
-### March 17, 2022
+### March 17, 2022 — Maintenance Update
 
 - Verified NCIRF operation on Windows virtual machines using Parallels.
 - Fixed GEANT4 path-handling errors on non-English Windows systems.
 
-### March 7, 2022
+### March 7, 2022 — Scientific Update
 
 - Added two reference phantom libraries: arms raised and arms lowered.
 - Set the default initial phantom to newborn male.

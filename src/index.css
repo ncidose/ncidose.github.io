@@ -548,6 +548,12 @@
   color: #0369a1;
 }
 
+.release-history-article .release-badge-maintenance {
+  border-color: rgb(100 116 139 / 0.3);
+  background: rgb(100 116 139 / 0.08);
+  color: #475569;
+}
+
 .release-history-article .release-subheading {
   margin: 1.5rem 0 0.6rem;
   color: #1e293b;

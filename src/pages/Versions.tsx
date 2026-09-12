@@ -59,12 +59,12 @@ const ReleaseHistoryPage = ({ history }: { history: ReleaseHistoryDefinition }) 
                 <div className="font-mono text-[11px] uppercase tracking-[0.2em] text-primary">Current record</div>
                 <dl className="mt-5 space-y-4 text-sm">
                   <div className="flex items-center justify-between gap-4 border-b border-slate-100 pb-4">
-                    <dt className="flex items-center gap-2 text-slate-500"><Clock3 className="h-4 w-4 text-primary" /> Latest update</dt>
-                    <dd className="text-right text-slate-900">{history.latestUpdate}</dd>
+                    <dt className="flex items-center gap-2 text-slate-500"><Clock3 className="h-4 w-4 text-primary" /> {history.latestRelease ? "Latest release" : "Latest update"}</dt>
+                    <dd className="text-right text-slate-900">{history.latestRelease || history.latestUpdate}</dd>
                   </div>
                   <div className="flex items-center justify-between gap-4 border-b border-slate-100 pb-4">
-                    <dt className="flex items-center gap-2 text-slate-500"><CheckCircle2 className="h-4 w-4 text-primary" /> Official release</dt>
-                    <dd className="font-mono text-right text-slate-900">{history.latestOfficialRelease}</dd>
+                    <dt className="flex items-center gap-2 text-slate-500"><CheckCircle2 className="h-4 w-4 text-primary" /> {history.latestRelease ? "Scientific update" : "Official release"}</dt>
+                    <dd className={`${history.latestRelease ? "" : "font-mono "}text-right text-slate-900`}>{history.latestScientificUpdate || history.latestOfficialRelease}</dd>
                   </div>
                   <div className="flex items-center justify-between gap-4">
                     <dt className="flex items-center gap-2 text-slate-500"><CalendarDays className="h-4 w-4 text-primary" /> Record begins</dt>
@@ -139,7 +139,9 @@ const ReleaseHistoryPage = ({ history }: { history: ReleaseHistoryDefinition }) 
               <div className="mb-12 flex items-start gap-4 border-l-4 border-primary bg-primary/5 p-5 text-sm leading-relaxed text-slate-700">
                 <History className="mt-0.5 h-5 w-5 shrink-0 text-primary" />
                 <p>
-                  This record includes official releases and interim maintenance updates. It documents changes but does not provide unrestricted software downloads.
+                  {history.latestRelease
+                    ? "Every published update is a release. Scientific Updates can affect scientific data or reported results; Maintenance Updates preserve valid scientific results."
+                    : "This record includes official releases and interim maintenance updates. It documents changes but does not provide unrestricted software downloads."}
                 </p>
               </div>
 
@@ -153,9 +155,14 @@ const ReleaseHistoryPage = ({ history }: { history: ReleaseHistoryDefinition }) 
                   h3: ({ children, ...props }) => {
                     const label = String(children);
                     const official = label.includes("Official Release");
+                    const scientific = label.endsWith(" — Scientific Update");
+                    const maintenance = label.endsWith(" — Maintenance Update");
+                    const visibleLabel = label.replace(/ — (?:Scientific|Maintenance) Update$/, "");
                     return (
                       <h3 {...props} className="release-entry-title">
-                        <span>{children}</span>
+                        <span>{visibleLabel}</span>
+                        {scientific && <span className="release-badge">Scientific Update</span>}
+                        {maintenance && <span className="release-badge release-badge-maintenance">Maintenance Update</span>}
                         {official && <span className="release-badge">Official release</span>}
                       </h3>
                     );

@@ -11,6 +11,8 @@ export type ReleaseHistoryDefinition = {
   description: string;
   latestUpdate: string;
   latestOfficialRelease: string;
+  latestRelease?: string;
+  latestScientificUpdate?: string;
   firstReleaseYear: string;
   markdown: string;
 };
@@ -42,6 +44,8 @@ export const releaseHistories: ReleaseHistoryDefinition[] = [
       "A chronological record of Monte Carlo calculation, phantom-library, Batch Manager, API, and interface updates for NCIRF.",
     latestUpdate: metadataValue(ncirfMarkdown, "Latest update"),
     latestOfficialRelease: metadataValue(ncirfMarkdown, "Latest official release"),
+    latestRelease: metadataValue(ncirfMarkdown, "Latest release"),
+    latestScientificUpdate: metadataValue(ncirfMarkdown, "Latest scientific update"),
     firstReleaseYear: metadataValue(ncirfMarkdown, "Record begins"),
     markdown: ncirfMarkdown,
   },
@@ -78,5 +82,5 @@ export const getReleaseHistoryBody = (markdown: string) =>
   markdown
     .replace(/^#\s+.+\n+/, "")
     .replace(/^_.*_\n+/, "")
-    .replace(/^(?:Latest update|Latest official release|Record begins): .*\n?/gm, "")
+    .replace(/^(?:Latest update|Latest official release|Latest release|Latest scientific update|Record begins): .*\n?/gm, "")
     .trim();

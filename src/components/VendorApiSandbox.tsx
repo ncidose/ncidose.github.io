@@ -188,6 +188,18 @@ const ParameterControls = ({
             <NumberInput label="HVL" name="hvlMmAl" value={parameters.hvlMmAl} min={0.1} max={20} step={0.01} unit="mm Al" disabled={disabled} onChange={onChange} />
             <NumberInput label="Dose-area product" name="dapGyCm2" value={parameters.dapGyCm2} min={0.1} max={1000} step={0.1} unit="Gy·cm²" disabled={disabled} onChange={onChange} />
           </div>
+          <div className="mt-4 border-l-2 border-sky-400 bg-sky-950/30 px-4 py-3">
+            <h4 className="text-sm font-medium text-sky-200">Custom spectrum support</h4>
+            <p className="mt-2 text-xs leading-5 text-slate-300">
+              The licensed NCIRF API also supports equipment- and protocol-specific custom spectra.
+              Generate a beam with SpekPy in the NCIRF GUI, have its <code>.ncirfspc</code> file
+              registered by NCI Dose Tools, then use <code>GET /spectra</code> to find its ID
+              and send <code>SpectrumID</code> in subsequent dose requests.
+            </p>
+            <p className="mt-2 text-xs leading-5 text-slate-400">
+              This public demo currently uses built-in spectra selected by kVp/HVL.
+            </p>
+          </div>
         </div>
 
         <details className="border border-slate-700 bg-slate-950/30">

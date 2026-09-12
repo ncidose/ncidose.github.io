@@ -66,6 +66,42 @@ describe("public manuals", () => {
     expect(screen.getByRole("button", { name: "Introduction" })).not.toHaveAttribute("href");
   });
 
+  it("renders the September NCIRF scientific release and custom spectrum workflow", () => {
+    render(<MemoryRouter initialEntries={["/manuals/ncirf"]}>
+      <Routes><Route path="/manuals/:manualId" element={<Manuals />} /></Routes>
+    </MemoryRouter>);
+    expect(screen.getByText("Documented release September 10, 2026")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Generating a Custom Spectrum with SpekPy" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Adding, Saving, and Reusing Custom Spectra" })).toBeInTheDocument();
+    expect(screen.getByRole("img", {
+      name: "Custom spectrum generation window with SpekPy parameters and normalized spectrum preview",
+    })).toHaveAttribute("src", "/manuals/images/ncirf4-custom-spectrum.png");
+  });
+
+  it("renders the NCIRF API registered-spectrum workflow", () => {
+    render(<MemoryRouter initialEntries={["/manuals/ncirf-api"]}>
+      <Routes><Route path="/manuals/:manualId" element={<Manuals />} /></Routes>
+    </MemoryRouter>);
+    expect(screen.getByText("Documented release September 10, 2026")).toBeInTheDocument();
+    expect(screen.getByText("Scientific Update")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Spectrum Catalog and Custom Beams" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Vendor Workflow" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Example: Dose Request Using a Registered Custom Spectrum" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Administrator Registration" })).toBeInTheDocument();
+  });
+
+  it("separates NCIRF scientific changes into GUI and API", () => {
+    render(<MemoryRouter initialEntries={["/versions/ncirf"]}>
+      <Routes><Route path="/versions/:toolId" element={<Versions />} /></Routes>
+    </MemoryRouter>);
+    expect(screen.getByRole("heading", { name: "Scientific changes", level: 4 })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "GUI", level: 5 })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "API", level: 5 })).toBeInTheDocument();
+    expect(screen.getByText("GET /spectra")).toBeInTheDocument();
+    expect(screen.getAllByText("SpectrumID").length).toBeGreaterThan(0);
+    expect(screen.getByText("matched.spectrum")).toBeInTheDocument();
+  });
+
   it("places product-aware sandbox CTAs above and below each API manual", () => {
     render(
       <MemoryRouter initialEntries={["/manuals/ncict-api"]}>
@@ -127,7 +163,7 @@ describe("public manuals", () => {
   });
 
   it.each([
-    ["ncirf", "NCIRF Release History", "4.20260510"],
+    ["ncirf", "NCIRF Release History", "September 10, 2026"],
     ["ncinm", "NCINM Release History", "3.20260510"],
     ["phantom", "PHANTOM Library History", "August 20, 2026"],
   ])("renders the %s release record", (toolId, title, latestRelease) => {
