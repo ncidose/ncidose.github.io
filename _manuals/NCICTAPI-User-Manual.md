@@ -1,8 +1,8 @@
 # NCICT API
 
-Current documented release: **August 22, 2026**
-Current release type: **Maintenance Update**
-Latest scientific update: **May 2, 2026**
+Current documented release: **September 11, 2026 (4.20260911)**
+Current release type: **Scientific Update — API output precision**
+Latest scientific update: **September 11, 2026**
 
 NCICTAPI provides REST-style access to the NCICT4 CT organ dose calculation
 workflow. A client sends one JSON object to `/param`; the server matches the
@@ -311,7 +311,23 @@ Metadata key|Definition
 `matched_weight_kg`|Matched phantom weight in kg for patient dose.
 `matched_fetal_age_weeks`|Matched gestational age in weeks for fetus or mother dose.
 
-Dose values are returned as strings formatted to two decimal places. Output dose keys include organ doses in mGy and `effective dose msv` in mSv.
+Dose values are returned as JSON numbers without two-decimal rounding, preserving
+the precision of the calculated results. Output dose keys include organ doses
+in mGy and `effective dose msv` in mSv. Field names, units, input parameters,
+and phantom metadata are unchanged.
+
+**Compatibility change in 4.20260911:** earlier versions returned dose values
+as two-decimal strings, such as `"0.08"`. Clients must now accept JSON numbers
+and should not depend on a fixed number of decimal places. Small nonzero doses
+are no longer rounded to `"0.00"` during response serialization. Calculation
+algorithms and dose libraries are unchanged from 4.20260909; this update changes
+the precision and type of the reported values, not the underlying calculation.
+
+The website sandbox provides a readable preview with two decimal places, using
+three significant digits below 0.01 so small values remain visible. This is
+display-only formatting. Select **Show full-precision JSON** to inspect the
+unrounded response; use the API response, not the rounded preview, for further
+calculations.
 
 ## Error Responses
 

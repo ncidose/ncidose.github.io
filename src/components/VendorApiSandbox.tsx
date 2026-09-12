@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { AlertCircle, CheckCircle2, Clock3, Loader2, Play } from "lucide-react";
 import { buildVendorApiDemoRequest, vendorApiDemoPresetForTool, vendorApiDemoPresets, type VendorApiDemoPreset } from "@/data/vendorApiDemo";
 import { trackVendorSandboxEvent } from "@/lib/analytics";
+import { formatVendorResponse } from "@/lib/vendorResponseFormat";
 
 const demoEndpoint =
   import.meta.env.VITE_VENDOR_DEMO_API_URL?.trim()
@@ -239,6 +240,7 @@ export const VendorApiSandbox = ({ initialTool }: { initialTool?: string | null 
   );
   const [status, setStatus] = useState<"idle" | "running" | "success" | "error">("idle");
   const [result, setResult] = useState<DemoResponse | null>(null);
+  const [showFullPrecision, setShowFullPrecision] = useState(false);
   const [error, setError] = useState("");
   const [usage, setUsage] = useState<DemoUsage | null>(null);
   const requestSequence = useRef(0);
@@ -451,8 +453,15 @@ export const VendorApiSandbox = ({ initialTool }: { initialTool?: string | null 
                     <div className="flex items-center gap-2 border-b border-emerald-200 bg-emerald-50 px-5 py-3 text-sm text-emerald-900" role="status">
                       <CheckCircle2 className="h-4 w-4" /> Live calculation completed
                     </div>
+                    <div className="border-b border-slate-200 px-5 py-3 text-xs leading-5 text-slate-600">
+                      <p>Readable preview: doses and error percentages use two decimal places, with extra digits for values below 0.01. The API response retains full precision.</p>
+                      <label className="mt-2 flex cursor-pointer items-center gap-2 text-slate-800">
+                        <input type="checkbox" checked={showFullPrecision} onChange={(event) => setShowFullPrecision(event.target.checked)} className="accent-sky-600" />
+                        Show full-precision JSON
+                      </label>
+                    </div>
                     <pre className="whitespace-pre-wrap break-words p-5 text-xs leading-relaxed text-slate-800 sm:text-sm">
-                      <code>{formattedJson(responseBody)}</code>
+                      <code>{showFullPrecision ? formattedJson(responseBody) : formatVendorResponse(responseBody, selected.tool)}</code>
                     </pre>
                   </div>
                 )}

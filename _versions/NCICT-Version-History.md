@@ -2,11 +2,20 @@
 
 _Scientific and maintenance update record for the National Cancer Institute dosimetry system for Computed Tomography._
 
-Latest release: **September 9, 2026**
-Latest scientific update: **September 9, 2026**
+Latest release: **September 11, 2026 (API only; GUI remains September 9)**
+Latest scientific update: **September 11, 2026 (API output precision)**
 Record begins: **2011**
 
 ## 2026
+
+### September 11, 2026 — Scientific Update
+
+#### API only — 4.20260911
+
+- Preserved the calculated precision of API dose results, including small nonzero doses previously rounded to zero in the response.
+- Changed dose values from two-decimal JSON strings to JSON numbers. Existing integrations must accept numeric dose values; field names, units, inputs, and phantom metadata are unchanged.
+- Kept the calculation algorithms and dose libraries from 4.20260909 unchanged. The GUI and desktop installers remain at 4.20260909.
+- Added a readable website sandbox preview with two decimal places and extra digits for small values; full-precision JSON remains available for inspection and integration.
 
 ### September 9, 2026 — Scientific Corrections and Maintenance Update
 

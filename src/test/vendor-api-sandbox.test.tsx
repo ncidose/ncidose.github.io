@@ -29,7 +29,7 @@ describe("vendor API sandbox", () => {
             demo: { tool: "ncinm", presetId: "ncinm-fdg-adult", upstreamStatus: 200, durationMs: 42 },
             usage: { used: 3, limit: 30, remaining: 27, windowMinutes: 60 },
             request: { phantom_library: 2 },
-            response: { ok: true, dose_mGy: { effective_dose_mSv: 3.25 } },
+            response: { ok: true, dose_mGy: { effective_dose_mSv: 3.251234567, brain: 0.0047328 } },
           }
         : { ok: true, usage: { used: 2, limit: 30, remaining: 28, windowMinutes: 60 } },
     ), { status: 200, headers: { "content-type": "application/json" } }));
@@ -61,6 +61,14 @@ describe("vendor API sandbox", () => {
     expect(responseText).toBeInTheDocument();
     expect(responseText.closest("pre")).toHaveClass("whitespace-pre-wrap", "break-words");
     expect(responseText.closest("pre")).not.toHaveClass("overflow-auto", "h-[360px]");
+    expect(responseText.textContent).toContain('"brain": 0.00473');
+    expect(responseText.textContent).not.toContain("3.251234567");
+    expect(screen.getByText(/The API response retains full precision/i)).toBeInTheDocument();
+    fireEvent.click(screen.getByLabelText("Show full-precision JSON"));
+    expect(responseText.textContent).toContain('"effective_dose_mSv": 3.251234567');
+    expect(responseText.textContent).toContain('"brain": 0.0047328');
+    fireEvent.click(screen.getByLabelText("Show full-precision JSON"));
+    expect(responseText.textContent).not.toContain("3.251234567");
     expect(screen.getByText(/3 of 30 runs used in the last hour/i)).toBeInTheDocument();
     expect(analyticsMocks.trackVendorSandboxEvent).toHaveBeenCalledWith(
       "vendor_sandbox_run",
