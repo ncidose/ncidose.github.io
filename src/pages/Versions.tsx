@@ -152,14 +152,18 @@ const ReleaseHistoryPage = ({ history }: { history: ReleaseHistoryDefinition }) 
                   ),
                   h3: ({ children, ...props }) => {
                     const label = String(children);
-                    const scientific = label.endsWith(" — Scientific Update");
-                    const maintenance = label.endsWith(" — Maintenance Update");
-                    const visibleLabel = label.replace(/ — (?:Scientific|Maintenance) Update$/, "");
+                    const entry = label.match(/^(.*?) — (Scientific Update|Scientific Corrections and Maintenance Update|Maintenance Update)$/);
+                    const releaseType = entry?.[2];
+                    // Mixed releases remain scientific; use the same compact badge
+                    // for every product while retaining the full classification.
+                    const scientific = releaseType?.startsWith("Scientific");
+                    const maintenance = releaseType === "Maintenance Update";
+                    const visibleLabel = entry?.[1] ?? label;
                     return (
-                      <h3 {...props} className="release-entry-title">
+                      <h3 {...props} className="release-entry-title" aria-label={entry ? label : undefined}>
                         <span>{visibleLabel}</span>
-                        {scientific && <span className="release-badge">Scientific Update</span>}
-                        {maintenance && <span className="release-badge release-badge-maintenance">Maintenance Update</span>}
+                        {scientific && <span className="release-badge" title={releaseType}>Scientific Update</span>}
+                        {maintenance && <span className="release-badge release-badge-maintenance" title={releaseType}>Maintenance Update</span>}
                       </h3>
                     );
                   },

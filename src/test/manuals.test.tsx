@@ -145,6 +145,44 @@ describe("public manuals", () => {
     expect(screen.getByText("0.075 h")).toBeInTheDocument();
   });
 
+  it.each([
+    ["ncict", "September 9, 2026", "Scientific Corrections and Maintenance Update"],
+    ["ncinm", "September 9, 2026", "Scientific Corrections and Maintenance Update"],
+    ["ncirf", "September 10, 2026", "Scientific Update"],
+    ["phantom", "August 20, 2026", "Scientific Update"],
+  ])("uses a consistent scientific ribbon for the latest %s release", (toolId, date, classification) => {
+    render(
+      <MemoryRouter initialEntries={[`/versions/${toolId}`]}>
+        <Routes>
+          <Route path="/versions/:toolId" element={<Versions />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    const heading = screen.getByRole("heading", { name: `${date} — ${classification}`, level: 3 });
+    expect(heading.firstElementChild).toHaveTextContent(date);
+    expect(heading.textContent).toBe(`${date}Scientific Update`);
+    const badge = heading.querySelector(".release-badge");
+    expect(badge).toHaveTextContent("Scientific Update");
+    expect(badge).not.toHaveClass("release-badge-maintenance");
+    expect(badge).toHaveAttribute("title", classification);
+    expect(heading).toHaveAttribute("id");
+  });
+
+  it("keeps maintenance ribbons and unclassified historical headings distinct", () => {
+    render(
+      <MemoryRouter initialEntries={["/versions/ncinm"]}>
+        <Routes>
+          <Route path="/versions/:toolId" element={<Versions />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    const maintenance = screen.getByRole("heading", { name: "August 22, 2026 — Maintenance Update", level: 3 });
+    expect(maintenance.querySelector(".release-badge-maintenance")).toHaveTextContent("Maintenance Update");
+    expect(screen.getByRole("heading", { name: "July 20, 2020", level: 3 }).querySelector(".release-badge")).toBeNull();
+  });
+
   it("renders the NCINM GUI detail images beside the relevant instructions", () => {
     render(
       <MemoryRouter initialEntries={["/manuals/ncinm"]}>
