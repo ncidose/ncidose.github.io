@@ -36,3 +36,15 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Canonical documentation is tracked at the repository root.
+/public/manuals/images/
+.env
+.env.*
+!.env.example
+
+# Local administration inputs and handoff notes are not public website content.
+/country-update/
+/handoff-ncidose.md
+/bun.lockb
+/pnpm-lock.yaml

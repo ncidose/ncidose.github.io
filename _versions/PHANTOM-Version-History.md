@@ -1,14 +1,14 @@
 # PHANTOM Library History
 
-_Public release and maintenance record for the NCI computational phantom libraries._
+_Scientific and maintenance update record for the NCI computational phantom libraries._
 
-Latest update: **August 20, 2026**
-Latest official release: **August 11, 2026**
+Latest release: **August 20, 2026**
+Latest scientific update: **August 20, 2026**
 Record begins: **2010**
 
 ## 2026
 
-### August 20, 2026
+### August 20, 2026 — Scientific Update
 
 - Corrected the 20- and 25-week breech fetal surfaces to remain within the uterus.
 - Fixed pregnant-phantom volume clipping by sizing single-resolution grids from
@@ -16,7 +16,7 @@ Record begins: **2010**
   armless NIfTI phantoms.
 - Updated and validated the related metadata, MCNP files, and master workbook.
 
-### August 11, 2026 — Official Release
+### August 11, 2026 — Maintenance Update
 
 - Renamed and reorganized PHANTOM folders so the main libraries are easier to
   browse: `nci-reference`, `nci-size`, `nci-pregnant`, and `icrp-reference`.
@@ -39,7 +39,7 @@ Record begins: **2010**
 - Updated adult phantom naming to use the `35` reference-adult age code, consistent
   with the ICRP adult reference convention.
 
-### July 1, 2026
+### July 1, 2026 — Scientific Update
 
 - Added an additional armless NCI size-dependent NIfTI set with a lower in-plane
   resolution and a higher slice resolution, covering all 362 size-dependent
@@ -52,7 +52,7 @@ Record begins: **2010**
   are consistent with the rest of the library.
 - Added missing legacy binary files for the two smallest newborn phantoms.
 
-### May 31, 2026
+### May 31, 2026 — Maintenance Update
 
 - Added compressed NIfTI (`.nii.gz`) versions of the NCI reference-size, size-dependent, and pregnant phantom libraries.
 - Released NIfTI datasets for NCI reference-size phantoms with arms at high resolution; NCI pregnant woman phantoms at high resolution; and NCI size-dependent phantoms with and without arms at high and low resolution.
@@ -64,7 +64,7 @@ Record begins: **2010**
 
 ## 2025
 
-### December 10, 2025 — Official Release
+### December 10, 2025 — Scientific Update
 
 - Expanded anatomical detail across the NCI reference-size and body size-dependent phantom libraries.
 - Added refined cardiac substructures, including heart chambers, myocardium, coronary arteries, cardiac valves, and conduction nodes.
@@ -75,21 +75,21 @@ Record begins: **2010**
 
 ## 2024
 
-### December 14, 2024 — Official Release
+### December 14, 2024 — Scientific Update
 
 - Released the **362 size-specific phantoms** at low resolution.
 - Released DICOM-RT datasets containing DICOM CT and RT Structure data for ICRP reference pediatric and adult phantoms, UF/NCI pregnant women with fetus phantoms, and UF/NCI reference-size phantoms.
 
-### January 27, 2024
+### January 27, 2024 — Scientific Update
 
 - Added 11 pediatric phantoms to the size-specific phantom library, bringing the
   total to **362**.
 
 ## 2022
 
-### December 14, 2022 — Official Release
+### December 14, 2022 — Scientific Update
 
-### January 25, 2022
+### January 25, 2022 — Scientific Update
 
 - Adjusted ovary locations using measurements from Kelsey et al. (2013).
 - Adjusted breast locations using CT images from the NWTS cohort.
@@ -97,14 +97,14 @@ Record begins: **2010**
 
 ## 2021
 
-### December 8, 2021
+### December 8, 2021 — Maintenance Update
 
 - Released ICRP reference pediatric and adult phantoms in DICOM-RT format.
 - Provided versions with and without arms.
 
 ## 2019
 
-### January 1, 2019
+### January 1, 2019 — Maintenance Update
 
 - Developed methods to convert binary voxel phantoms to DICOM CT images and DICOM
   structure sets.
@@ -112,12 +112,12 @@ Record begins: **2010**
 
 ## 2018
 
-### November 13, 2018
+### November 13, 2018 — Scientific Update
 
 - Updated the body-shape adjustment factor for selected size-dependent phantoms to
   improve consistency across the library.
 
-### Selected updates, 2014–2018
+### Selected updates, 2014–2018 — Scientific Update
 
 - Separated arm structures to support armless phantom versions.
 - Refined bone and marrow-related anatomy.
@@ -126,7 +126,7 @@ Record begins: **2010**
 
 ## 2010
 
-### January 1, 2010
+### January 1, 2010 — Scientific Update
 
 - Completed the 12 reference-size pediatric and adult male and female phantoms.
 - Released the phantoms in binary voxel format.

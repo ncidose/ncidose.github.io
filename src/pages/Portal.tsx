@@ -28,6 +28,7 @@ import {
   Paperclip,
   Pin,
   Plus,
+  RefreshCw,
   Search,
   Send,
   Settings,
@@ -1890,6 +1891,17 @@ const emptyAdminActivity: AdminActivityData = {
   },
 };
 
+const adminCacheLifetimeMs = 15 * 60 * 1000;
+type AdminUsersCache = {
+  users: ManagedPortalUser[];
+  unmatchedLoginAttempts: UnmatchedLoginAttempt[];
+  fetchedAt: number;
+};
+type AdminActivityCache = { data: AdminActivityData; fetchedAt: number };
+let adminUsersCache: AdminUsersCache | null = null;
+let adminActivityCache: AdminActivityCache | null = null;
+const adminCacheIsFresh = (fetchedAt: number) => Date.now() - fetchedAt < adminCacheLifetimeMs;
+
 const AdminQuestions = ({ demoMode }: { demoMode: boolean }) => {
   const { toast } = useToast();
   const [questions, setQuestions] = useState<ManagedQuestion[]>([]);
@@ -2031,10 +2043,11 @@ const Admin = ({ demoMode }: { demoMode: boolean }) => {
   const [savingAnnouncement, setSavingAnnouncement] = useState<"draft" | "published" | null>(null);
   const [editingAnnouncementId, setEditingAnnouncementId] = useState<string | null>(null);
   const [adminAnnouncements, setAdminAnnouncements] = useState<LiveAnnouncement[]>([]);
-  const [loadingAdminAnnouncements, setLoadingAdminAnnouncements] = useState(!demoMode);
-  const [managedUsers, setManagedUsers] = useState<ManagedPortalUser[]>([]);
-  const [unmatchedLoginAttempts, setUnmatchedLoginAttempts] = useState<UnmatchedLoginAttempt[]>([]);
-  const [loadingUsers, setLoadingUsers] = useState(!demoMode);
+  const [adminAnnouncementsLoaded, setAdminAnnouncementsLoaded] = useState(demoMode);
+  const [loadingAdminAnnouncements, setLoadingAdminAnnouncements] = useState(false);
+  const [managedUsers, setManagedUsers] = useState<ManagedPortalUser[]>(() => adminUsersCache?.users || []);
+  const [unmatchedLoginAttempts, setUnmatchedLoginAttempts] = useState<UnmatchedLoginAttempt[]>(() => adminUsersCache?.unmatchedLoginAttempts || []);
+  const [loadingUsers, setLoadingUsers] = useState(false);
   const [userSearch, setUserSearch] = useState("");
   const [userSort, setUserSort] = useState<{ key: UserSortKey; direction: "asc" | "desc" }>({ key: "name", direction: "asc" });
   const [newUserName, setNewUserName] = useState("");
@@ -2051,15 +2064,15 @@ const Admin = ({ demoMode }: { demoMode: boolean }) => {
   const [editingAccessStatus, setEditingAccessStatus] = useState<ManagedPortalUser["accessStatus"]>("active");
   const [editingDiscussionRole, setEditingDiscussionRole] = useState<ManagedPortalUser["discussionRole"]>("community");
   const [deletingUserId, setDeletingUserId] = useState<string | null>(null);
-  const [activityData, setActivityData] = useState<AdminActivityData>(emptyAdminActivity);
-  const [loadingActivity, setLoadingActivity] = useState(!demoMode);
+  const [activityData, setActivityData] = useState<AdminActivityData>(() => adminActivityCache?.data || emptyAdminActivity);
+  const [loadingActivity, setLoadingActivity] = useState(false);
   const [emailAudience, setEmailAudience] = useState<EmailAudienceStatus | null>(null);
   const [loadingEmailAudience, setLoadingEmailAudience] = useState(!demoMode);
   const [syncingEmailAudience, setSyncingEmailAudience] = useState(false);
   const [sendingTestEmail, setSendingTestEmail] = useState(false);
   const [sendAnnouncementEmail, setSendAnnouncementEmail] = useState(false);
 
-  useEffect(() => {
+  const loadAdminUsers = async (force = false) => {
     if (demoMode) {
       setManagedUsers([
         {
@@ -2087,18 +2100,44 @@ const Admin = ({ demoMode }: { demoMode: boolean }) => {
           latestRequestedAt: "2026-08-25T14:43:00Z",
         },
       ]);
+      setLoadingUsers(false);
       return;
     }
-    fetch("/api/admin/users", { credentials: "include" })
-      .then(async (response) => {
-        if (!response.ok) throw new Error("Approved users could not be loaded.");
-        const body = await response.json();
-        setManagedUsers(body.users);
-        setUnmatchedLoginAttempts(body.unmatchedLoginAttempts || []);
-      })
-      .catch((error) => toast({ title: "Unable to load approved users", description: error instanceof Error ? error.message : undefined, variant: "destructive" }))
-      .finally(() => setLoadingUsers(false));
-  }, [demoMode, toast]);
+    if (!force && adminUsersCache && adminCacheIsFresh(adminUsersCache.fetchedAt)) {
+      setManagedUsers(adminUsersCache.users);
+      setUnmatchedLoginAttempts(adminUsersCache.unmatchedLoginAttempts);
+      setLoadingUsers(false);
+      return;
+    }
+    setLoadingUsers(true);
+    try {
+      const response = await fetch("/api/admin/users", { credentials: "include" });
+      if (!response.ok) throw new Error("Approved users could not be loaded.");
+      const body = await response.json();
+      const users = body.users || [];
+      const attempts = body.unmatchedLoginAttempts || [];
+      adminUsersCache = { users, unmatchedLoginAttempts: attempts, fetchedAt: Date.now() };
+      setManagedUsers(users);
+      setUnmatchedLoginAttempts(attempts);
+    } catch (error) {
+      toast({ title: "Unable to load approved users", description: error instanceof Error ? error.message : undefined, variant: "destructive" });
+    } finally {
+      setLoadingUsers(false);
+    }
+  };
+
+  useEffect(() => {
+    if (adminSection !== "users") return;
+    void loadAdminUsers();
+    // Admin data is loaded only for the visible tab and then retained for 15 minutes.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [adminSection, demoMode]);
+
+  useEffect(() => {
+    if (!demoMode && adminUsersCache && !loadingUsers) {
+      adminUsersCache = { users: managedUsers, unmatchedLoginAttempts, fetchedAt: adminUsersCache.fetchedAt };
+    }
+  }, [demoMode, loadingUsers, managedUsers, unmatchedLoginAttempts]);
 
   const loadEmailAudience = async () => {
     if (demoMode) {
@@ -2120,10 +2159,11 @@ const Admin = ({ demoMode }: { demoMode: boolean }) => {
   };
 
   useEffect(() => {
+    if (adminSection !== "announcements" || emailAudience) return;
     void loadEmailAudience();
     // The audience is refreshed explicitly after user changes and syncs.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [demoMode]);
+  }, [adminSection, demoMode, emailAudience]);
 
   const syncEmailAudience = async () => {
     if (demoMode) {
@@ -2219,10 +2259,11 @@ const Admin = ({ demoMode }: { demoMode: boolean }) => {
   };
 
   const beginEditingUser = (managedUser: ManagedPortalUser) => {
+    const secondaryEmail = managedUser.identities.find((identity) => !identity.primary)?.email || "";
     setEditingUserId(managedUser.id);
     setEditingInstitution(managedUser.institution || "");
     setEditingCountry(managedUser.country || "");
-    setEditingSecondaryEmail("");
+    setEditingSecondaryEmail(secondaryEmail);
     setEditingAccessStatus(managedUser.accessStatus);
     setEditingDiscussionRole(managedUser.discussionRole);
   };
@@ -2238,23 +2279,38 @@ const Admin = ({ demoMode }: { demoMode: boolean }) => {
 
   const saveUserDetails = async (managedUser: ManagedPortalUser) => {
     const secondaryEmail = editingSecondaryEmail.trim();
+    const existingSecondaryIdentity = managedUser.identities.find((identity) => !identity.primary);
+    const existingSecondaryEmail = existingSecondaryIdentity?.email || "";
+    const secondaryEmailChanged = secondaryEmail.toLowerCase() !== existingSecondaryEmail.toLowerCase();
     if (secondaryEmail && !secondaryEmail.includes("@")) {
       toast({ title: "Enter a valid secondary email", variant: "destructive" });
       return;
     }
-    const updateUser = (identity?: PortalIdentity) => setManagedUsers((current) => current.map((entry) => entry.id === managedUser.id ? {
+    if (existingSecondaryIdentity && !secondaryEmail) {
+      toast({ title: "Enter a secondary email to replace the current address", variant: "destructive" });
+      return;
+    }
+    const updateUser = (identity?: PortalIdentity, identityAction?: "added" | "replaced" | null) => setManagedUsers((current) => current.map((entry) => entry.id === managedUser.id ? {
       ...entry,
       institution: editingInstitution.trim() || null,
       country: editingCountry.trim() || null,
       accessStatus: managedUser.role === "admin" ? entry.accessStatus : editingAccessStatus,
       discussionRole: managedUser.role === "admin" ? entry.discussionRole : editingDiscussionRole,
-      identities: identity ? [...entry.identities, identity] : entry.identities,
+      identities: identity
+        ? identityAction === "replaced"
+          ? entry.identities.map((currentIdentity) => currentIdentity.id === identity.id ? identity : currentIdentity)
+          : [...entry.identities, identity]
+        : entry.identities,
     } : entry));
 
     if (demoMode) {
-      updateUser(secondaryEmail ? { id: `demo-admin-added-${Date.now()}`, provider: "admin_added", email: secondaryEmail.toLowerCase(), verified: false, primary: false } : undefined);
+      const identityAction = secondaryEmailChanged ? existingSecondaryIdentity ? "replaced" : "added" : null;
+      const changedIdentity = secondaryEmailChanged
+        ? { id: existingSecondaryIdentity?.id || `demo-admin-added-${Date.now()}`, provider: "admin_added", email: secondaryEmail.toLowerCase(), verified: false, primary: false }
+        : undefined;
+      updateUser(changedIdentity, identityAction);
       cancelEditingUser();
-      toast({ title: secondaryEmail ? "User details updated and welcome email sent" : "User details updated" });
+      toast({ title: changedIdentity ? "User details updated and welcome email sent" : "User details updated" });
       return;
     }
 
@@ -2269,7 +2325,7 @@ const Admin = ({ demoMode }: { demoMode: boolean }) => {
           country: editingCountry,
           ...(managedUser.role !== "admin" && editingAccessStatus !== managedUser.accessStatus ? { accessStatus: editingAccessStatus } : {}),
           ...(managedUser.role !== "admin" && editingDiscussionRole !== managedUser.discussionRole ? { discussionRole: editingDiscussionRole } : {}),
-          ...(secondaryEmail ? { secondaryEmail } : {}),
+          ...(secondaryEmailChanged ? { secondaryEmail } : {}),
         }),
       });
       const body = await response.json();
@@ -2292,7 +2348,11 @@ const Admin = ({ demoMode }: { demoMode: boolean }) => {
         accessStatus: body.accessStatus,
         discussionRole: body.discussionRole,
         discussionHandle: body.discussionHandle,
-        identities: body.identity ? [...entry.identities, body.identity] : entry.identities,
+        identities: body.identity
+          ? body.identityAction === "replaced"
+            ? entry.identities.map((identity) => identity.id === body.identity.id ? body.identity : identity)
+            : [...entry.identities, body.identity]
+          : entry.identities,
       } : entry));
       cancelEditingUser();
       const emailWasAdded = Boolean(body.identity);
@@ -2402,7 +2462,8 @@ const Admin = ({ demoMode }: { demoMode: boolean }) => {
   );
 
   useEffect(() => {
-    if (demoMode) return;
+    if (demoMode || adminSection !== "announcements" || adminAnnouncementsLoaded) return;
+    setLoadingAdminAnnouncements(true);
     fetch("/api/announcements?includeDrafts=1", { credentials: "include" })
       .then(async (response) => {
         if (!response.ok) throw new Error("Announcements could not be loaded.");
@@ -2410,19 +2471,39 @@ const Admin = ({ demoMode }: { demoMode: boolean }) => {
         setAdminAnnouncements(body.announcements);
       })
       .catch(() => toast({ title: "Unable to load announcement list", variant: "destructive" }))
-      .finally(() => setLoadingAdminAnnouncements(false));
-  }, [demoMode, toast]);
+      .finally(() => {
+        setLoadingAdminAnnouncements(false);
+        setAdminAnnouncementsLoaded(true);
+      });
+  }, [adminAnnouncementsLoaded, adminSection, demoMode, toast]);
+
+  const loadAdminActivity = async (force = false) => {
+    if (demoMode) return;
+    if (!force && adminActivityCache && adminCacheIsFresh(adminActivityCache.fetchedAt)) {
+      setActivityData(adminActivityCache.data);
+      setLoadingActivity(false);
+      return;
+    }
+    setLoadingActivity(true);
+    try {
+      const response = await fetch("/api/admin/activity", { credentials: "include" });
+      if (!response.ok) throw new Error("Activity data could not be loaded.");
+      const data = await response.json();
+      adminActivityCache = { data, fetchedAt: Date.now() };
+      setActivityData(data);
+    } catch (error) {
+      toast({ title: "Unable to load activity", description: error instanceof Error ? error.message : undefined, variant: "destructive" });
+    } finally {
+      setLoadingActivity(false);
+    }
+  };
 
   useEffect(() => {
-    if (demoMode) return;
-    fetch("/api/admin/activity", { credentials: "include" })
-      .then(async (response) => {
-        if (!response.ok) throw new Error("Activity data could not be loaded.");
-        setActivityData(await response.json());
-      })
-      .catch((error) => toast({ title: "Unable to load activity", description: error instanceof Error ? error.message : undefined, variant: "destructive" }))
-      .finally(() => setLoadingActivity(false));
-  }, [demoMode, toast]);
+    if (adminSection !== "activity") return;
+    void loadAdminActivity();
+    // Admin data is loaded only for the visible tab and then retained for 15 minutes.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [adminSection, demoMode]);
 
   const clearAnnouncementForm = () => {
     setAnnouncementTitle("");
@@ -2562,7 +2643,10 @@ const Admin = ({ demoMode }: { demoMode: boolean }) => {
       {adminSection === "users" && <section className="border border-border bg-white">
         <div className="flex flex-wrap items-center justify-between gap-4 border-b border-border px-6 py-5">
           <div><div className="font-mono text-xs uppercase tracking-widest text-primary">User management</div><h2 className="mt-2 text-xl font-light">Approved user directory</h2></div>
-          <div className="relative w-full sm:w-80"><Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" /><Input value={userSearch} onChange={(event) => setUserSearch(event.target.value)} placeholder="Search name, email, or institution" className="rounded-none pl-9" /></div>
+          <div className="flex w-full flex-wrap gap-2 sm:w-auto">
+            <Button type="button" variant="outline" disabled={loadingUsers} onClick={() => void loadAdminUsers(true)} className="rounded-none"><RefreshCw className={cn("h-4 w-4", loadingUsers && "animate-spin")} /> Refresh</Button>
+            <div className="relative min-w-60 flex-1 sm:w-80"><Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" /><Input value={userSearch} onChange={(event) => setUserSearch(event.target.value)} placeholder="Search name, email, or institution" className="rounded-none pl-9" /></div>
+          </div>
         </div>
         {!loadingUsers && filteredUsers.length > 0 && <div className="hidden border-b border-border bg-slate-50 px-6 py-3 xl:grid xl:grid-cols-[minmax(0,1.1fr)_minmax(0,1.4fr)_9rem_10rem_8rem] xl:items-center xl:gap-4">
           {sortHeader("name", "Name")}
@@ -2596,9 +2680,7 @@ const Admin = ({ demoMode }: { demoMode: boolean }) => {
                     <div className="mt-4 grid gap-4 lg:grid-cols-3">
                       <label className="block"><span className="text-xs font-medium text-slate-700">Institution</span><Input aria-label={`Institution for ${managedUser.name || primaryEmail}`} value={editingInstitution} onChange={(event) => setEditingInstitution(event.target.value)} placeholder="Institution" className="mt-2 rounded-none bg-white" /></label>
                       <label className="block"><span className="text-xs font-medium text-slate-700">Country</span><Input aria-label={`Country for ${managedUser.name || primaryEmail}`} value={editingCountry} onChange={(event) => setEditingCountry(event.target.value)} placeholder="Country" className="mt-2 rounded-none bg-white" /></label>
-                      <div><span className="text-xs font-medium text-slate-700">Secondary email</span>{additionalEmail
-                        ? <div className="mt-2 border border-border bg-white px-3 py-2 text-sm text-slate-600">{additionalEmail.email}<div className="mt-1 text-xs text-muted-foreground">This account already has a secondary email.</div></div>
-                        : <><Input type="email" aria-label={`Secondary email for ${managedUser.name || primaryEmail}`} value={editingSecondaryEmail} onChange={(event) => setEditingSecondaryEmail(event.target.value)} placeholder="Secondary email (optional)" className="mt-2 rounded-none bg-white" /><p className="mt-2 text-xs leading-relaxed text-muted-foreground">A welcome message will be sent to the new address. It remains pending until the user signs in with it and verifies a code.</p></>}</div>
+                      <label className="block"><span className="text-xs font-medium text-slate-700">Secondary email</span><Input type="email" aria-label={`Secondary email for ${managedUser.name || primaryEmail}`} value={editingSecondaryEmail} onChange={(event) => setEditingSecondaryEmail(event.target.value)} placeholder="Secondary email (optional)" className="mt-2 rounded-none bg-white" /><p className="mt-2 text-xs leading-relaxed text-muted-foreground">{additionalEmail ? "Edit this address to replace the current secondary sign-in email. Verification resets, active sessions for that address end, and a new welcome message is sent." : "A welcome message will be sent to the new address. It remains pending until the user signs in with it and verifies a code."}</p></label>
                     </div>
                     <div className="mt-5 grid gap-4 sm:grid-cols-2">
                       <label className="block"><span className="text-xs font-medium text-slate-700">Account access</span><select aria-label={`Account access for ${managedUser.name || primaryEmail}`} value={editingAccessStatus} onChange={(event) => setEditingAccessStatus(event.target.value as ManagedPortalUser["accessStatus"])} disabled={managedUser.role === "admin"} className="mt-2 h-10 w-full rounded-none border border-input bg-white px-3 text-sm disabled:cursor-not-allowed disabled:bg-slate-100"><option value="active">Active</option><option value="suspended">Suspended</option></select><p className="mt-2 text-xs text-muted-foreground">Suspended users cannot sign in or download files.</p></label>
@@ -2622,6 +2704,10 @@ const Admin = ({ demoMode }: { demoMode: boolean }) => {
         <div className="flex items-center justify-center gap-3 border border-border bg-white p-12 text-sm text-muted-foreground"><Loader2 className="h-5 w-5 animate-spin text-primary" /> Loading activity…</div>
       ) : (
         <>
+          <div className="flex flex-col gap-3 border border-border bg-slate-50 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
+            <p className="text-xs text-muted-foreground">Activity is cached for 15 minutes. Refresh only when you need current totals.</p>
+            <Button type="button" variant="outline" onClick={() => void loadAdminActivity(true)} className="rounded-none bg-white"><RefreshCw className="h-4 w-4" /> Refresh activity</Button>
+          </div>
           <section className="border border-border bg-white">
             <div className="flex flex-col gap-3 border-b border-border px-6 py-5 sm:flex-row sm:items-end sm:justify-between">
               <div><div className="font-mono text-xs uppercase tracking-widest text-primary">Vendor evaluation</div><h2 className="mt-2 text-xl font-light">API sandbox usage</h2></div>

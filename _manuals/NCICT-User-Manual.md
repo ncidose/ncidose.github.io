@@ -1,7 +1,10 @@
 # NCICT 4
+
 _**NCI Dosimetry System for Computed Tomography**_
 
-Current documented release: **4.20260502**
+Current documented release: **September 9, 2026**
+Current release type: **Scientific Corrections and Maintenance Update**
+Latest scientific update: **September 9, 2026**
 
 ![NCICT 4 main window showing phantom selection, scan coverage, scanner inputs, and organ dose output](images/ncict4-main-window.png)
 
@@ -17,13 +20,16 @@ NCICT is based on precalculated organ dose conversion coefficients derived from 
 
 ## Calculation Workflow
 
-| Step | Description |
-|---|---|
-| 1 | Define patient characteristics |
-| 2 | Enter scanner parameters |
-| 3 | Define scan coverage |
-| 4 | Review organ and effective dose output |
-| 5 | Optionally run multiple cases through Batch Calculation Mode |
+| Step | Description                                                  |
+| ---- | ------------------------------------------------------------ |
+| 1    | Define patient characteristics                               |
+| 2    | Enter scanner parameters                                     |
+| 3    | Define scan coverage                                         |
+| 4    | Review organ and effective dose output                       |
+| 5    | Optionally run multiple cases through Batch Calculation Mode |
+
+Numeric fields accept either dot or comma decimal notation regardless of the
+operating-system regional setting.
 
 ---
 
@@ -38,6 +44,7 @@ NCICT includes three phantom libraries to support matching of patient anatomy an
 ### 1.1 Age-based selection: ICRP reference phantoms
 
 When detailed body size information is unavailable, users may select one of the **ICRP-defined reference age and sex groups**:
+
 - Newborn male or female
 - 1, 5, 10, or 15 years (male or female)
 - Adult male or female (assumed ≥20 years)
@@ -46,16 +53,16 @@ When ICRP phantoms are selected, reference height and weight are automatically a
 
 The ICRP reference height and weight pairs used by NCICT are:
 
-|Reference phantom|Height (cm)|Weight (kg)|
-|-----------------|-----------|-----------|
-|Newborn female or male|47|4|
-|1-year female or male|76|10|
-|5-year female or male|110|19|
-|10-year female or male|140|32|
-|15-year female|161|53|
-|15-year male|166|56|
-|Adult female|168|60|
-|Adult male|178|73|
+| Reference phantom      | Height (cm) | Weight (kg) |
+| ---------------------- | ----------- | ----------- |
+| Newborn female or male | 47          | 4           |
+| 1-year female or male  | 76          | 10          |
+| 5-year female or male  | 110         | 19          |
+| 10-year female or male | 140         | 32          |
+| 15-year female         | 161         | 53          |
+| 15-year male           | 166         | 56          |
+| Adult female           | 168         | 60          |
+| Adult male             | 178         | 73          |
 
 If a patient's age falls between reference groups, users may perform external dose interpolation or select the nearest reference age group.
 
@@ -73,15 +80,15 @@ Alternatively, users can click the **"Phantom Height Weight Map"** button to acc
 
 ### 1.3 Fetus models
 
-When fetal organ doses are of interest, users can select the **"Fetus"** tab and specify fetal age (8–38 weeks). Fetal anatomy is shown in color, while maternal anatomy is grayed out in the phantom display. Because fetal age may not directly correspond to maternal abdominal diameter, the maximum **maternal abdominal diameter (cm)**, which is commonly measured during prenatal visits, is also displayed to help select the most appropriate pregnancy phantom.
+When fetal organ doses are of interest, users can select the **"Fetus"** tab and specify fetal age (8–38 weeks). Fetal anatomy is shown in color, while maternal anatomy is grayed out in the phantom display. Because fetal age may not directly correspond to maternal abdominal diameter, the maximum **maternal abdominal diameter (cm)**, which is commonly measured during prenatal visits, is also displayed to help select the most appropriate pregnancy phantom. On this tab, the first column of the organ-dose output table is labeled **Fetal Organ**.
 
-![Fetus phantom selection](images/ncict4/ncict4-fetus.png)
+![Fetus phantom selection and Fetal Organ dose output](images/ncict4/ncict4-fetus.png)
 
 ### 1.4 Pregnant women phantoms
 
-When maternal organ doses are of interest, fetal age (or maternal abdominal diameter) can be selected under the **"Mother"** tab. Maternal anatomy is shown in color, while fetal anatomy is grayed out in the phantom display.
+When maternal organ doses are of interest, fetal age (or maternal abdominal diameter) can be selected under the **"Mother"** tab. Maternal anatomy is shown in color, while fetal anatomy is grayed out in the phantom display. On this tab, the first column of the organ-dose output table is labeled **Maternal Organ**.
 
-![Mother phantom selection](images/ncict4/ncict4-mother.png)
+![Mother phantom selection and Maternal Organ dose output](images/ncict4/ncict4-mother.png)
 
 ---
 
@@ -115,6 +122,7 @@ Users may directly enter CTDIvol and select the CTDI phantom type (head CTDI pha
 ## 3. Scan Coverage Definition
 
 Scan coverage can be defined:
+
 - interactively (mouse drag)
 - numerically (Scan Start cm / Scan End cm)
 - using the up/down arrow keys in the text fields
@@ -135,22 +143,22 @@ Detailed cardiac substructure doses are available when size-dependent phantoms a
 
 ### Cardiac Substructure Acronyms
 
-|Acronym|Cardiac Substructure|
-|-------|--------------------|
-|Heart wall|Heart wall|
-|H LA|Left Atrium|
-|H RA|Right Atrium|
-|H LV|Left Ventricle|
-|H RV|Right Ventricle|
-|H LVM|Left Ventricular Myocardium|
-|H LMCA|Left Main Coronary Artery|
-|H LADA|Left Anterior Descending Artery|
-|H LCA|Left Circumflex Artery|
-|H RCA|Right Coronary Artery|
-|H AV|Aortic Valve|
-|H MV|Mitral Valve|
-|H PV|Pulmonary Valve|
-|H TV|Tricuspid Valve|
+| Acronym    | Cardiac Substructure            |
+| ---------- | ------------------------------- |
+| Heart wall | Heart wall                      |
+| H LA       | Left Atrium                     |
+| H RA       | Right Atrium                    |
+| H LV       | Left Ventricle                  |
+| H RV       | Right Ventricle                 |
+| H LVM      | Left Ventricular Myocardium     |
+| H LMCA     | Left Main Coronary Artery       |
+| H LADA     | Left Anterior Descending Artery |
+| H LCA      | Left Circumflex Artery          |
+| H RCA      | Right Coronary Artery           |
+| H AV       | Aortic Valve                    |
+| H MV       | Mitral Valve                    |
+| H PV       | Pulmonary Valve                 |
+| H TV       | Tricuspid Valve                 |
 
 ---
 
@@ -160,6 +168,12 @@ Input parameters can be provided in CSV format. A template file (**ncictBatchInp
 
 The Batch CSV uses the same calculation parameters as the NCICT API. The API uses JSON format, while GUI Batch uses CSV format, but the parameter names and definitions are the same.
 
+Batch input accepts comma- or semicolon-delimited CSV files. Semicolon-delimited
+CSV is recommended when decimal commas are used. In a comma-delimited file, a
+value containing a decimal comma must be enclosed in double quotes. Saved Batch
+CSV output always uses comma delimiters and dot decimals for consistent reuse
+across regional settings.
+
 Recommended Batch CSV column order:
 
 ```text
@@ -168,20 +182,20 @@ age, sex, height, weight, wed, start, end, kvp, tcm_strength, head_body, ctdivol
 
 The Batch parser reads column headers, so columns may be reordered as long as the required headers are present. Required headers are `age`, `start`, `end`, `kvp`, `tcm_strength`, `head_body`, and `ctdivol`. Additional empty columns may be placed after **custom_ma** to enter slice-specific custom mA values across Excel cells.
 
-|Parameters|Note|
-|----------|----|
-|`age`|Patient age in years for patient dose; gestational age such as `8wk`, `30wk`, or `38wk` for fetus or mother dose|
-|`sex`|`f` or `m` for patient dose; leave blank for fetus or mother dose|
-|`height`|Patient height in cm; optional|
-|`weight`|Patient weight in kg; optional|
-|`wed`|Water equivalent diameter in cm; optional|
-|`start`|Scan start location from the top of the head in cm, or an anatomical landmark ID|
-|`end`|Scan end location from the top of the head in cm, or an anatomical landmark ID|
-|`kvp`|Tube potential in kVp; must be greater than `0`|
-|`tcm_strength`|TCM strength from `0` to `1`; use `-1` for custom mA values|
-|`head_body`|`1`=16 cm CTDI phantom, `2`=32 cm CTDI phantom|
-|`ctdivol`|CTDIvol in mGy; must be greater than or equal to `0`|
-|`custom_ma`|Required when `tcm_strength = -1`; enter the first custom mA value here; all custom mA values must be greater than `0`|
+| Parameters       | Note                                                                                                                      |
+| ---------------- | ------------------------------------------------------------------------------------------------------------------------- |
+| `age`          | Patient age in years for patient dose; gestational age such as`8wk`, `30wk`, or `38wk` for fetus or mother dose     |
+| `sex`          | `f` or `m` for patient dose; leave blank for fetus or mother dose                                                     |
+| `height`       | Patient height in cm; optional                                                                                            |
+| `weight`       | Patient weight in kg; optional                                                                                            |
+| `wed`          | Water equivalent diameter in cm; optional                                                                                 |
+| `start`        | Scan start location from the top of the head in cm, or an anatomical landmark ID                                          |
+| `end`          | Scan end location from the top of the head in cm, or an anatomical landmark ID                                            |
+| `kvp`          | Tube potential in kVp; must be greater than`0`                                                                          |
+| `tcm_strength` | TCM strength from`0` to `1`; use `-1` for custom mA values                                                          |
+| `head_body`    | `1`=16 cm CTDI phantom, `2`=32 cm CTDI phantom                                                                        |
+| `ctdivol`      | CTDIvol in mGy; must be greater than or equal to`0`                                                                     |
+| `custom_ma`    | Required when`tcm_strength = -1`; enter the first custom mA value here; all custom mA values must be greater than `0` |
 
 If a `patientID` column is included, NCICT uses it in the output. If `patientID` is omitted, rows are numbered automatically.
 
@@ -212,15 +226,15 @@ For WED-based matching, NCICT uses the scan range to determine the anatomical re
 
 For patients 5 years of age or older, NCICT estimates a target body weight from WED using region-, age-, and sex-specific regression equations. A fixed target height is assigned from the age/sex group. For patients younger than 5 years, NCICT uses fixed reference size targets for the newborn and 1-year phantom groups:
 
-|Group|Target height|
-|-----|-------------|
-|age < 1 year|47 cm|
-|1 <= age < 5 years|76 cm|
-|5 <= age < 10 years|115 cm|
-|10 <= age < 15 years|145 cm|
-|15 <= pediatric age < 20 years|165 cm|
-|adult female|165 cm|
-|adult male|175 cm|
+| Group                          | Target height |
+| ------------------------------ | ------------- |
+| age < 1 year                   | 47 cm         |
+| 1 <= age < 5 years             | 76 cm         |
+| 5 <= age < 10 years            | 115 cm        |
+| 10 <= age < 15 years           | 145 cm        |
+| 15 <= pediatric age < 20 years | 165 cm        |
+| adult female                   | 165 cm        |
+| adult male                     | 175 cm        |
 
 For the fixed pediatric groups, the target weights are 4 kg for age < 1 year and 10 kg for 1 <= age < 5 years. The estimated or fixed target weight is limited to the available body size range, and NCICT selects the closest available size-dependent phantom within the same phantom group. The closest phantom is determined by minimizing:
 
@@ -236,26 +250,30 @@ Scan start and end locations can be specified either as distances from the top o
 
 Common protocol ranges can be entered using the following landmark ID pairs:
 
-|Protocol|Start landmark ID|End landmark ID|
-|--------|-----------------|---------------|
-|Head|1001|1003|
-|Neck|1002|1005|
-|Chest|1004|1007|
-|Abdomen|1006|1008|
-|Pelvis|1008|1009|
-|Abdomen-pelvis|1006|1009|
-|Chest-abdomen-pelvis|1004|1009|
-|Whole body|1001|1010|
+| Protocol             | Start landmark ID | End landmark ID |
+| -------------------- | ----------------- | --------------- |
+| Head                 | 1001              | 1003            |
+| Neck                 | 1002              | 1005            |
+| Chest                | 1004              | 1007            |
+| Abdomen              | 1006              | 1008            |
+| Pelvis               | 1008              | 1009            |
+| Abdomen-pelvis       | 1006              | 1009            |
+| Chest-abdomen-pelvis | 1004              | 1009            |
+| Whole body           | 1001              | 1010            |
 
 After landmark conversion, the scan range must satisfy `0 <= start < end <= 190`.
 
 When editing the Batch CSV in Excel, custom mA values can be entered across multiple cells starting at the **custom_ma** column:
 
-|age|sex|height|weight|wed|start|end|kvp|tcm_strength|head_body|ctdivol|custom_ma|||||||
-|---|---|------|------|---|-----|---|---|------------|---------|-------|---------|---|---|---|---|---|---|
-|10|f|||25|0|20|120|-1|1|20|100|200|300|400|500|600|700|
+| age | sex | height | weight | wed | start | end | kvp | tcm_strength | head_body | ctdivol | custom_ma |     |     |     |     |     |     |
+| --- | --- | ------ | ------ | --- | ----- | --- | --- | ------------ | --------- | ------- | --------- | --- | --- | --- | --- | --- | --- |
+| 10  | f   |        |        | 25  | 0     | 20  | 120 | -1           | 1         | 20      | 100       | 200 | 300 | 400 | 500 | 600 | 700 |
 
-Do not add commas, brackets, or quotation marks when entering custom mA values across Excel cells. NCICT reads the **custom_ma** cell and all numeric cells to its right as a single custom mA profile. Leave these cells blank when `tcm_strength` is not `-1`.
+Enter each custom mA value in its own Excel cell rather than as an array with
+brackets. NCICT reads the **custom_ma** cell and all numeric cells to its right
+as a single custom mA profile. For decimal-comma values, use a
+semicolon-delimited file or quote each value in a comma-delimited file. Leave
+these cells blank when `tcm_strength` is not `-1`.
 
 Example Batch CSV rows:
 
@@ -268,6 +286,7 @@ age,sex,height,weight,wed,start,end,kvp,tcm_strength,head_body,ctdivol,custom_ma
 ```
 
 Output CSV includes:
+
 > - Patient ID
 > - Dose Target
 > - Age, sex, height, weight, WED, and scan start/end

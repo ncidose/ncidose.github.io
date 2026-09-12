@@ -1,10 +1,10 @@
-import ncictMarkdown from "@/content/manuals/NCICT-User-Manual.md?raw";
-import ncinmMarkdown from "@/content/manuals/NCINM-User-Manual.md?raw";
-import ncirfMarkdown from "@/content/manuals/NCIRF-User-Manual.md?raw";
-import phantomMarkdown from "@/content/manuals/PHANTOM-User-Manual.md?raw";
-import ncictApiMarkdown from "@/content/manuals/NCICTAPI-User-Manual.md?raw";
-import ncinmApiMarkdown from "@/content/manuals/NCINMAPI-User-Manual.md?raw";
-import ncirfApiMarkdown from "@/content/manuals/NCIRFAPI-User-Manual.md?raw";
+import ncictMarkdown from "../../_manuals/NCICT-User-Manual.md?raw";
+import ncinmMarkdown from "../../_manuals/NCINM-User-Manual.md?raw";
+import ncirfMarkdown from "../../_manuals/NCIRF-User-Manual.md?raw";
+import phantomMarkdown from "../../_manuals/PHANTOM-User-Manual.md?raw";
+import ncictApiMarkdown from "../../_manuals/NCICTAPI-User-Manual.md?raw";
+import ncinmApiMarkdown from "../../_manuals/NCINMAPI-User-Manual.md?raw";
+import ncirfApiMarkdown from "../../_manuals/NCIRFAPI-User-Manual.md?raw";
 
 export type ManualCategory = "software" | "api";
 

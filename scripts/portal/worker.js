@@ -64,6 +64,30 @@ export const adminRecentActivityQuery = `
   ORDER BY events.occurred_at DESC
   LIMIT 100
 `;
+export const adminUsersQuery = `
+  WITH login_activity AS (
+    SELECT user_id, MAX(occurred_at) AS last_login_at
+    FROM access_events
+    WHERE event_type='login'
+    GROUP BY user_id
+    UNION ALL
+    SELECT user_id, MAX(created_at) AS last_login_at
+    FROM portal_sessions
+    GROUP BY user_id
+  ), last_logins AS (
+    SELECT user_id, MAX(last_login_at) AS last_login_at
+    FROM login_activity
+    GROUP BY user_id
+  )
+  SELECT users.id, users.display_name, users.institution, users.country, users.role,
+    users.discussion_role, users.discussion_handle, users.sta_status,
+    users.access_status, users.approval_source, users.approved_at, users.group_joined_at, users.created_at,
+    last_logins.last_login_at
+  FROM users
+  LEFT JOIN last_logins ON last_logins.user_id=users.id
+  ORDER BY COALESCE(users.display_name, '') COLLATE NOCASE, users.created_at DESC
+  LIMIT 1000
+`;
 export const vendorDemoPresetForInput = (input = {}) =>
   typeof input.presetId === "string" ? vendorDemoPresets[input.presetId] || null : null;
 const vendorDemoProtocolRanges = Object.freeze({
@@ -1530,20 +1554,7 @@ export default {
       if (request.method === "GET" && url.pathname === "/api/admin/users") {
         if (user.role !== "admin") return json({ error: "administrator_required" }, 403, cors);
         const [usersResult, identitiesResult, unmatchedLoginResult] = await Promise.all([
-          env.DB.prepare(`
-            SELECT users.id, users.display_name, users.institution, users.country, users.role,
-              users.discussion_role, users.discussion_handle, users.sta_status,
-              users.access_status, users.approval_source, users.approved_at, users.group_joined_at, users.created_at,
-              NULLIF(MAX(
-                COALESCE((SELECT MAX(events.occurred_at) FROM access_events events
-                  WHERE events.user_id=users.id AND events.event_type='login'), ''),
-                COALESCE((SELECT MAX(sessions.created_at) FROM portal_sessions sessions
-                  WHERE sessions.user_id=users.id), '')
-              ), '') AS last_login_at
-            FROM users
-            ORDER BY COALESCE(users.display_name, '') COLLATE NOCASE, users.created_at DESC
-            LIMIT 1000
-          `).all(),
+          env.DB.prepare(adminUsersQuery).all(),
           env.DB.prepare(`
             SELECT identities.id, identities.user_id, identities.provider, identities.normalized_email,
               identities.email_verified, identities.is_primary, identities.created_at
@@ -1855,11 +1866,30 @@ export default {
         `).bind(adminUserMatch[1]).first();
         if (!existing) return json({ error: "user_not_found" }, 404, cors);
 
+        let existingSecondaryIdentity = null;
+        let secondaryEmailChanged = false;
         if (details.hasSecondaryEmail) {
-          const linkedIdentity = await env.DB.prepare("SELECT id, user_id FROM user_identities WHERE normalized_email=?").bind(details.secondaryEmail).first();
-          if (linkedIdentity) return json({ error: linkedIdentity.user_id === existing.id ? "email_already_linked" : "email_in_use" }, 409, cors);
-          const identityCount = await env.DB.prepare("SELECT COUNT(*) AS total FROM user_identities WHERE user_id=?").bind(existing.id).first();
-          if (Number(identityCount.total) >= 2) return json({ error: "additional_email_limit" }, 409, cors);
+          const [linkedIdentity, secondaryIdentity, identityCount] = await Promise.all([
+            env.DB.prepare("SELECT id, user_id, is_primary FROM user_identities WHERE normalized_email=?").bind(details.secondaryEmail).first(),
+            env.DB.prepare(`
+              SELECT id, provider, normalized_email, email_verified, is_primary
+              FROM user_identities
+              WHERE user_id=? AND is_primary=0
+              ORDER BY created_at ASC
+              LIMIT 1
+            `).bind(existing.id).first(),
+            env.DB.prepare("SELECT COUNT(*) AS total FROM user_identities WHERE user_id=?").bind(existing.id).first(),
+          ]);
+          existingSecondaryIdentity = secondaryIdentity || null;
+          if (linkedIdentity) {
+            if (linkedIdentity.user_id !== existing.id) return json({ error: "email_in_use" }, 409, cors);
+            if (!existingSecondaryIdentity || linkedIdentity.id !== existingSecondaryIdentity.id) {
+              return json({ error: "email_already_linked" }, 409, cors);
+            }
+          } else {
+            secondaryEmailChanged = true;
+            if (!existingSecondaryIdentity && Number(identityCount.total) >= 2) return json({ error: "additional_email_limit" }, 409, cors);
+          }
         }
 
         const statements = [];
@@ -1872,17 +1902,34 @@ export default {
             crypto.randomUUID(), existing.id, JSON.stringify({ institution: nextInstitution, country: nextCountry, changedBy: user.id }),
           ));
         }
-        let newIdentity = null;
-        if (details.hasSecondaryEmail) {
-          const identityId = crypto.randomUUID();
-          newIdentity = { id: identityId, provider: "admin_added", email: details.secondaryEmail, verified: false, primary: false };
-          statements.push(env.DB.prepare(`
-            INSERT INTO user_identities (id, user_id, provider, normalized_email, email_verified, is_primary)
-            VALUES (?, ?, 'admin_added', ?, 0, 0)
-          `).bind(identityId, existing.id, details.secondaryEmail));
-          statements.push(env.DB.prepare("INSERT INTO access_events (id, user_id, event_type, metadata_json) VALUES (?, ?, 'email_added', ?)").bind(
-            crypto.randomUUID(), existing.id, JSON.stringify({ email: details.secondaryEmail, addedBy: user.id, source: "admin" }),
-          ));
+        let changedIdentity = null;
+        let identityAction = null;
+        if (details.hasSecondaryEmail && secondaryEmailChanged) {
+          if (existingSecondaryIdentity) {
+            changedIdentity = { id: existingSecondaryIdentity.id, provider: "admin_added", email: details.secondaryEmail, verified: false, primary: false };
+            identityAction = "replaced";
+            statements.push(env.DB.prepare("UPDATE login_challenges SET consumed_at=CURRENT_TIMESTAMP WHERE identity_id=? AND consumed_at IS NULL").bind(existingSecondaryIdentity.id));
+            statements.push(env.DB.prepare("UPDATE portal_sessions SET revoked_at=CURRENT_TIMESTAMP WHERE identity_id=? AND revoked_at IS NULL").bind(existingSecondaryIdentity.id));
+            statements.push(env.DB.prepare(`
+              UPDATE user_identities
+              SET provider='admin_added', provider_subject=NULL, normalized_email=?, email_verified=0, updated_at=CURRENT_TIMESTAMP
+              WHERE id=? AND user_id=? AND is_primary=0
+            `).bind(details.secondaryEmail, existingSecondaryIdentity.id, existing.id));
+            statements.push(env.DB.prepare("INSERT INTO access_events (id, user_id, event_type, metadata_json) VALUES (?, ?, 'email_replaced', ?)").bind(
+              crypto.randomUUID(), existing.id, JSON.stringify({ previousEmail: existingSecondaryIdentity.normalized_email, email: details.secondaryEmail, changedBy: user.id, source: "admin" }),
+            ));
+          } else {
+            const identityId = crypto.randomUUID();
+            changedIdentity = { id: identityId, provider: "admin_added", email: details.secondaryEmail, verified: false, primary: false };
+            identityAction = "added";
+            statements.push(env.DB.prepare(`
+              INSERT INTO user_identities (id, user_id, provider, normalized_email, email_verified, is_primary)
+              VALUES (?, ?, 'admin_added', ?, 0, 0)
+            `).bind(identityId, existing.id, details.secondaryEmail));
+            statements.push(env.DB.prepare("INSERT INTO access_events (id, user_id, event_type, metadata_json) VALUES (?, ?, 'email_added', ?)").bind(
+              crypto.randomUUID(), existing.id, JSON.stringify({ email: details.secondaryEmail, addedBy: user.id, source: "admin" }),
+            ));
+          }
         }
         let nextHandle = existing.discussion_handle || null;
         if (nextDiscussionRole) {
@@ -1910,7 +1957,7 @@ export default {
           ));
         }
         try {
-          await env.DB.batch(statements);
+          if (statements.length > 0) await env.DB.batch(statements);
         } catch (error) {
           if (details.hasSecondaryEmail && String(error?.message || error).toLowerCase().includes("unique constraint")) {
             return json({ error: "email_in_use" }, 409, cors);
@@ -1919,24 +1966,24 @@ export default {
         }
 
         let welcomeEmail = null;
-        if (newIdentity) {
-          welcomeEmail = { status: "not_configured", sentTo: newIdentity.email };
+        if (changedIdentity) {
+          welcomeEmail = { status: "not_configured", sentTo: changedIdentity.email };
           if (env.RESEND_API_KEY && env.RESEND_FROM) {
             try {
               welcomeEmail = await sendPortalAccountEmail(env, {
-                to: newIdentity.email,
+                to: changedIdentity.email,
                 subject: "Welcome to the NCI Dose Tools User Portal",
-                html: linkedEmailWelcomeHtml(existing.display_name, newIdentity.email),
-                text: linkedEmailWelcomeText(existing.display_name, newIdentity.email),
+                html: linkedEmailWelcomeHtml(existing.display_name, changedIdentity.email),
+                text: linkedEmailWelcomeText(existing.display_name, changedIdentity.email),
               });
             } catch (error) {
-              welcomeEmail = { status: "failed", sentTo: newIdentity.email, error: String(error?.message || error) };
+              welcomeEmail = { status: "failed", sentTo: changedIdentity.email, error: String(error?.message || error) };
             }
           }
           context.waitUntil(env.DB.prepare("INSERT INTO access_events (id, user_id, event_type, metadata_json) VALUES (?, ?, ?, ?)").bind(
             crypto.randomUUID(), existing.id,
             welcomeEmail.status === "sent" ? "welcome_email_sent" : "welcome_email_failed",
-            JSON.stringify({ email: newIdentity.email, status: welcomeEmail.status, reason: "admin_added_secondary_email" }),
+            JSON.stringify({ email: changedIdentity.email, status: welcomeEmail.status, reason: identityAction === "replaced" ? "admin_replaced_secondary_email" : "admin_added_secondary_email" }),
           ).run());
         }
         if (accessStatus && existing.primary_email && env.RESEND_API_KEY && env.RESEND_SEGMENT_ID) {
@@ -1952,7 +1999,8 @@ export default {
           discussionHandle: nextHandle,
           institution: nextInstitution,
           country: nextCountry,
-          identity: newIdentity,
+          identity: changedIdentity,
+          identityAction,
           welcomeEmail,
         }, 200, cors);
       }

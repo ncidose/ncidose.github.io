@@ -1,14 +1,25 @@
 # NCICT Version History
 
-_Public release and maintenance record for the National Cancer Institute dosimetry system for Computed Tomography._
+_Scientific and maintenance update record for the National Cancer Institute dosimetry system for Computed Tomography._
 
-Latest update: **May 2, 2026**
-Latest official release: **4.20260415**
+Latest release: **September 9, 2026**
+Latest scientific update: **September 9, 2026**
 Record begins: **2011**
 
 ## 2026
 
-### May 2, 2026
+### September 9, 2026 — Scientific Corrections and Maintenance Update
+
+- Corrected a TCM organ-dose error in which strengths from 0.1 to 0.9 applied only the scan-average CTDIvol uniformly across the scan range, followed by an abrupt change to a slice-specific profile at 1.0. The GUI, Batch Manager, and API now apply a continuously modulated CTDIvol profile normalized to the scan-average CTDIvol.
+- Corrected an off-by-one scan-range error that included the scan-start boundary as an extra slice when averaging CTDIvol.
+- Corrected custom mA mapping in Batch Manager and the API so the complete profile, including its final value, is mapped and normalized over the actual scan slices.
+- Corrected two adult phantom identifiers that could prevent exact matching with the dose, TCM, and image libraries.
+- Fixed a startup error caused by a trailing blank line in the water-equivalent-diameter reference data.
+- Improved decimal-format and Batch CSV compatibility across locales, including custom mA profiles and flexible column order.
+- Improved scan-range editing and clarified fetal and maternal dose results.
+- Added signed and notarized macOS distribution support and updated documentation links.
+
+### May 2, 2026 — Scientific Update
 
 #### GUI and batch processing
 
@@ -32,11 +43,11 @@ Record begins: **2011**
 - Added scan range validation after landmark conversion.
 - Improved API error responses for invalid input.
 
-### April 24, 2026
+### April 24, 2026 — Scientific Update
 
 - Corrected displayed DLP values that did not match CTDIvol multiplied by scan length.
 
-### April 15, 2026 — Official Release 4.20260415
+### April 15, 2026 — Scientific Update
 
 #### Phantom library
 
@@ -67,40 +78,40 @@ Record begins: **2011**
 
 ## 2024
 
-### December 16, 2024
+### December 16, 2024 — Maintenance Update
 
 - Fixed an issue where the Batch Run menu did not function correctly.
 
-### December 15, 2024 — Official Release 3.0.20241215
+### December 15, 2024 — Maintenance Update
 
 - Added in-application links to the user manual and technical support forum (now NCI Dose Tools Discussions).
 
-### June 26, 2024
+### June 26, 2024 — Scientific Update
 
 - Corrected an x-ray spectrum index mismatch between 100 and 120 kVp.
 
-### February 29, 2024
+### February 29, 2024 — Scientific Update
 
 - Corrected TCM profile selection for body phantoms.
 
-### January 25, 2024
+### January 25, 2024 — Scientific Update
 
 - Corrected effective diameter and SSDE updates when the scan range changes.
 
-### January 24, 2024 — Official Release 3.0.20240124
+### January 24, 2024 — Scientific Update
 
 - Added head CTDI phantom-based TCM profiles to better simulate pediatric CT examinations.
 - Removed muscle layers from frontal and rear phantom views to improve visualization of internal anatomy.
 
 ## 2023
 
-### April 28, 2023
+### April 28, 2023 — Maintenance Update
 
 - Revised frontal and rear views of ICRP phantoms.
 
 ## 2022
 
-### December 14, 2022 — Official Release 3.0.20221123
+### December 14, 2022 — Scientific Update
 
 ### November 23, 2022
 
@@ -108,61 +119,61 @@ Record begins: **2011**
 
 ## 2021
 
-### November 23, 2021
+### November 23, 2021 — Maintenance Update
 
 - Fixed a crash caused by blank lines in batch input files, often introduced during CSV editing in Excel.
 
-### November 20, 2021
+### November 20, 2021 — Scientific Update
 
 - Displayed the tube current profile per image slice alongside phantom visualization.
 - Displayed “Average CTDIvol” when TCM strength is greater than 0.
 - Displayed “Custom CTDIvol” when CTDIvol is entered manually.
 - Fixed multiple TCM-related issues in the batch module.
 
-### October 27, 2021
+### October 27, 2021 — Maintenance Update
 
 - Made height and weight fields read-only for body size-dependent phantoms; body size is adjusted using arrow controls.
 - Enabled batch input for pregnant women phantoms and fetal phantoms.
 - Added User Manual and User Forum menu items under the **Help** menu (the forum is now NCI Dose Tools Discussions).
 
-### October 21, 2021
+### October 21, 2021 — Scientific Update
 
 - Derived tube current (mA) from custom CTDIvol values and enabled TCM for the derived mA profile.
 
-### September 15, 2021
+### September 15, 2021 — Scientific Update
 
 - Fixed an issue where the program stopped when the batch input file was missing.
 - Separated mA and rotation time from mAs to support proper TCM adjustment.
 - Added an mA limit to prevent unrealistically high mA values for obese patients in TCM mode.
 - Disabled TCM when custom CTDIvol is entered.
 
-### May 20, 2021
+### May 20, 2021 — Scientific Update
 
 - Added automatic selection of the best-matching phantom based on patient height and weight in batch mode.
 
-### May 13, 2021 — Official Release 3.0.20210513
+### May 13, 2021 — Scientific Update
 
 - Added batch calculation functionality using `ncict_batch_input.csv`.
 - Implemented tube current modulation using generic modulation profiles.
 
-### March 7, 2021
+### March 7, 2021 — Scientific Update
 
 - Added effective diameter calculation for pregnant women phantoms.
 
 ## 2020
 
-### March 12, 2020 — Official Release 3.0.20200312
+### March 12, 2020 — Maintenance Update
 
 - Improved scan range dragging speed in the Windows version.
 
 ## 2019
 
-### December 5, 2019
+### December 5, 2019 — Scientific Update
 
 - Added maternal organ dose calculations in NCICT 3.0.20191205.
 - Presented NCICT at RSNA 2019.
 
-### March 1, 2019
+### March 1, 2019 — Scientific Update
 
 - Added eight pregnant phantoms with fetal models.
 - Enabled fetal organ dose calculations.
@@ -170,14 +181,14 @@ Record begins: **2011**
 
 ## 2018
 
-### November 18, 2018 — Official Release 2.0.20181118
+### November 18, 2018 — Scientific Update
 
 - Added 98 adult phantoms, completing the full set of 351 phantoms.
 - Presented NCICTX at AAPM 2018 and renamed the software to NCICT.
 
 ## 2016
 
-### April 1, 2016
+### April 1, 2016 — Scientific Update
 
 - Added 72 adult and 181 pediatric phantoms in NCICTX 20160401.
 - Presented NCICTX at AAPM 2016.
@@ -191,13 +202,13 @@ Record begins: **2011**
 
 ## 2014
 
-### December 1, 2014 — Official Release 1.0.20141201
+### December 1, 2014 — Scientific Update
 
 - Replaced the original NCI phantoms with ICRP pediatric and adult phantoms.
 
 ## 2012
 
-### April 18, 2012
+### April 18, 2012 — Maintenance Update
 
 - Translated the MATLAB version to Visual Basic 6.0 in NCICT 1.0.20120418.
 - Implemented the batch routine for automated calculations.
@@ -205,6 +216,6 @@ Record begins: **2011**
 
 ## 2011
 
-### May 17, 2011
+### May 17, 2011 — Scientific Update
 
 - Released the initial NCICT 1.0 version based on NCI phantoms and the MATLAB framework.

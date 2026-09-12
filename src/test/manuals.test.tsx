@@ -62,44 +62,125 @@ describe("public manuals", () => {
 
     expect(screen.getByRole("heading", { name: "NCICT 4 User Manual" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Introduction" })).toBeInTheDocument();
-    expect(screen.getByText("Documented release 4.20260502")).toBeInTheDocument();
+    expect(screen.getByText("Documented release September 9, 2026")).toBeInTheDocument();
+    expect(screen.getByText("Scientific Corrections and Maintenance Update")).toBeInTheDocument();
+    expect(screen.getByText("Latest scientific update September 9, 2026")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Introduction" })).not.toHaveAttribute("href");
   });
 
-  it("renders the September NCIRF scientific release and custom spectrum workflow", () => {
-    render(<MemoryRouter initialEntries={["/manuals/ncirf"]}>
-      <Routes><Route path="/manuals/:manualId" element={<Manuals />} /></Routes>
-    </MemoryRouter>);
+  it("renders the September NCIRF scientific update and SpekPy workflow", () => {
+    render(
+      <MemoryRouter initialEntries={["/manuals/ncirf"]}>
+        <Routes>
+          <Route path="/manuals/:manualId" element={<Manuals />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
     expect(screen.getByText("Documented release September 10, 2026")).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Generating a Custom Spectrum with SpekPy" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Adding, Saving, and Reusing Custom Spectra" })).toBeInTheDocument();
-    expect(screen.getByRole("img", {
-      name: "Custom spectrum generation window with SpekPy parameters and normalized spectrum preview",
-    })).toHaveAttribute("src", "/manuals/images/ncirf4-custom-spectrum.png");
+    expect(
+      screen.getByRole("img", {
+        name: "Custom spectrum generation window with SpekPy parameters and normalized spectrum preview",
+      }),
+    ).toHaveAttribute("src", "/manuals/images/ncirf4-custom-spectrum.png");
   });
 
-  it("renders the NCIRF API registered-spectrum workflow", () => {
-    render(<MemoryRouter initialEntries={["/manuals/ncirf-api"]}>
-      <Routes><Route path="/manuals/:manualId" element={<Manuals />} /></Routes>
-    </MemoryRouter>);
+  it("renders the September NCIRF API release and registered-spectrum workflow", () => {
+    render(
+      <MemoryRouter initialEntries={["/manuals/ncirf-api"]}>
+        <Routes>
+          <Route path="/manuals/:manualId" element={<Manuals />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
     expect(screen.getByText("Documented release September 10, 2026")).toBeInTheDocument();
     expect(screen.getByText("Scientific Update")).toBeInTheDocument();
+    expect(screen.getByText("Latest scientific update September 10, 2026")).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Spectrum Catalog and Custom Beams" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Vendor Workflow" })).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "Example: Dose Request Using a Registered Custom Spectrum" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", {
+      name: "Example: Dose Request Using a Registered Custom Spectrum",
+    })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Administrator Registration" })).toBeInTheDocument();
+    expect(screen.getAllByText("matched.spectrum").length).toBeGreaterThan(0);
   });
 
-  it("separates NCIRF scientific changes into GUI and API", () => {
-    render(<MemoryRouter initialEntries={["/versions/ncirf"]}>
-      <Routes><Route path="/versions/:toolId" element={<Versions />} /></Routes>
-    </MemoryRouter>);
+  it("separates the September NCIRF scientific changes into GUI and API", () => {
+    render(
+      <MemoryRouter initialEntries={["/versions/ncirf"]}>
+        <Routes>
+          <Route path="/versions/:toolId" element={<Versions />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
     expect(screen.getByRole("heading", { name: "Scientific changes", level: 4 })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "GUI", level: 5 })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "API", level: 5 })).toBeInTheDocument();
     expect(screen.getByText("GET /spectra")).toBeInTheDocument();
     expect(screen.getAllByText("SpectrumID").length).toBeGreaterThan(0);
     expect(screen.getByText("matched.spectrum")).toBeInTheDocument();
+  });
+
+  it("distinguishes NCINM scientific corrections from calculation safeguards", () => {
+    render(
+      <MemoryRouter initialEntries={["/versions/ncinm"]}>
+        <Routes>
+          <Route path="/versions/:toolId" element={<Versions />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    expect(screen.getByRole("heading", {
+      name: "September 9, 2026 — Scientific Corrections and Maintenance Update",
+      level: 3,
+    })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Scientific corrections", level: 4 })).toBeInTheDocument();
+    expect(screen.getByRole("heading", {
+      name: "Calculation safeguards", level: 4,
+    })).toBeInTheDocument();
+    expect(screen.getByText("0.075 h")).toBeInTheDocument();
+  });
+
+  it("renders the NCINM GUI detail images beside the relevant instructions", () => {
+    render(
+      <MemoryRouter initialEntries={["/manuals/ncinm"]}>
+        <Routes>
+          <Route path="/manuals/:manualId" element={<Manuals />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    expect(screen.getByText("Documented release September 9, 2026")).toBeInTheDocument();
+    expect(screen.getByText("Scientific Corrections and Maintenance Update")).toBeInTheDocument();
+    expect(screen.getByText("Latest scientific update September 9, 2026")).toBeInTheDocument();
+
+    const expectedImages = [
+      ["Fetus phantom tab and gestational-age selection", "ncinm3-fetus-phantom-selection.png"],
+      ["Administered activity inputs in MBq and mCi", "ncinm3-administered-activity.png"],
+      [
+        "Maternal source-region table with residence-time and cumulated-activity columns",
+        "ncinm3-source-region-table.png",
+      ],
+      [
+        "Fetal target-region dose output with mass, dose, and dose-per-activity columns",
+        "ncinm3-target-region-output.png",
+      ],
+      [
+        "Export S Values, Clear Tables, and Batch dose calculation controls",
+        "ncinm3-action-buttons.png",
+      ],
+    ];
+
+    for (const [name, filename] of expectedImages) {
+      expect(screen.getByRole("img", { name })).toHaveAttribute(
+        "src",
+        `/manuals/images/${filename}`,
+      );
+    }
   });
 
   it("places product-aware sandbox CTAs above and below each API manual", () => {
@@ -153,9 +234,10 @@ describe("public manuals", () => {
     );
 
     expect(screen.getByRole("heading", { name: "NCICT Release History" })).toBeInTheDocument();
-    expect(screen.getAllByText("May 2, 2026")).toHaveLength(2);
-    expect(screen.getByText("4.20260415")).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: /April 15, 2026/ })).toBeInTheDocument();
+    expect(screen.getAllByText("September 9, 2026").length).toBeGreaterThan(0);
+    expect(screen.getByRole("heading", { name: /May 2, 2026.*Scientific Update/ })).toBeInTheDocument();
+    expect(screen.getAllByText("Scientific Update").length).toBeGreaterThan(0);
+    expect(screen.getByRole("heading", { name: /April 15, 2026.*Scientific Update/ })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /Download approved releases/i })).toHaveAttribute(
       "href",
       "https://portal.ncidosetools.com",
@@ -164,7 +246,7 @@ describe("public manuals", () => {
 
   it.each([
     ["ncirf", "NCIRF Release History", "September 10, 2026"],
-    ["ncinm", "NCINM Release History", "3.20260510"],
+    ["ncinm", "NCINM Release History", "September 9, 2026"],
     ["phantom", "PHANTOM Library History", "August 20, 2026"],
   ])("renders the %s release record", (toolId, title, latestRelease) => {
     render(

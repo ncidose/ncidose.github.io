@@ -1,7 +1,7 @@
-import ncictMarkdown from "@/content/releases/NCICT-Version-History.md?raw";
-import ncirfMarkdown from "@/content/releases/NCIRF-Version-History.md?raw";
-import ncinmMarkdown from "@/content/releases/NCINM-Version-History.md?raw";
-import phantomMarkdown from "@/content/releases/PHANTOM-Version-History.md?raw";
+import ncictMarkdown from "../../_versions/NCICT-Version-History.md?raw";
+import ncirfMarkdown from "../../_versions/NCIRF-Version-History.md?raw";
+import ncinmMarkdown from "../../_versions/NCINM-Version-History.md?raw";
+import phantomMarkdown from "../../_versions/PHANTOM-Version-History.md?raw";
 
 export type ReleaseHistoryDefinition = {
   id: string;
@@ -9,10 +9,8 @@ export type ReleaseHistoryDefinition = {
   title: string;
   modality: string;
   description: string;
-  latestUpdate: string;
-  latestOfficialRelease: string;
-  latestRelease?: string;
-  latestScientificUpdate?: string;
+  latestRelease: string;
+  latestScientificUpdate: string;
   firstReleaseYear: string;
   markdown: string;
 };
@@ -29,9 +27,9 @@ export const releaseHistories: ReleaseHistoryDefinition[] = [
     title: "NCICT Release History",
     modality: "Computed Tomography",
     description:
-      "A chronological record of official releases, calculation-library updates, interface improvements, and maintenance changes for NCICT.",
-    latestUpdate: metadataValue(ncictMarkdown, "Latest update"),
-    latestOfficialRelease: metadataValue(ncictMarkdown, "Latest official release"),
+      "A chronological record of scientific and maintenance updates for NCICT.",
+    latestRelease: metadataValue(ncictMarkdown, "Latest release"),
+    latestScientificUpdate: metadataValue(ncictMarkdown, "Latest scientific update"),
     firstReleaseYear: metadataValue(ncictMarkdown, "Record begins"),
     markdown: ncictMarkdown,
   },
@@ -42,8 +40,6 @@ export const releaseHistories: ReleaseHistoryDefinition[] = [
     modality: "Radiography & Fluoroscopy",
     description:
       "A chronological record of Monte Carlo calculation, phantom-library, Batch Manager, API, and interface updates for NCIRF.",
-    latestUpdate: metadataValue(ncirfMarkdown, "Latest update"),
-    latestOfficialRelease: metadataValue(ncirfMarkdown, "Latest official release"),
     latestRelease: metadataValue(ncirfMarkdown, "Latest release"),
     latestScientificUpdate: metadataValue(ncirfMarkdown, "Latest scientific update"),
     firstReleaseYear: metadataValue(ncirfMarkdown, "Record begins"),
@@ -56,8 +52,8 @@ export const releaseHistories: ReleaseHistoryDefinition[] = [
     modality: "Nuclear Medicine",
     description:
       "A chronological record of radionuclide libraries, biokinetic models, phantom support, Batch Manager, API, and interface updates for NCINM.",
-    latestUpdate: metadataValue(ncinmMarkdown, "Latest update"),
-    latestOfficialRelease: metadataValue(ncinmMarkdown, "Latest official release"),
+    latestRelease: metadataValue(ncinmMarkdown, "Latest release"),
+    latestScientificUpdate: metadataValue(ncinmMarkdown, "Latest scientific update"),
     firstReleaseYear: metadataValue(ncinmMarkdown, "Record begins"),
     markdown: ncinmMarkdown,
   },
@@ -68,8 +64,8 @@ export const releaseHistories: ReleaseHistoryDefinition[] = [
     modality: "Computational Phantoms",
     description:
       "A chronological record of anatomical refinements, library expansions, file-format releases, and data corrections across the NCI phantom collections.",
-    latestUpdate: metadataValue(phantomMarkdown, "Latest update"),
-    latestOfficialRelease: metadataValue(phantomMarkdown, "Latest official release"),
+    latestRelease: metadataValue(phantomMarkdown, "Latest release"),
+    latestScientificUpdate: metadataValue(phantomMarkdown, "Latest scientific update"),
     firstReleaseYear: metadataValue(phantomMarkdown, "Record begins"),
     markdown: phantomMarkdown,
   },
@@ -82,5 +78,5 @@ export const getReleaseHistoryBody = (markdown: string) =>
   markdown
     .replace(/^#\s+.+\n+/, "")
     .replace(/^_.*_\n+/, "")
-    .replace(/^(?:Latest update|Latest official release|Latest release|Latest scientific update|Record begins): .*\n?/gm, "")
+    .replace(/^(?:Latest release|Latest scientific update|Record begins): .*\n?/gm, "")
     .trim();

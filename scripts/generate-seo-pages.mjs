@@ -350,7 +350,7 @@ const main = async () => {
     Object.entries(releaseSources).map(async ([id, source]) => ({
       id,
       product: id.toUpperCase(),
-      markdown: await readFile(path.join(projectRoot, "src/content/releases", source), "utf8"),
+      markdown: await readFile(path.join(projectRoot, "_versions", source), "utf8"),
     })),
   ));
   const literature = await loadLiterature();
@@ -374,11 +374,11 @@ const main = async () => {
       </section>${content}`;
     } else if (route.manual) {
       const source = manualSources[route.manual.id];
-      const markdown = await readFile(path.join(projectRoot, "src/content/manuals", source), "utf8");
+      const markdown = await readFile(path.join(projectRoot, "_manuals", source), "utf8");
       content = renderMarkdown(markdown, "/manuals/images");
     } else if (route.release) {
       const source = releaseSources[route.release.id];
-      const markdown = await readFile(path.join(projectRoot, "src/content/releases", source), "utf8");
+      const markdown = await readFile(path.join(projectRoot, "_versions", source), "utf8");
       content = renderMarkdown(markdown);
     } else if (route.path === "/literature" || route.literature) {
       content = literatureContent(route, literature);

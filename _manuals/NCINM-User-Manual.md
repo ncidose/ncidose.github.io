@@ -1,7 +1,9 @@
 # NCINM 3
 _**NCI Dosimetry System for Nuclear Medicine**_
 
-Current documented release: **NCINM3.20260510**
+Current documented release: **September 9, 2026**
+Current release type: **Scientific Corrections and Maintenance Update**
+Latest scientific update: **September 9, 2026**
 
 ![NCINM 3 main window showing fetus phantom selection, source-region data, and target-organ dose output](images/ncinm3-main-window.png)
 
@@ -34,6 +36,9 @@ not intended for patient-specific clinical decision support.
 | 5 | Review the target-organ dose output table |
 | 6 | Optionally select source-region rows and click **Export S Values** |
 | 7 | Optionally run multiple NCI or ICRP radiopharmaceutical cases through Batch Manager |
+
+Numeric fields accept either dot or comma decimal notation regardless of the
+operating-system regional setting.
 
 ---
 
@@ -75,6 +80,8 @@ organs using mother-to-fetus S values.
 
 The phantom display updates automatically when the phantom library, sex, or age
 selection is changed.
+
+![Fetus phantom tab and gestational-age selection](images/ncinm3-fetus-phantom-selection.png)
 
 ---
 
@@ -127,6 +134,8 @@ The default activity is:
 | MBq | 3700 |
 | mCi | 100 |
 
+![Administered activity inputs in MBq and mCi](images/ncinm3-administered-activity.png)
+
 ---
 
 ## 4. Source-Region Biokinetic Data
@@ -135,9 +144,15 @@ The source-region table has column headers:
 
 | Column | Purpose |
 |---|---|
-| Source | Source organ or region |
+| Source Region | Source organ or region |
 | Resid Time h | Residence time in hours |
 | Cum Act MBq-s | Cumulated activity in MBq-s |
+
+The first column is labeled **Source Region** for NCI and ICRP phantoms. On
+the Fetus tab, it changes to **Maternal Source region** to identify the source
+regions as maternal anatomy.
+
+![Maternal source-region table with residence-time and cumulated-activity columns](images/ncinm3-source-region-table.png)
 
 For radionuclide-based calculations, users enter residence time or cumulated
 activity manually. NCINM3 converts between them using:
@@ -169,10 +184,15 @@ The target-region output table has column headers:
 
 | Column | Purpose |
 |---|---|
-| Target | Target organ or tissue |
+| Target Region | Target organ or tissue |
 | Mass g | Target-organ mass in grams |
 | Dose mGy | Absorbed dose in mGy |
 | Dose/Act mGy/MBq | Absorbed dose per administered activity |
+
+The first column is labeled **Target Region** for NCI and ICRP phantoms. On
+the Fetus tab, it changes to **Fetal Target Region**.
+
+![Fetal target-region dose output with mass, dose, and dose-per-activity columns](images/ncinm3-target-region-output.png)
 
 NCINM3 calculates dose from S values, administered activity, and source-region
 residence time. Effective dose is reported in the final row for NCI and ICRP
@@ -184,6 +204,8 @@ target organs using mother-to-fetus S values.
 ---
 
 ## 6. Export S Values
+
+![Export S Values, Clear Tables, and Batch dose calculation controls](images/ncinm3-action-buttons.png)
 
 To export S values:
 
@@ -203,6 +225,12 @@ fetal target organs. The CSV columns are `Source Region`, `Target Region`, and
 
 Batch Manager runs multiple NCI or ICRP radiopharmaceutical dose calculations
 from a CSV input file.
+
+Batch input accepts comma- or semicolon-delimited CSV files. Semicolon-delimited
+CSV is recommended when decimal commas are used. In a comma-delimited file, a
+value containing a decimal comma must be enclosed in double quotes. Saved Batch
+CSV output always uses comma delimiters and dot decimals for consistent reuse
+across regional settings.
 
 When NCINM3 reads a radiopharmaceutical name from the batch CSV, it
 automatically matches the submitted text to the closest library entry using

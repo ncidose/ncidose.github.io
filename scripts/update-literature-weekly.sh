@@ -1,12 +1,13 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 
-PROJECT_DIR="/Users/choonsiklee/Sites/ncidose.github.io"
+SCRIPT_DIR="$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)"
+PROJECT_DIR="$(dirname -- "$SCRIPT_DIR")"
 NPM="/opt/homebrew/bin/npm"
 LOG_DIR="$PROJECT_DIR/logs"
 LOG_FILE="$LOG_DIR/literature-update.log"
 LOCK_DIR="$LOG_DIR/literature-update.lock"
-SSH_KEY="/Users/choonsiklee/.ssh/github_ncidose_ed25519"
+SSH_KEY="${NCIDOSE_SSH_KEY:-$PROJECT_DIR/.ssh/id_ed25519_ncidose}"
 REPOSITORY="git@github.com:ncidose/ncidose.github.io.git"
 
 export PATH="/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin"

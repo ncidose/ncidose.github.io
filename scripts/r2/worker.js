@@ -45,6 +45,20 @@ export default {
         });
       }
 
+      if (request.method === "DELETE" && url.pathname === "/objects") {
+        const { keys } = await request.json();
+        if (!Array.isArray(keys) || keys.length < 1 || keys.length > 1000) {
+          return json({ error: "keys must contain between 1 and 1000 object keys" }, 400);
+        }
+        if (!keys.every((key) =>
+          typeof key === "string"
+          && (key.startsWith("PHANTOM/") || key.startsWith("_folder-downloads/PHANTOM/")))) {
+          return json({ error: "deletion is restricted to PHANTOM objects" }, 400);
+        }
+        await env.BUCKET.delete(keys);
+        return json({ deleted: keys.length });
+      }
+
       if (request.method === "POST" && url.pathname === "/multipart/create") {
         const { key, contentType, sha256 } = await request.json();
         if (!key || !sha256) return json({ error: "missing key or sha256" }, 400);

@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import portalWorker, { adminRecentActivityQuery, announcementEmailHtml, canPublishQuestion, canViewDiscussion, discussionAuthorForUser, folderArchiveKeys, generateLoginCode, isFolderDownloadPrefix, linkedEmailWelcomeHtml, loginCodeEmailHtml, normalizeAdminUserDetails, normalizePortalEmail, normalizeQuestionVisibility, portalSessionCookieHeader, qaAttachmentValidationError, secondaryEmailAddedHtml, shouldNotifyDiscussionReplyRecipient, shouldNotifyNewDiscussionRecipient, vendorDemoLimits, vendorDemoLocationForRequest, vendorDemoPresetForInput, vendorDemoPresets, vendorDemoRequestForInput, welcomeEmailHtml } from "../../scripts/portal/worker.js";
+import portalWorker, { adminRecentActivityQuery, adminUsersQuery, announcementEmailHtml, canPublishQuestion, canViewDiscussion, discussionAuthorForUser, folderArchiveKeys, generateLoginCode, isFolderDownloadPrefix, linkedEmailWelcomeHtml, loginCodeEmailHtml, normalizeAdminUserDetails, normalizePortalEmail, normalizeQuestionVisibility, portalSessionCookieHeader, qaAttachmentValidationError, secondaryEmailAddedHtml, shouldNotifyDiscussionReplyRecipient, shouldNotifyNewDiscussionRecipient, vendorDemoLimits, vendorDemoLocationForRequest, vendorDemoPresetForInput, vendorDemoPresets, vendorDemoRequestForInput, welcomeEmailHtml } from "../../scripts/portal/worker.js";
 
 describe("admin activity query", () => {
   it("uses an indexed primary-identity join instead of a per-event correlated lookup", () => {
@@ -8,6 +8,16 @@ describe("admin activity query", () => {
     expect(adminRecentActivityQuery).toContain("WHERE event_type='login'");
     expect(adminRecentActivityQuery).toContain("WHERE event_type='download'");
     expect(adminRecentActivityQuery).not.toContain("(SELECT identities.normalized_email");
+  });
+});
+
+describe("admin users query", () => {
+  it("aggregates login activity once instead of scanning it for every user", () => {
+    expect(adminUsersQuery).toContain("WITH login_activity AS");
+    expect(adminUsersQuery).toContain("GROUP BY user_id");
+    expect(adminUsersQuery).toContain("LEFT JOIN last_logins");
+    expect(adminUsersQuery).not.toContain("WHERE events.user_id=users.id");
+    expect(adminUsersQuery).not.toContain("WHERE sessions.user_id=users.id");
   });
 });
 

@@ -1,5 +1,9 @@
 # PHANTOM — NCI Computational Human Phantom Libraries
 
+Current documented release: **August 20, 2026**
+Current release type: **Scientific Update**
+Latest scientific update: **August 20, 2026**
+
 ## Introduction
 
 **PHANTOM** is a collection of **reference-grade computational human phantom libraries**

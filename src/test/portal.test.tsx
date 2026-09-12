@@ -366,8 +366,14 @@ describe("portal migration experience", () => {
     expect(screen.getByText(/seth\.streitmatter@gmail\.com · pending/i)).toBeInTheDocument();
     expect(screen.queryByLabelText("Secondary email for Approved Researcher")).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: /^edit$/i }));
+    expect(screen.getByLabelText("Secondary email for Approved Researcher")).toHaveValue("seth.streitmatter@gmail.com");
     expect(screen.getByLabelText("Account access for Approved Researcher")).toHaveValue("suspended");
     expect(screen.getByLabelText("Portal role for Approved Researcher")).toHaveValue("team");
     expect(screen.getByRole("button", { name: /delete user/i })).toBeInTheDocument();
+
+    fireEvent.change(screen.getByLabelText("Secondary email for Approved Researcher"), { target: { value: "seth.corrected@gmail.com" } });
+    fireEvent.click(screen.getByRole("button", { name: /save changes/i }));
+    expect(screen.getByText(/seth\.corrected@gmail\.com · pending/i)).toBeInTheDocument();
+    expect(screen.queryByText(/seth\.streitmatter@gmail\.com · pending/i)).not.toBeInTheDocument();
   });
 });

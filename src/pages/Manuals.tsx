@@ -300,7 +300,7 @@ const ManualsIndex = () => {
                 <div className="mb-8 grid gap-3 border-b border-border pb-6 md:grid-cols-[260px_1fr]">
                   <h2 className="text-2xl font-light text-slate-900">Release History</h2>
                   <p className="max-w-3xl text-sm leading-relaxed text-muted-foreground">
-                    Chronological technical records for official releases, calculation-library updates, maintenance changes, and compatibility notes.
+                    Chronological records classified as Scientific Updates or Maintenance Updates according to their effect on scientific results.
                   </p>
                 </div>
                 <div className="grid gap-5 md:grid-cols-2">
@@ -315,7 +315,7 @@ const ManualsIndex = () => {
                           <History className="h-5 w-5" />
                         </span>
                         <span className="font-mono text-[11px] uppercase tracking-wider text-slate-500">
-                          Updated {history.latestRelease || history.latestUpdate}
+                          Updated {history.latestRelease}
                         </span>
                       </div>
                       <div className="mt-6 font-mono text-xs uppercase tracking-widest text-primary">
