@@ -2,6 +2,8 @@ import { render, screen, within } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { describe, expect, it, vi } from "vitest";
 import Index from "@/pages/Index";
+import { getLatestUpdates } from "@/data/latestUpdates.js";
+import { releaseHistories } from "@/data/releases";
 
 vi.mock("@/components/GlobalMap", () => ({
   GlobalMap: () => (
@@ -39,6 +41,30 @@ const expectAnalytics = (
 };
 
 describe("homepage visitor paths", () => {
+  it("shows dated release highlights before the role pathways, with one-click histories", () => {
+    render(<MemoryRouter initialEntries={["/"]}><Index /></MemoryRouter>);
+    const section = screen.getByRole("region", { name: "Latest updates" });
+    const title = screen.getByRole("heading", { name: "NCI Dose Tools" });
+    const pathways = screen.getByRole("heading", { name: "Where to Start" });
+    expect(title.compareDocumentPosition(section) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(section.compareDocumentPosition(pathways) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    const items = within(section).getAllByRole("listitem");
+    const updates = getLatestUpdates(releaseHistories);
+    expect(items).toHaveLength(4);
+    updates.forEach((update, index) => {
+      const link = within(items[index]).getByRole("link");
+      expect(link).toHaveAttribute("href", update.href);
+      expect(link).toHaveTextContent(update.product);
+      expect(link).toHaveTextContent(update.summary);
+      expect(link.querySelector("time")).toHaveAttribute("datetime", update.isoDate);
+      expect(link.querySelector("time")).toHaveTextContent(update.date);
+      expect(link).toHaveAttribute("data-analytics-event", "documentation_click");
+      expect(link).toHaveAttribute("data-analytics-tool", update.id);
+    });
+    expect(within(section).getByRole("link", { name: "All version histories" }))
+      .toHaveAttribute("href", "/manuals#release-history");
+  });
+
   it("puts role-specific actions before product and trust content", () => {
     render(
       <MemoryRouter initialEntries={["/"]}>

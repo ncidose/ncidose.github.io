@@ -5,6 +5,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import ReactMarkdown from "react-markdown";
 import rehypeSlug from "rehype-slug";
 import remarkGfm from "remark-gfm";
+import { getLatestUpdates } from "../src/data/latestUpdates.js";
 import {
   canonicalUrl,
   manualSeoPages,
@@ -345,6 +346,13 @@ ${Array.from(unique.entries()).map(([url, route]) => `  <url>
 
 const main = async () => {
   const template = await readFile(templatePath, "utf8");
+  const latestUpdates = getLatestUpdates(await Promise.all(
+    Object.entries(releaseSources).map(async ([id, source]) => ({
+      id,
+      product: id.toUpperCase(),
+      markdown: await readFile(path.join(projectRoot, "src/content/releases", source), "utf8"),
+    })),
+  ));
   const literature = await loadLiterature();
   const discussions = await loadDiscussions();
   const discussionRoutes = discussions
@@ -353,7 +361,18 @@ const main = async () => {
 
   for (const route of seoRoutes) {
     let content = defaultContent(route);
-    if (route.manual) {
+    if (route.path === "/") {
+      content = `<section aria-labelledby="latest-updates-heading">
+        <h2 id="latest-updates-heading">Latest updates</h2>
+        <p>Recent changes across NCI Dose Tools.</p>
+        <div class="seo-grid">${latestUpdates.map((update) => `<section>
+          <time datetime="${escapeHtml(update.isoDate)}">${escapeHtml(update.date)}</time>
+          <h3><a href="${escapeHtml(pageHref(update.href))}">${escapeHtml(update.product)} — View changes</a></h3>
+          <p>${escapeHtml(update.summary)}</p>
+        </section>`).join("")}</div>
+        <p><a href="/manuals/#release-history">All version histories</a></p>
+      </section>${content}`;
+    } else if (route.manual) {
       const source = manualSources[route.manual.id];
       const markdown = await readFile(path.join(projectRoot, "src/content/manuals", source), "utf8");
       content = renderMarkdown(markdown, "/manuals/images");

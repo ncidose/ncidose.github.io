@@ -1,5 +1,6 @@
 import { Header } from "@/components/Header";
 import { Hero } from "@/components/Hero";
+import { LatestUpdates } from "@/components/LatestUpdates";
 import { WhatAreTools } from "@/components/WhatAreTools";
 import { GlobalMap } from "@/components/GlobalMap";
 import { WhereToStart } from "@/components/WhereToStart";
@@ -11,6 +12,7 @@ const Index = () => {
       <Header />
       <main>
         <Hero />
+        <LatestUpdates />
         <WhereToStart />
         <WhatAreTools />
         <GlobalMap />
