@@ -31,7 +31,7 @@ Record begins: **2022**
 
 #### Corrections and maintenance changes
 
-- **macOS correction:** Fixed x-ray spectrum sampling when energy bins have zero weight, preserving the intended energy distribution. The previous engine could overestimate some organ doses, particularly for low-energy spectra.
+- **macOS and Windows correction:** Fixed x-ray spectrum sampling when energy bins have zero weight, preserving the intended energy distribution. The previous engine could overestimate some organ doses, particularly for low-energy spectra.
 
 - Added **signed and notarized macOS distribution** support.
 - Improved decimal-format and **Batch CSV compatibility across locales**.
