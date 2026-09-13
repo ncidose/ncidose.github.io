@@ -2,8 +2,8 @@
 _**NCI Dosimetry System for Nuclear Medicine**_
 
 Current documented release: **September 9, 2026**
-Current release type: **Scientific Corrections and Maintenance Update**
-Latest scientific update: **September 9, 2026**
+Current release type: **Maintenance Update**
+Latest scientific update: **May 10, 2026**
 
 ![NCINM 3 main window showing fetus phantom selection, source-region data, and target-organ dose output](images/ncinm3-main-window.png)
 

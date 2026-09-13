@@ -125,7 +125,7 @@ describe("public manuals", () => {
     expect(screen.getByText("matched.spectrum")).toBeInTheDocument();
   });
 
-  it("distinguishes NCINM scientific corrections from calculation safeguards", () => {
+  it("distinguishes NCINM dose calculation corrections from calculation safeguards", () => {
     render(
       <MemoryRouter initialEntries={["/versions/ncinm"]}>
         <Routes>
@@ -135,10 +135,10 @@ describe("public manuals", () => {
     );
 
     expect(screen.getByRole("heading", {
-      name: "September 9, 2026 — Scientific Corrections and Maintenance Update",
+      name: "September 9, 2026 — Maintenance Update",
       level: 3,
     })).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "Scientific corrections", level: 4 })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Dose calculation corrections", level: 4 })).toBeInTheDocument();
     expect(screen.getByRole("heading", {
       name: "Calculation safeguards", level: 4,
     })).toBeInTheDocument();
@@ -147,7 +147,7 @@ describe("public manuals", () => {
 
   it.each([
     ["ncict", "September 9, 2026", "Maintenance Update", "Maintenance Update"],
-    ["ncinm", "September 9, 2026", "Scientific Corrections and Maintenance Update", "Scientific Update"],
+    ["ncinm", "September 9, 2026", "Maintenance Update", "Maintenance Update"],
     ["ncirf", "September 10, 2026", "Scientific Update", "Scientific Update"],
     ["phantom", "August 20, 2026", "Scientific Update", "Scientific Update"],
   ])("renders the declared classification for the latest %s release", (toolId, date, classification, badgeLabel) => {
@@ -197,8 +197,8 @@ describe("public manuals", () => {
     );
 
     expect(screen.getByText("Documented release September 9, 2026")).toBeInTheDocument();
-    expect(screen.getByText("Scientific Corrections and Maintenance Update")).toBeInTheDocument();
-    expect(screen.getByText("Latest scientific update September 9, 2026")).toBeInTheDocument();
+    expect(screen.getByText("Maintenance Update")).toBeInTheDocument();
+    expect(screen.getByText("Latest scientific update May 10, 2026")).toBeInTheDocument();
 
     const expectedImages = [
       ["Fetus phantom tab and gestational-age selection", "ncinm3-fetus-phantom-selection.png"],

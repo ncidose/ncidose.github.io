@@ -3,14 +3,14 @@
 _Scientific and maintenance update record for the National Cancer Institute dosimetry system for Nuclear Medicine._
 
 Latest release: **September 9, 2026**
-Latest scientific update: **September 9, 2026**
+Latest scientific update: **May 10, 2026**
 Record begins: **2019**
 
 ## 2026
 
-### September 9, 2026 — Scientific Corrections and Maintenance Update
+### September 9, 2026 — Maintenance Update
 
-#### Scientific corrections
+#### Dose calculation corrections
 
 - Corrected the Adult Male gonadal residence time for In-111-labelled human immunoglobulin from `75 h` to the ICRP Publication 128 value of `0.075 h`, preventing substantial overestimation of gonadal and effective dose.
 - Corrected ICRP Publication 103 remainder-tissue weights so the 13 remainder tissues receive the full combined weight of `0.12` and the complete tissue-weighting factors sum to `1.0`.

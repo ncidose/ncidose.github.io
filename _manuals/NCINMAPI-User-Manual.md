@@ -1,8 +1,8 @@
 # NCINM API
 
 Current documented release: **September 9, 2026 (3.20260909)**
-Current release type: **Scientific Corrections and Maintenance Update**
-Latest scientific update: **September 9, 2026**
+Current release type: **Maintenance Update**
+Latest scientific update: **May 10, 2026**
 
 NCINMAPI provides REST-style access to the NCINM3 radiopharmaceutical dose
 calculation workflow. A client sends one JSON object to `/param`; the server
