@@ -63,8 +63,8 @@ describe("public manuals", () => {
     expect(screen.getByRole("heading", { name: "NCICT 4 User Manual" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Introduction" })).toBeInTheDocument();
     expect(screen.getByText("Documented release September 9, 2026")).toBeInTheDocument();
-    expect(screen.getByText("Scientific Corrections and Maintenance Update")).toBeInTheDocument();
-    expect(screen.getByText("Latest scientific update September 9, 2026")).toBeInTheDocument();
+    expect(screen.getByText("Maintenance Update")).toBeInTheDocument();
+    expect(screen.getByText("Latest scientific update May 2, 2026")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Introduction" })).not.toHaveAttribute("href");
   });
 
@@ -146,11 +146,11 @@ describe("public manuals", () => {
   });
 
   it.each([
-    ["ncict", "September 9, 2026", "Scientific Corrections and Maintenance Update"],
-    ["ncinm", "September 9, 2026", "Scientific Corrections and Maintenance Update"],
-    ["ncirf", "September 10, 2026", "Scientific Update"],
-    ["phantom", "August 20, 2026", "Scientific Update"],
-  ])("uses a consistent scientific ribbon for the latest %s release", (toolId, date, classification) => {
+    ["ncict", "September 9, 2026", "Maintenance Update", "Maintenance Update"],
+    ["ncinm", "September 9, 2026", "Scientific Corrections and Maintenance Update", "Scientific Update"],
+    ["ncirf", "September 10, 2026", "Scientific Update", "Scientific Update"],
+    ["phantom", "August 20, 2026", "Scientific Update", "Scientific Update"],
+  ])("renders the declared classification for the latest %s release", (toolId, date, classification, badgeLabel) => {
     render(
       <MemoryRouter initialEntries={[`/versions/${toolId}`]}>
         <Routes>
@@ -161,10 +161,14 @@ describe("public manuals", () => {
 
     const heading = screen.getByRole("heading", { name: `${date} — ${classification}`, level: 3 });
     expect(heading.firstElementChild).toHaveTextContent(date);
-    expect(heading.textContent).toBe(`${date}Scientific Update`);
+    expect(heading.textContent).toBe(`${date}${badgeLabel}`);
     const badge = heading.querySelector(".release-badge");
-    expect(badge).toHaveTextContent("Scientific Update");
-    expect(badge).not.toHaveClass("release-badge-maintenance");
+    expect(badge).toHaveTextContent(badgeLabel);
+    if (badgeLabel === "Maintenance Update") {
+      expect(badge).toHaveClass("release-badge-maintenance");
+    } else {
+      expect(badge).not.toHaveClass("release-badge-maintenance");
+    }
     expect(badge).toHaveAttribute("title", classification);
     expect(heading).toHaveAttribute("id");
   });

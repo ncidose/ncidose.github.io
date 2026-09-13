@@ -3,12 +3,12 @@
 _Scientific and maintenance update record for the National Cancer Institute dosimetry system for Computed Tomography._
 
 Latest release: **September 9, 2026**
-Latest scientific update: **September 9, 2026**
+Latest scientific update: **May 2, 2026**
 Record begins: **2011**
 
 ## 2026
 
-### September 9, 2026 — Scientific Corrections and Maintenance Update
+### September 9, 2026 — Maintenance Update
 
 #### GUI
 

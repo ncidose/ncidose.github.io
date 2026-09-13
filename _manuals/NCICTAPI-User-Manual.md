@@ -1,8 +1,8 @@
 # NCICT API
 
 Current documented release: **September 9, 2026**
-Current release type: **Scientific Corrections and Maintenance Update**
-Latest scientific update: **September 9, 2026**
+Current release type: **Maintenance Update**
+Latest scientific update: **May 2, 2026**
 
 NCICTAPI provides REST-style access to the NCICT4 CT organ dose calculation
 workflow. A client sends one JSON object to `/param`; the server matches the

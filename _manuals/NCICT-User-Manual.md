@@ -3,8 +3,8 @@
 _**NCI Dosimetry System for Computed Tomography**_
 
 Current documented release: **September 9, 2026**
-Current release type: **Scientific Corrections and Maintenance Update**
-Latest scientific update: **September 9, 2026**
+Current release type: **Maintenance Update**
+Latest scientific update: **May 2, 2026**
 
 ![NCICT 4 main window showing phantom selection, scan coverage, scanner inputs, and organ dose output](images/ncict4-main-window.png)
 
