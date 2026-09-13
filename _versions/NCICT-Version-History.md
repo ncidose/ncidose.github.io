@@ -2,31 +2,34 @@
 
 _Scientific and maintenance update record for the National Cancer Institute dosimetry system for Computed Tomography._
 
-Latest release: **September 11, 2026 (API only; GUI remains September 9)**
-Latest scientific update: **September 11, 2026 (API output precision)**
+Latest release: **September 9, 2026**
+Latest scientific update: **September 9, 2026**
 Record begins: **2011**
 
 ## 2026
 
-### September 11, 2026 — Scientific Update
-
-#### API only — 4.20260911
-
-- Preserved the calculated precision of API dose results, including small nonzero doses previously rounded to zero in the response.
-- Changed dose values from two-decimal JSON strings to JSON numbers. Existing integrations must accept numeric dose values; field names, units, inputs, and phantom metadata are unchanged.
-- Kept the calculation algorithms and dose libraries from 4.20260909 unchanged. The GUI and desktop installers remain at 4.20260909.
-- Added a readable website sandbox preview with two decimal places and extra digits for small values; full-precision JSON remains available for inspection and integration.
-
 ### September 9, 2026 — Scientific Corrections and Maintenance Update
 
-- Corrected a TCM organ-dose error in which strengths from 0.1 to 0.9 applied only the scan-average CTDIvol uniformly across the scan range, followed by an abrupt change to a slice-specific profile at 1.0. The GUI, Batch Manager, and API now apply a continuously modulated CTDIvol profile normalized to the scan-average CTDIvol.
+#### GUI
+
+- Corrected a TCM organ-dose error in which strengths from 0.1 to 0.9 applied only the scan-average CTDIvol uniformly across the scan range, followed by an abrupt change to a slice-specific profile at 1.0. The GUI and Batch Manager now apply a continuously modulated CTDIvol profile normalized to the scan-average CTDIvol.
 - Corrected an off-by-one scan-range error that included the scan-start boundary as an extra slice when averaging CTDIvol.
-- Corrected custom mA mapping in Batch Manager and the API so the complete profile, including its final value, is mapped and normalized over the actual scan slices.
+- Corrected custom mA mapping in Batch Manager so the complete profile, including its final value, is mapped and normalized over the actual scan slices.
 - Corrected two adult phantom identifiers that could prevent exact matching with the dose, TCM, and image libraries.
 - Fixed a startup error caused by a trailing blank line in the water-equivalent-diameter reference data.
 - Improved decimal-format and Batch CSV compatibility across locales, including custom mA profiles and flexible column order.
 - Improved scan-range editing and clarified fetal and maternal dose results.
 - Added signed and notarized macOS distribution support and updated documentation links.
+
+#### API
+
+- Corrected the same TCM organ-dose error so strengths from 0.1 to 1.0 apply a continuously modulated CTDIvol profile normalized to the scan-average CTDIvol.
+- Corrected an off-by-one scan-range error that included the scan-start boundary as an extra slice when averaging CTDIvol.
+- Corrected custom mA mapping so the complete profile, including its final value, is mapped and normalized over the actual scan slices.
+- Corrected two adult phantom identifiers that could prevent exact matching with the dose and TCM libraries.
+- Fixed a startup error caused by a trailing blank line in the water-equivalent-diameter reference data.
+- Preserved the calculated precision of API dose results, including small nonzero doses previously rounded to zero in the response. This response-precision correction does not alter the underlying calculation algorithms or dose libraries.
+- Changed dose values from two-decimal JSON strings to JSON numbers. Existing integrations must accept numeric dose values; field names, units, inputs, and phantom metadata are unchanged.
 
 ### May 2, 2026 — Scientific Update
 

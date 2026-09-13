@@ -1,8 +1,8 @@
 # NCICT API
 
-Current documented release: **September 11, 2026 (4.20260911)**
-Current release type: **Scientific Update — API output precision**
-Latest scientific update: **September 11, 2026**
+Current documented release: **September 9, 2026**
+Current release type: **Scientific Corrections and Maintenance Update**
+Latest scientific update: **September 9, 2026**
 
 NCICTAPI provides REST-style access to the NCICT4 CT organ dose calculation
 workflow. A client sends one JSON object to `/param`; the server matches the
@@ -316,12 +316,12 @@ the precision of the calculated results. Output dose keys include organ doses
 in mGy and `effective dose msv` in mSv. Field names, units, input parameters,
 and phantom metadata are unchanged.
 
-**Compatibility change in 4.20260911:** earlier versions returned dose values
+**Compatibility change in the September 9, 2026 release:** earlier versions returned dose values
 as two-decimal strings, such as `"0.08"`. Clients must now accept JSON numbers
 and should not depend on a fixed number of decimal places. Small nonzero doses
-are no longer rounded to `"0.00"` during response serialization. Calculation
-algorithms and dose libraries are unchanged from 4.20260909; this update changes
-the precision and type of the reported values, not the underlying calculation.
+are no longer rounded to `"0.00"` during response serialization. This correction
+to response precision changes the precision and type of the reported values
+without altering the underlying calculation algorithms or dose libraries.
 
 The website sandbox provides a readable preview with two decimal places, using
 three significant digits below 0.01 so small values remain visible. This is
