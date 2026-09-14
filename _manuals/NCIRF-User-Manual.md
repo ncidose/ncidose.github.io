@@ -546,8 +546,21 @@ run outside the NCIRF GUI.
 
 ## Scientific Software Attribution
 
+### SpekPy
+
 Custom spectrum generation is powered by **SpekPy 2.5.4**, distributed under
-the MIT License. Upstream source and authorship information are available from
-the [SpekPy repository](https://bitbucket.org/spekpy/spekpy_release). NCIRF
+the MIT License. Source distributions and authorship information are available from
+the [SpekPy project page on PyPI](https://pypi.org/project/spekpy/). NCIRF
 accesses SpekPy through the NCI Dose Tools hosted service and does not bundle
 the Python/SpekPy environment in the desktop application.
+
+### Geant4
+
+NCIRF uses **Geant4** for Monte Carlo particle transport and energy-deposition
+calculations in computational human phantoms. Geant4 is developed by the
+Geant4 Collaboration and distributed under the
+[Geant4 Software License](https://geant4.web.cern.ch/download/license).
+Source code, documentation, and collaboration information are available from
+the [official Geant4 website](https://geant4.web.cern.ch/).
+
+> This product includes software developed by Members of the Geant4 Collaboration (http://cern.ch/geant4).
