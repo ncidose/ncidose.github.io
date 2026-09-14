@@ -63,12 +63,8 @@ describe("vendor API sandbox", () => {
     expect(responseText.closest("pre")).not.toHaveClass("overflow-auto", "h-[360px]");
     expect(responseText.textContent).toContain('"brain": 0.00473');
     expect(responseText.textContent).not.toContain("3.251234567");
-    expect(screen.getByText(/The API response retains full precision/i)).toBeInTheDocument();
-    fireEvent.click(screen.getByLabelText("Show full-precision JSON"));
-    expect(responseText.textContent).toContain('"effective_dose_mSv": 3.251234567');
-    expect(responseText.textContent).toContain('"brain": 0.0047328');
-    fireEvent.click(screen.getByLabelText("Show full-precision JSON"));
-    expect(responseText.textContent).not.toContain("3.251234567");
+    expect(screen.queryByText(/Readable preview/i)).not.toBeInTheDocument();
+    expect(screen.queryByLabelText(/Show full-precision JSON/i)).not.toBeInTheDocument();
     expect(screen.getByText(/3 of 30 runs used in the last hour/i)).toBeInTheDocument();
     expect(analyticsMocks.trackVendorSandboxEvent).toHaveBeenCalledWith(
       "vendor_sandbox_run",
