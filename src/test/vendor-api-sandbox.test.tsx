@@ -140,9 +140,9 @@ describe("vendor API sandbox", () => {
     expect(screen.getByLabelText("Primary angle · PPA (°)")).toBeInTheDocument();
     expect(screen.getByLabelText("Isocenter Z · ISOZ (cm)")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Increase Isocenter X · ISOX by 1 cm" }));
-    expect(screen.getByLabelText("Isocenter X · ISOX (cm)")).toHaveValue(17.5);
+    expect(screen.getByLabelText("Isocenter X · ISOX (cm)")).toHaveValue(18.8);
     fireEvent.click(screen.getByRole("button", { name: "Decrease Isocenter X · ISOX by 1 cm" }));
-    expect(screen.getByLabelText("Isocenter X · ISOX (cm)")).toHaveValue(16.5);
+    expect(screen.getByLabelText("Isocenter X · ISOX (cm)")).toHaveValue(17.8);
     expect(screen.queryByLabelText(/histories/i)).not.toBeInTheDocument();
     expect(screen.queryByLabelText(/threads/i)).not.toBeInTheDocument();
 
@@ -159,9 +159,9 @@ describe("vendor API sandbox", () => {
 
     expect(screen.getByLabelText("NCIRF phantom frontal field preview")).toBeInTheDocument();
     const phantomImage = screen.getByTestId("ncirf-frontal-phantom-image");
-    expect(phantomImage).toHaveAttribute("href", "/images/ncirf/phantoms/frontal/31500402.webp");
+    expect(phantomImage).toHaveAttribute("href", "/images/ncirf/phantoms/frontal/31600502.webp");
     expect(phantomImage.closest("svg")).toHaveClass("aspect-[3/5]");
-    expect(screen.queryByText(/Size-dependent · 150 cm \/ 40 kg/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Size-dependent · 160 cm \/ 50 kg/i)).not.toBeInTheDocument();
     expect(screen.queryByText("NCIRF4 source")).not.toBeInTheDocument();
     expect(screen.queryByText("Field")).not.toBeInTheDocument();
     expect(screen.queryByText("Center")).not.toBeInTheDocument();
@@ -172,7 +172,7 @@ describe("vendor API sandbox", () => {
     fireEvent.change(screen.getByLabelText("Field width · FW (cm)"), { target: { value: "20" } });
     expect(Number(fieldBox.getAttribute("width"))).toBeGreaterThan(initialWidth);
 
-    fireEvent.change(screen.getByLabelText("Isocenter Z · ISOZ (cm)"), { target: { value: "100" } });
+    fireEvent.change(screen.getByLabelText("Isocenter Z · ISOZ (cm)"), { target: { value: "130" } });
     expect(Number(fieldBox.getAttribute("y"))).toBeLessThan(initialY);
 
     fireEvent.change(screen.getByLabelText("Phantom library"), { target: { value: "5" } });
