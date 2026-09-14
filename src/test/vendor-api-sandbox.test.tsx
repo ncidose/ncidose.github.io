@@ -107,6 +107,7 @@ describe("vendor API sandbox", () => {
     expect(screen.getByLabelText("Weight (kg)")).toBeInTheDocument();
     expect(screen.getByLabelText("CTDI phantom")).toBeInTheDocument();
     expect(screen.getByText(/Tube current modulation strength/i)).toBeInTheDocument();
+    expect(screen.getByText(/licensed NCICT API supports custom scan start and end locations at 1 cm intervals/i)).toBeInTheDocument();
     expect(screen.getAllByRole("tab")).toHaveLength(3);
 
     fireEvent.click(screen.getByRole("tab", { name: /NCINM/i }));
@@ -125,24 +126,27 @@ describe("vendor API sandbox", () => {
   it("offers varied NCIRF phantom and geometry inputs while fixing compute controls", () => {
     render(<VendorApiSandbox initialTool="ncirf" />);
 
-    expect(screen.getByText(/Advanced RDSR-derived geometry/i)).toBeInTheDocument();
+    expect(screen.getByText("Geometry")).toBeInTheDocument();
+    expect(screen.queryByText("Major input")).not.toBeInTheDocument();
+    expect(screen.queryByText(/Advanced RDSR-derived geometry/i)).not.toBeInTheDocument();
     expect(screen.getByText(/5 runs \/ 30 min/i)).toBeInTheDocument();
-    const expectedTime = screen.getByText(/Reduced-history demonstration; usually under 30 seconds/i);
-    const particleHistories = screen.getByText(/Particle histories \(10,000\)/i);
-    expect(expectedTime).toBeInTheDocument();
-    expect(expectedTime.compareDocumentPosition(particleHistories) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(screen.getByText(/Fast demo: 10,000 histories, 2 threads, usually under 30 seconds/i)).toBeInTheDocument();
+    expect(screen.queryByText(/Particle histories \(10,000\)/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/Case ID is synthetic/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/Adjust the bounded inputs/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/Adjust phantom, spectrum/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/Enter one normalized irradiation event/i)).not.toBeInTheDocument();
     expect(screen.getByRole("link", { name: /NCIRF API manual/i })).toHaveAttribute("href", "/manuals/ncirf-api");
-    fireEvent.click(screen.getByText(/Advanced RDSR-derived geometry/i));
     expect(screen.getByLabelText("Phantom library")).toBeInTheDocument();
     expect(screen.getByLabelText("Height (cm)")).toBeInTheDocument();
     expect(screen.getByLabelText("Weight (kg)")).toBeInTheDocument();
     expect(screen.getByLabelText("Tube potential (kVp)")).toBeInTheDocument();
     expect(screen.getByLabelText("Primary angle · PPA (°)")).toBeInTheDocument();
     expect(screen.getByLabelText("Isocenter Z · ISOZ (cm)")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Increase Isocenter X · ISOX by 1 cm" }));
+    expect(screen.getByLabelText("Isocenter X · ISOX (cm)")).toHaveValue(17.5);
+    fireEvent.click(screen.getByRole("button", { name: "Decrease Isocenter X · ISOX by 1 cm" }));
+    expect(screen.getByLabelText("Isocenter X · ISOX (cm)")).toHaveValue(16.5);
     expect(screen.queryByLabelText(/histories/i)).not.toBeInTheDocument();
     expect(screen.queryByLabelText(/threads/i)).not.toBeInTheDocument();
 
@@ -151,17 +155,41 @@ describe("vendor API sandbox", () => {
     expect(screen.queryByLabelText("Height (cm)")).not.toBeInTheDocument();
     expect(screen.getByRole("tabpanel").textContent).toContain("\"Hist\": 10000");
     expect(screen.getByRole("tabpanel").textContent).toContain("\"Thread\": 2");
-    expect(screen.getByText(/approved dedicated vendor deployment/i)).toBeInTheDocument();
+    expect(screen.getByText(/Larger tests require a dedicated deployment/i)).toBeInTheDocument();
+  });
+
+  it("links the NCIRF frontal field preview to field size and isocenter inputs", () => {
+    render(<VendorApiSandbox initialTool="ncirf" />);
+
+    expect(screen.getByLabelText("NCIRF phantom frontal field preview")).toBeInTheDocument();
+    const phantomImage = screen.getByTestId("ncirf-frontal-phantom-image");
+    expect(phantomImage).toHaveAttribute("href", "/images/ncirf/phantoms/frontal/31500402.webp");
+    expect(phantomImage.closest("svg")).toHaveClass("aspect-[3/5]");
+    expect(screen.queryByText(/Size-dependent · 150 cm \/ 40 kg/i)).not.toBeInTheDocument();
+    expect(screen.queryByText("NCIRF4 source")).not.toBeInTheDocument();
+    expect(screen.queryByText("Field")).not.toBeInTheDocument();
+    expect(screen.queryByText("Center")).not.toBeInTheDocument();
+    const fieldBox = screen.getByTestId("ncirf-frontal-field-box");
+    const initialWidth = Number(fieldBox.getAttribute("width"));
+    const initialY = Number(fieldBox.getAttribute("y"));
+
+    fireEvent.change(screen.getByLabelText("Field width · FW (cm)"), { target: { value: "20" } });
+    expect(Number(fieldBox.getAttribute("width"))).toBeGreaterThan(initialWidth);
+
+    fireEvent.change(screen.getByLabelText("Isocenter Z · ISOZ (cm)"), { target: { value: "100" } });
+    expect(Number(fieldBox.getAttribute("y"))).toBeLessThan(initialY);
+
+    fireEvent.change(screen.getByLabelText("Phantom library"), { target: { value: "5" } });
+    expect(phantomImage).toHaveAttribute("href", "/images/ncirf/phantoms/frontal/4042.webp");
   });
 
   it("explains licensed NCIRF custom spectra without implying the public demo supports them yet", () => {
     render(<VendorApiSandbox initialTool="ncirf" />);
 
     expect(screen.getByRole("heading", { name: "Custom spectrum support" })).toBeInTheDocument();
-    expect(screen.getByText(/equipment- and protocol-specific custom spectra/i)).toBeInTheDocument();
-    expect(screen.getByText("GET /spectra")).toBeInTheDocument();
+    expect(screen.getByText(/registered/i)).toBeInTheDocument();
     expect(screen.getByText("SpectrumID")).toBeInTheDocument();
-    expect(screen.getByText(/This public demo currently uses built-in spectra selected by kVp\/HVL/i)).toBeInTheDocument();
+    expect(screen.getByText(/This demo uses built-in kVp\/HVL spectra/i)).toBeInTheDocument();
     expect(screen.getByLabelText("Tube potential (kVp)")).toBeEnabled();
     expect(screen.getByLabelText("HVL (mm Al)")).toBeEnabled();
     expect(screen.getByRole("tabpanel").querySelector("pre")?.textContent).not.toContain("SpectrumID");

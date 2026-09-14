@@ -1,6 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { AlertCircle, CheckCircle2, Clock3, Loader2, Play } from "lucide-react";
+import { AlertCircle, CheckCircle2, ChevronDown, ChevronUp, Clock3, Loader2, Play } from "lucide-react";
 import { buildVendorApiDemoRequest, vendorApiDemoPresetForTool, vendorApiDemoPresets, type VendorApiDemoPreset } from "@/data/vendorApiDemo";
+import pregnantPhantomsCsv from "@/data/ncirf-phantoms/pregnant.csv?raw";
+import referencePhantomsCsv from "@/data/ncirf-phantoms/reference.csv?raw";
+import sizePhantomsCsv from "@/data/ncirf-phantoms/size.csv?raw";
 import { trackVendorSandboxEvent } from "@/lib/analytics";
 import { formatVendorResponse } from "@/lib/vendorResponseFormat";
 
@@ -48,6 +51,166 @@ const selectClassName = "mt-2 w-full border border-slate-600 bg-slate-950 px-3 p
 const numberInputClassName = "mt-2 w-full border border-slate-600 bg-slate-950 px-3 py-2 text-sm text-white outline-none focus:border-sky-400";
 const textInputClassName = "mt-2 w-full border border-slate-600 bg-slate-950 px-3 py-2 text-sm text-white outline-none placeholder:text-slate-600 focus:border-sky-400";
 
+type NcirfPhantomImage = {
+  fileName: string;
+  heightCm: number;
+  widthCm: number;
+  label: string;
+};
+
+type SizePhantom = NcirfPhantomImage & {
+  ageGroup: number;
+  height: number;
+  weight: number;
+};
+
+const csvRows = (csv: string) => csv.trim().split(/\r?\n/).map((row) => row.split(","));
+const padPhantomValue = (value: number, length: number) => String(value).padStart(length, "0");
+
+const referencePhantoms = csvRows(referencePhantomsCsv).slice(1).map((columns) => {
+  const [libraryIndex, ageIndex, matrixX, , matrixZ, resolutionX, , resolutionZ] = columns.map(Number);
+  return {
+    libraryIndex,
+    ageIndex,
+    fileName: `${libraryIndex}${padPhantomValue(ageIndex, 2)}2.webp`,
+    widthCm: matrixX * resolutionX,
+    heightCm: matrixZ * resolutionZ,
+  };
+});
+
+const sizePhantoms: SizePhantom[] = csvRows(sizePhantomsCsv).slice(1).map((columns) => {
+  const ageGroup = Number(columns[0]);
+  const height = Number(columns[1]);
+  const weight = Number(columns[2]);
+  return {
+    ageGroup,
+    height,
+    weight,
+    fileName: `${ageGroup}${padPhantomValue(height, 3)}${padPhantomValue(weight, 3)}2.webp`,
+    widthCm: Number(columns[4]) * Number(columns[7]),
+    heightCm: Number(columns[6]) * Number(columns[9]),
+    label: `Size-dependent · ${height} cm / ${weight} kg`,
+  };
+});
+
+const pregnantPhantoms = csvRows(pregnantPhantomsCsv).map((columns, index) => ({
+  fileName: `4${padPhantomValue(index + 1, 2)}2.webp`,
+  widthCm: Number(columns[0]) * 0.1,
+  heightCm: Number(columns[2]) * 0.2,
+}));
+
+const referenceAgeGroup = (age: number) => {
+  if (age < 1) return 1;
+  if (age < 3) return 2;
+  if (age < 8) return 3;
+  if (age < 13) return 4;
+  if (age < 25) return 5;
+  return 6;
+};
+
+const ncirfPhantomImage = (parameters: Record<string, ParameterValue>): NcirfPhantomImage => {
+  const phantomLibrary = Number(parameters.phantomLibrary);
+  const sex = String(parameters.sex);
+  if (phantomLibrary >= 1 && phantomLibrary <= 3) {
+    const ageGroup = referenceAgeGroup(Number(parameters.age));
+    const sexIndex = sex === "m" ? 2 : 1;
+    const ageIndex = (ageGroup - 1) * 2 + sexIndex;
+    const matched = referencePhantoms.find((phantom) => phantom.libraryIndex === phantomLibrary && phantom.ageIndex === ageIndex)
+      ?? referencePhantoms[0];
+    const nominalAge = [0, 1, 5, 10, 15, 35][ageGroup - 1];
+    return {
+      ...matched,
+      label: `Reference · age ${nominalAge} · ${sex === "m" ? "male" : "female"}`,
+    };
+  }
+  if (phantomLibrary === 5) {
+    const gestationalAges = ["8wk", "10wk", "15wk", "20wk", "25wk", "30wk", "35wk", "38wk"];
+    const pregnantIndex = Math.max(0, gestationalAges.indexOf(String(parameters.pregnantAge)));
+    return {
+      ...pregnantPhantoms[pregnantIndex],
+      label: `Pregnant · ${gestationalAges[pregnantIndex]}`,
+    };
+  }
+
+  const age = Number(parameters.age);
+  const ageGroup = age < 20
+    ? sex === "m" ? 2 : 1
+    : sex === "m" ? 4 : 3;
+  const height = Number(parameters.heightCm);
+  const weight = Number(parameters.weightKg);
+  let matched = sizePhantoms.find((phantom) => phantom.ageGroup === ageGroup) ?? sizePhantoms[0];
+  let closestDistance = Number.POSITIVE_INFINITY;
+  for (const phantom of sizePhantoms) {
+    if (phantom.ageGroup !== ageGroup) continue;
+    const distance = Math.abs(height - phantom.height) + Math.abs(weight - phantom.weight);
+    if (distance < closestDistance) {
+      closestDistance = distance;
+      matched = phantom;
+    }
+  }
+  return matched;
+};
+
+const NcirfFrontalFieldPreview = ({ parameters }: { parameters: Record<string, ParameterValue> }) => {
+  const phantom = ncirfPhantomImage(parameters);
+  const fieldWidthCm = Math.max(0, Number(parameters.fieldWidthCm));
+  const fieldHeightCm = Math.max(0, Number(parameters.fieldHeightCm));
+  const isoXCm = Number(parameters.isoXCm);
+  const isoZCm = Number(parameters.isoZCm);
+  const ppaRadians = (180 + Number(parameters.ppaDeg)) * Math.PI / 180;
+  const psaRadians = (90 - Number(parameters.psaDeg)) * Math.PI / 180;
+
+  const viewWidth = 600;
+  const viewHeight = 1000;
+  const centerX = viewWidth / 2;
+  const scale = viewHeight / phantom.heightCm;
+  const fieldWidth = Math.max(2, fieldWidthCm * scale * Math.abs(Math.cos(ppaRadians)));
+  const fieldHeight = Math.max(2, fieldHeightCm * scale * Math.abs(Math.sin(psaRadians)));
+  const fieldCenterX = centerX + (isoXCm - phantom.widthCm / 2) * scale;
+  const fieldCenterY = viewHeight - isoZCm * scale;
+  const imagePath = `/images/ncirf/phantoms/frontal/${phantom.fileName}`;
+
+  return (
+    <figure className="border border-slate-700 bg-slate-950/60 p-3" aria-label="NCIRF phantom frontal field preview">
+      <div className="font-mono text-[10px] uppercase tracking-widest text-sky-300">Frontal view</div>
+      <svg
+        viewBox={`0 0 ${viewWidth} ${viewHeight}`}
+        className="mt-2 block aspect-[3/5] h-auto w-full bg-white"
+        role="img"
+        aria-labelledby="ncirf-field-preview-title ncirf-field-preview-description"
+      >
+        <title id="ncirf-field-preview-title">NCIRF frontal phantom field position</title>
+        <desc id="ncirf-field-preview-description">
+          Field {fieldWidthCm} by {fieldHeightCm} centimeters centered at ISOX {isoXCm} and ISOZ {isoZCm} centimeters.
+        </desc>
+        <rect x="0" y="0" width={viewWidth} height={viewHeight} fill="#ffffff" />
+        <image
+          data-testid="ncirf-frontal-phantom-image"
+          href={imagePath}
+          x="0"
+          y="0"
+          width={viewWidth}
+          height={viewHeight}
+          preserveAspectRatio="xMidYMid meet"
+        />
+        <rect
+          data-testid="ncirf-frontal-field-box"
+          x={fieldCenterX - fieldWidth / 2}
+          y={fieldCenterY - fieldHeight / 2}
+          width={fieldWidth}
+          height={fieldHeight}
+          fill="#38bdf8"
+          fillOpacity="0.28"
+          stroke="#2563eb"
+          strokeWidth="6"
+        />
+        <line x1="0" y1={fieldCenterY} x2={viewWidth} y2={fieldCenterY} stroke="#0f172a" strokeWidth="3" strokeOpacity="0.75" />
+        <line x1={fieldCenterX} y1="0" x2={fieldCenterX} y2={viewHeight} stroke="#0f172a" strokeWidth="3" strokeOpacity="0.75" />
+      </svg>
+    </figure>
+  );
+};
+
 const NumberInput = ({
   label,
   name,
@@ -55,6 +218,7 @@ const NumberInput = ({
   min,
   max,
   step = 1,
+  spinnerStep,
   unit,
   disabled,
   onChange,
@@ -65,24 +229,62 @@ const NumberInput = ({
   min: number;
   max: number;
   step?: number;
+  spinnerStep?: number;
   unit?: string;
   disabled: boolean;
   onChange: (name: string, value: ParameterValue) => void;
-}) => (
-  <label className="text-xs text-slate-300">
-    {label}{unit ? ` (${unit})` : ""}
-    <input
-      type="number"
-      value={value}
-      min={min}
-      max={max}
-      step={step}
-      disabled={disabled}
-      onChange={(event) => onChange(name, Number(event.target.value))}
-      className={numberInputClassName}
-    />
-  </label>
-);
+}) => {
+  const adjustValue = (direction: -1 | 1) => {
+    if (!spinnerStep) return;
+    const nextValue = Math.min(max, Math.max(min, Number(value) + direction * spinnerStep));
+    onChange(name, Number(nextValue.toFixed(10)));
+  };
+
+  return (
+    <label className="text-xs text-slate-300">
+      {label}{unit ? ` (${unit})` : ""}
+      <span className="relative block">
+        <input
+          type="number"
+          value={value}
+          min={min}
+          max={max}
+          step={spinnerStep ? "any" : step}
+          disabled={disabled}
+          onKeyDown={(event) => {
+            if (!spinnerStep || (event.key !== "ArrowUp" && event.key !== "ArrowDown")) return;
+            event.preventDefault();
+            adjustValue(event.key === "ArrowUp" ? 1 : -1);
+          }}
+          onChange={(event) => onChange(name, Number(event.target.value))}
+          className={`${numberInputClassName}${spinnerStep ? " pr-10 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none" : ""}`}
+        />
+        {spinnerStep && (
+          <span className="absolute bottom-px right-px top-[9px] flex w-8 flex-col border-l border-slate-700 bg-slate-900">
+            <button
+              type="button"
+              aria-label={`Increase ${label} by ${spinnerStep} ${unit ?? ""}`.trim()}
+              disabled={disabled || Number(value) >= max}
+              onClick={() => adjustValue(1)}
+              className="flex flex-1 items-center justify-center text-slate-400 hover:bg-slate-800 hover:text-white disabled:opacity-30"
+            >
+              <ChevronUp className="h-3 w-3" />
+            </button>
+            <button
+              type="button"
+              aria-label={`Decrease ${label} by ${spinnerStep} ${unit ?? ""}`.trim()}
+              disabled={disabled || Number(value) <= min}
+              onClick={() => adjustValue(-1)}
+              className="flex flex-1 items-center justify-center border-t border-slate-700 text-slate-400 hover:bg-slate-800 hover:text-white disabled:opacity-30"
+            >
+              <ChevronDown className="h-3 w-3" />
+            </button>
+          </span>
+        )}
+      </span>
+    </label>
+  );
+};
 
 const ParameterControls = ({
   preset,
@@ -117,6 +319,9 @@ const ParameterControls = ({
           <label className="text-xs text-slate-300">Tube potential<select value={parameters.kvp} disabled={disabled} onChange={(event) => onChange("kvp", Number(event.target.value))} className={selectClassName}>{[80, 100, 120, 140].map((kvp) => <option key={kvp} value={kvp}>{kvp} kVp</option>)}</select></label>
           <label className="text-xs text-slate-300">CTDI phantom<select value={parameters.headBody} disabled={disabled} onChange={(event) => onChange("headBody", Number(event.target.value))} className={selectClassName}><option value={1}>16-cm head</option><option value={2}>32-cm body</option></select></label>
           <label className="text-xs text-slate-300 sm:col-span-3"><span className="flex justify-between gap-3"><span>Tube current modulation strength</span><output>{Number(parameters.tcmStrength).toFixed(1)}</output></span><input type="range" min="0" max="1" step="0.1" value={parameters.tcmStrength} disabled={disabled} onChange={(event) => onChange("tcmStrength", Number(event.target.value))} className="mt-3 w-full accent-sky-400" /></label>
+        </div>
+        <div className="border-l-2 border-sky-400 bg-sky-950/30 px-4 py-3 text-xs leading-5 text-slate-300">
+          This sandbox uses preset scan protocols. The licensed NCICT API supports custom scan start and end locations at 1 cm intervals.
         </div>
         <p className="text-xs leading-5 text-slate-400">See the <a className="text-sky-300 underline decoration-sky-500/50 underline-offset-2 hover:text-white" href="/manuals/ncict-api">NCICT API manual</a>.</p>
         {parameters.bodySizeMethod === "wed" && !["chest", "abdomen", "pelvis", "abdomenPelvis", "cap"].includes(String(parameters.protocol)) && (
@@ -192,40 +397,35 @@ const ParameterControls = ({
           <div className="mt-4 border-l-2 border-sky-400 bg-sky-950/30 px-4 py-3">
             <h4 className="text-sm font-medium text-sky-200">Custom spectrum support</h4>
             <p className="mt-2 text-xs leading-5 text-slate-300">
-              The licensed NCIRF API also supports equipment- and protocol-specific custom spectra.
-              Generate a beam with SpekPy in the NCIRF GUI, have its <code>.ncirfspc</code> file
-              registered by NCI Dose Tools, then use <code>GET /spectra</code> to find its ID
-              and send <code>SpectrumID</code> in subsequent dose requests.
-            </p>
-            <p className="mt-2 text-xs leading-5 text-slate-400">
-              This public demo currently uses built-in spectra selected by kVp/HVL.
+              The licensed API accepts registered <code>.ncirfspc</code> spectra through <code>SpectrumID</code>.
+              This demo uses built-in kVp/HVL spectra.
             </p>
           </div>
         </div>
 
-        <details className="border border-slate-700 bg-slate-950/30">
-          <summary className="cursor-pointer px-4 py-3 font-mono text-[11px] uppercase tracking-widest text-sky-300 hover:text-white">Advanced RDSR-derived geometry</summary>
-          <div className="border-t border-slate-700 p-4">
+        <div className="border-t border-slate-700 pt-5">
+          <div className="font-mono text-[10px] uppercase tracking-widest text-slate-400">Geometry</div>
+          <div className="mt-3 grid items-start gap-4 sm:grid-cols-[minmax(0,1fr)_12rem]">
             <div className="grid gap-3 sm:grid-cols-2">
               <NumberInput label="SID" name="sidCm" value={parameters.sidCm} min={30} max={200} unit="cm" disabled={disabled} onChange={onChange} />
               <NumberInput label="Field width · FW" name="fieldWidthCm" value={parameters.fieldWidthCm} min={0.5} max={60} step={0.5} unit="cm" disabled={disabled} onChange={onChange} />
               <NumberInput label="Field height · FH" name="fieldHeightCm" value={parameters.fieldHeightCm} min={0.5} max={60} step={0.5} unit="cm" disabled={disabled} onChange={onChange} />
               <NumberInput label="Primary angle · PPA" name="ppaDeg" value={parameters.ppaDeg} min={-360} max={360} unit="°" disabled={disabled} onChange={onChange} />
               <NumberInput label="Secondary angle · PSA" name="psaDeg" value={parameters.psaDeg} min={-180} max={180} unit="°" disabled={disabled} onChange={onChange} />
-              <NumberInput label="Isocenter X · ISOX" name="isoXCm" value={parameters.isoXCm} min={-100} max={150} step={0.1} unit="cm" disabled={disabled} onChange={onChange} />
-              <NumberInput label="Isocenter Y · ISOY" name="isoYCm" value={parameters.isoYCm} min={-100} max={150} step={0.1} unit="cm" disabled={disabled} onChange={onChange} />
-              <NumberInput label="Isocenter Z · ISOZ" name="isoZCm" value={parameters.isoZCm} min={-20} max={220} step={0.1} unit="cm" disabled={disabled} onChange={onChange} />
+              <NumberInput label="Isocenter X · ISOX" name="isoXCm" value={parameters.isoXCm} min={-100} max={150} spinnerStep={1} unit="cm" disabled={disabled} onChange={onChange} />
+              <NumberInput label="Isocenter Y · ISOY" name="isoYCm" value={parameters.isoYCm} min={-100} max={150} spinnerStep={1} unit="cm" disabled={disabled} onChange={onChange} />
+              <NumberInput label="Isocenter Z · ISOZ" name="isoZCm" value={parameters.isoZCm} min={-20} max={220} spinnerStep={1} unit="cm" disabled={disabled} onChange={onChange} />
               <NumberInput label="Table thickness · Tbl" name="tableCm" value={parameters.tableCm} min={0} max={15} step={0.1} unit="cm" disabled={disabled} onChange={onChange} />
             </div>
+            <NcirfFrontalFieldPreview parameters={parameters} />
           </div>
-        </details>
+        </div>
 
         {preset.expectedTime && (
           <p className="flex items-center gap-2 text-xs text-slate-400">
             <Clock3 className="h-3.5 w-3.5" /> {preset.expectedTime}
           </p>
         )}
-        <p className="text-xs leading-5 text-slate-400">Particle histories (10,000) and threads (2) are fixed for a fast functional demonstration. Higher-history or scaled testing requires an approved dedicated vendor deployment.</p>
         <p className="text-xs leading-5 text-slate-400">See the <a className="text-sky-300 underline decoration-sky-500/50 underline-offset-2 hover:text-white" href="/manuals/ncirf-api">NCIRF API manual</a>.</p>
       </div>
     )}

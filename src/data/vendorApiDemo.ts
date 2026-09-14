@@ -90,7 +90,7 @@ export const vendorApiDemoPresets: VendorApiDemoPreset[] = [
       isoZCm: 75.1,
       tableCm: 1,
     },
-    expectedTime: "Reduced-history demonstration; usually under 30 seconds",
+    expectedTime: "Fast demo: 10,000 histories, 2 threads, usually under 30 seconds. Larger tests require a dedicated deployment.",
   },  {
     id: "ncinm-fdg-adult",
     tool: "ncinm",
