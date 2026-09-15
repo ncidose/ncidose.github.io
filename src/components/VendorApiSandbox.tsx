@@ -346,6 +346,9 @@ const ParameterControls = ({
     )}
     {preset.tool === "ncirf" && (
       <div className="mt-3 space-y-5">
+        <p className="text-sm leading-6 text-slate-300">
+          The NCIRF API sandbox runs Geant4 Monte Carlo radiation transport on the backend.
+        </p>
         <div>
           <div className="font-mono text-[10px] uppercase tracking-widest text-slate-400">Phantom</div>
           <div className="mt-3 grid gap-3 sm:grid-cols-2">
