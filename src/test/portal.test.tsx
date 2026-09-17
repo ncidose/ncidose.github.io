@@ -157,6 +157,24 @@ describe("portal migration experience", () => {
     expect(screen.getByText("Approved", { selector: ".text-3xl" })).toBeInTheDocument();
   });
 
+  it("routes administrators to Admin and keeps the two activity reports separate", async () => {
+    window.sessionStorage.setItem("ncidose-portal-demo-user", "admin");
+    render(
+      <MemoryRouter initialEntries={["/portal"]}>
+        <Portal />
+      </MemoryRouter>,
+    );
+
+    expect(await screen.findByRole("heading", { name: "Portal administration" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Sandbox API Activity" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "User Portal Activity" })).toBeInTheDocument();
+    expect(screen.getAllByRole("link", { name: "Overview" }).every((link) => link.getAttribute("href") === "/portal/overview")).toBe(true);
+
+    fireEvent.click(screen.getByRole("button", { name: "User Portal Activity" }));
+    expect(screen.getByRole("heading", { name: "Sign-ins and downloads" })).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "API sandbox usage" })).not.toBeInTheDocument();
+  });
+
   it("keeps public resources visible inside the approved portal", () => {
     window.sessionStorage.setItem("ncidose-portal-demo-user", "user");
     render(
@@ -338,7 +356,7 @@ describe("portal migration experience", () => {
     expect(screen.queryByPlaceholderText(/original google groups url/i)).not.toBeInTheDocument();
     expect(screen.queryByRole("heading", { name: /add an approved user/i })).not.toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole("button", { name: /activity/i }));
+    fireEvent.click(screen.getByRole("button", { name: /user portal activity/i }));
     expect(screen.getByRole("heading", { name: /recent logins and downloads/i })).toBeInTheDocument();
     expect(screen.getByText(/No activity recorded/i)).toBeInTheDocument();
   });

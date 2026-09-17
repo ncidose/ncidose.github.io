@@ -15,6 +15,10 @@ type DemoResponse = {
   ok?: boolean;
   error?: string;
   retryAfter?: number;
+  service?: {
+    status?: "available" | "unavailable";
+    checkedAt?: string;
+  };
   demo?: {
     tool?: string;
     presetId?: string;
@@ -37,6 +41,7 @@ type DemoUsage = {
 const demoErrors: Record<string, string> = {
   demo_busy: "This demo calculator is already running. Please try again shortly.",
   demo_not_configured: "The live demo is temporarily unavailable.",
+  demo_server_maintenance: "The calculation server is temporarily unavailable, likely because of maintenance or a restart. Service status will refresh automatically.",
   demo_upstream_error: "The calculation server did not complete this example. Please try again later.",
   invalid_demo_parameters: "One or more demonstration inputs are outside the allowed range.",
   invalid_origin: "This demonstration can be run only from the NCI Dose Tools website.",
@@ -445,6 +450,7 @@ export const VendorApiSandbox = ({ initialTool }: { initialTool?: string | null 
   const [result, setResult] = useState<DemoResponse | null>(null);
   const [error, setError] = useState("");
   const [usage, setUsage] = useState<DemoUsage | null>(null);
+  const [serviceAvailability, setServiceAvailability] = useState<"checking" | "available" | "unavailable" | "unknown">("checking");
   const requestSequence = useRef(0);
   const selected = vendorApiDemoPresets.find((preset) => preset.id === selectedId) ?? initialPreset;
   const selectedParameters = parameterSets[selected.id] ?? selected.defaultParameters;
@@ -457,15 +463,26 @@ export const VendorApiSandbox = ({ initialTool }: { initialTool?: string | null 
   useEffect(() => {
     const controller = new AbortController();
     setUsage(null);
+    setServiceAvailability("checking");
     const usageUrl = new URL(demoEndpoint, window.location.href);
     usageUrl.searchParams.set("tool", selected.tool);
-    fetch(usageUrl.toString(), { signal: controller.signal })
-      .then(async (response) => response.ok ? response.json() as Promise<DemoResponse> : null)
-      .then((payload) => {
-        if (payload?.usage) setUsage(payload.usage);
-      })
-      .catch(() => undefined);
-    return () => controller.abort();
+    const refreshServiceStatus = () => {
+      fetch(usageUrl.toString(), { signal: controller.signal })
+        .then(async (response) => response.ok ? response.json() as Promise<DemoResponse> : null)
+        .then((payload) => {
+          if (payload?.usage) setUsage(payload.usage);
+          setServiceAvailability(payload?.service?.status || "unknown");
+        })
+        .catch(() => {
+          if (!controller.signal.aborted) setServiceAvailability("unknown");
+        });
+    };
+    refreshServiceStatus();
+    const refreshInterval = window.setInterval(refreshServiceStatus, 60_000);
+    return () => {
+      window.clearInterval(refreshInterval);
+      controller.abort();
+    };
   }, [selected.tool]);
 
   const updateParameter = (name: string, value: ParameterValue) => {
@@ -512,6 +529,7 @@ export const VendorApiSandbox = ({ initialTool }: { initialTool?: string | null 
       if (!response.ok || payload.ok !== true) {
         const message = demoErrors[payload.error || ""] || "The live demo could not complete this request.";
         const retry = payload.retryAfter ? ` Try again in about ${Math.ceil(payload.retryAfter / 60)} minutes.` : "";
+        if (payload.error === "demo_server_maintenance") setServiceAvailability("unavailable");
         setError(`${message}${retry}`);
         setStatus("error");
         trackVendorSandboxEvent("vendor_sandbox_error", selected.tool, selected.id, response.status);
@@ -597,6 +615,29 @@ export const VendorApiSandbox = ({ initialTool }: { initialTool?: string | null 
                     <div className="font-mono text-[11px] uppercase tracking-widest text-primary">
                       Live JSON response
                     </div>
+                    <div
+                      className={`mt-1.5 inline-flex items-center gap-1.5 text-xs ${
+                        serviceAvailability === "available"
+                          ? "text-emerald-700"
+                          : serviceAvailability === "unavailable"
+                            ? "text-amber-700"
+                            : "text-slate-500"
+                      }`}
+                      role="status"
+                      aria-live="polite"
+                      data-testid="vendor-api-service-status"
+                    >
+                      {serviceAvailability === "checking" && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+                      {serviceAvailability === "available" && <CheckCircle2 className="h-3.5 w-3.5" />}
+                      {serviceAvailability === "unavailable" && <AlertCircle className="h-3.5 w-3.5" />}
+                      <span>{serviceAvailability === "checking"
+                        ? `Checking ${selected.modality} API availability…`
+                        : serviceAvailability === "available"
+                          ? `${selected.modality} API available`
+                          : serviceAvailability === "unavailable"
+                            ? `${selected.modality} API temporarily unavailable`
+                            : `${selected.modality} API status unavailable`}</span>
+                    </div>
                     {result?.demo?.durationMs !== undefined && (
                       <p className="mt-1 text-xs text-slate-500">
                         Upstream HTTP {result.demo.upstreamStatus} · {result.demo.durationMs.toLocaleString()} ms
@@ -607,7 +648,7 @@ export const VendorApiSandbox = ({ initialTool }: { initialTool?: string | null 
                     <button
                       type="button"
                       onClick={runDemo}
-                      disabled={status === "running"}
+                      disabled={status === "running" || serviceAvailability === "unavailable"}
                       className="btn-precision inline-flex flex-none items-center gap-2 disabled:cursor-not-allowed disabled:opacity-60"
                       data-analytics-location="vendor_api_sandbox"
                       data-analytics-tool={selected.tool}
@@ -626,7 +667,13 @@ export const VendorApiSandbox = ({ initialTool }: { initialTool?: string | null 
 
                 {status === "idle" && (
                   <div className="flex flex-1 flex-col items-center justify-center px-8 py-14 text-center">
-                    <Play className="h-9 w-9 text-slate-300" />
+                    {serviceAvailability === "unavailable" ? (
+                      <>
+                        <AlertCircle className="h-9 w-9 text-amber-500" />
+                        <p className="mt-5 text-sm font-medium text-slate-800">The {selected.modality} calculation service is temporarily unavailable.</p>
+                        <p className="mt-2 max-w-md text-xs leading-5 text-slate-500">The server may be restarting or under maintenance. This status refreshes automatically.</p>
+                      </>
+                    ) : <Play className="h-9 w-9 text-slate-300" />}
                   </div>
                 )}
 

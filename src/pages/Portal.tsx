@@ -83,6 +83,7 @@ type PortalUser = {
 
 type PortalSection = "overview" | "downloads" | "announcements" | "questions" | "account" | "admin";
 const standalonePortalBuild = import.meta.env.VITE_PORTAL_STANDALONE === "true";
+const portalPathForRole = (role: PortalUser["role"]) => role === "admin" ? "/portal/admin" : "/portal";
 
 const portalNav = [
   { id: "overview", label: "Overview", icon: LayoutDashboard },
@@ -188,6 +189,7 @@ export const Portal = ({ publicLanding = false }: { publicLanding?: boolean }) =
   const validSections: PortalSection[] = ["overview", "downloads", "announcements", "questions", "account", "admin"];
   const section: PortalSection = pathSection && validSections.includes(pathSection) ? pathSection : "overview";
   const isAccessRequest = location.pathname.replace(/\/+$/, "") === "/portal/request-access";
+  const isPortalRoot = location.pathname.replace(/\/+$/, "") === "/portal";
 
   useEffect(() => {
     if (demoMode || publicLanding || isAccessRequest) return;
@@ -222,7 +224,7 @@ export const Portal = ({ publicLanding = false }: { publicLanding?: boolean }) =
     const nextUser = role === "admin" ? demoAdminUser : demoApprovedUser;
     window.sessionStorage.setItem("ncidose-portal-demo-user", role);
     setUser(nextUser);
-    navigate("/portal");
+    navigate(portalPathForRole(role));
   };
 
   if (!standalonePortalBuild && publicLanding) {
@@ -268,10 +270,11 @@ export const Portal = ({ publicLanding = false }: { publicLanding?: boolean }) =
   };
 
   const completeEmailSignIn = (apiUser: Record<string, unknown>) => {
-    setUser(portalUserFromApi(apiUser));
+    const nextUser = portalUserFromApi(apiUser);
+    setUser(nextUser);
     setDeniedEmail("");
     setAuthState("ready");
-    navigate("/portal");
+    navigate(portalPathForRole(nextUser.role));
   };
 
   if (!standalonePortalBuild && isAccessRequest && !user) {
@@ -294,6 +297,10 @@ export const Portal = ({ publicLanding = false }: { publicLanding?: boolean }) =
         onAuthenticated={completeEmailSignIn}
       />
     );
+  }
+
+  if (user.role === "admin" && isPortalRoot) {
+    return <Navigate to="/portal/admin" replace />;
   }
 
   if (section === "admin" && user.role !== "admin") {
@@ -1027,7 +1034,7 @@ const PortalMobileNav = ({ section, isAdmin }: { section: PortalSection; isAdmin
 
 const PortalNavLink = ({ item, active, layout }: { item: { id: PortalSection; label: string; icon: typeof LayoutDashboard }; active: boolean; layout: "sidebar" | "tabs" }) => (
   <Link
-    to={item.id === "overview" ? "/portal" : `/portal/${item.id}`}
+    to={`/portal/${item.id}`}
     aria-current={active ? "page" : undefined}
     className={cn(
       "flex items-center gap-3 whitespace-nowrap border-l-2 py-3 text-sm transition-colors",
@@ -1395,6 +1402,9 @@ const apiFailureLabel = (reason: string | null, upstreamStatus: number | null) =
   if (reason === "rate_limited") return "Rate limit";
   if (reason === "busy") return "Server busy";
   if (reason === "timeout") return "Timeout";
+  if (reason === "upstream_maintenance" || (upstreamStatus !== null && [503, 521, 522, 523, 524].includes(upstreamStatus))) {
+    return `Server maintenance/restart${upstreamStatus ? ` (HTTP ${upstreamStatus})` : ""}`;
+  }
   if (reason === "upstream_unavailable") return "API unavailable";
   if (upstreamStatus) return `Upstream HTTP ${upstreamStatus}`;
   return "Upstream error";
@@ -2079,7 +2089,7 @@ const AdminQuestions = ({ demoMode }: { demoMode: boolean }) => {
 
 const Admin = ({ demoMode }: { demoMode: boolean }) => {
   const { toast } = useToast();
-  const [adminSection, setAdminSection] = useState<"users" | "announcements" | "questions" | "activity">("activity");
+  const [adminSection, setAdminSection] = useState<"users" | "announcements" | "questions" | "sandboxActivity" | "portalActivity">("sandboxActivity");
   const [announcementTitle, setAnnouncementTitle] = useState("");
   const [announcementBody, setAnnouncementBody] = useState("");
   const [announcementCategory, setAnnouncementCategory] = useState<"Release" | "Maintenance" | "Access">("Release");
@@ -2544,7 +2554,7 @@ const Admin = ({ demoMode }: { demoMode: boolean }) => {
   };
 
   useEffect(() => {
-    if (adminSection !== "activity") return;
+    if (adminSection !== "sandboxActivity" && adminSection !== "portalActivity") return;
     void loadAdminActivity();
     // Admin data is loaded only for the visible tab and then retained for 15 minutes.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -2632,7 +2642,8 @@ const Admin = ({ demoMode }: { demoMode: boolean }) => {
   return (
     <div className="space-y-8">
       <nav aria-label="Admin sections" className="flex overflow-x-auto border border-border bg-white p-1">
-        <button type="button" onClick={() => setAdminSection("activity")} className={cn("flex flex-1 items-center justify-center gap-2 whitespace-nowrap px-4 py-3 text-sm transition-colors sm:flex-none", adminSection === "activity" ? "bg-primary text-primary-foreground" : "text-slate-600 hover:bg-slate-50 hover:text-primary")}><BarChart3 className="h-4 w-4" /> Activity</button>
+        <button type="button" onClick={() => setAdminSection("sandboxActivity")} className={cn("flex flex-1 items-center justify-center gap-2 whitespace-nowrap px-4 py-3 text-sm transition-colors sm:flex-none", adminSection === "sandboxActivity" ? "bg-primary text-primary-foreground" : "text-slate-600 hover:bg-slate-50 hover:text-primary")}><BarChart3 className="h-4 w-4" /> Sandbox API Activity</button>
+        <button type="button" onClick={() => setAdminSection("portalActivity")} className={cn("flex flex-1 items-center justify-center gap-2 whitespace-nowrap px-4 py-3 text-sm transition-colors sm:flex-none", adminSection === "portalActivity" ? "bg-primary text-primary-foreground" : "text-slate-600 hover:bg-slate-50 hover:text-primary")}><UserRoundCheck className="h-4 w-4" /> User Portal Activity</button>
         <button type="button" onClick={() => setAdminSection("questions")} className={cn("flex flex-1 items-center justify-center gap-2 whitespace-nowrap px-4 py-3 text-sm transition-colors sm:flex-none", adminSection === "questions" ? "bg-primary text-primary-foreground" : "text-slate-600 hover:bg-slate-50 hover:text-primary")}><MessageCircleQuestion className="h-4 w-4" /> Discussions</button>
         <button type="button" onClick={() => setAdminSection("announcements")} className={cn("flex flex-1 items-center justify-center gap-2 whitespace-nowrap px-4 py-3 text-sm transition-colors sm:flex-none", adminSection === "announcements" ? "bg-primary text-primary-foreground" : "text-slate-600 hover:bg-slate-50 hover:text-primary")}><Megaphone className="h-4 w-4" /> Announcements</button>
         <button type="button" onClick={() => setAdminSection("users")} className={cn("flex flex-1 items-center justify-center gap-2 whitespace-nowrap px-4 py-3 text-sm transition-colors sm:flex-none", adminSection === "users" ? "bg-primary text-primary-foreground" : "text-slate-600 hover:bg-slate-50 hover:text-primary")}><Users className="h-4 w-4" /> User Management</button>
@@ -2745,13 +2756,15 @@ const Admin = ({ demoMode }: { demoMode: boolean }) => {
 
       {adminSection === "users" && <section className="border border-border bg-white p-6"><div className="flex items-center justify-between"><div><div className="font-mono text-xs uppercase tracking-widest text-primary">New approvals</div><h2 className="mt-2 text-xl font-light">Simple activation workflow</h2></div><Users className="h-5 w-5 text-primary" /></div><div className="mt-6 grid gap-3 sm:grid-cols-2">{["Receive the executed STA approval email from NCI Technology Transfer", "Add the approved email in the form above", "Send the User Portal link to the recipient", "The user or an administrator may link one secondary email"].map((item, index) => <div key={item} className="flex items-center gap-3 border border-border p-3"><div className="flex h-6 w-6 shrink-0 items-center justify-center bg-primary/10 font-mono text-xs text-primary">{index + 1}</div><span className="text-sm text-slate-700">{item}</span></div>)}</div></section>}
 
-      {adminSection === "activity" && (loadingActivity ? (
+      {(adminSection === "sandboxActivity" || adminSection === "portalActivity") && loadingActivity && (
         <div className="flex items-center justify-center gap-3 border border-border bg-white p-12 text-sm text-muted-foreground"><Loader2 className="h-5 w-5 animate-spin text-primary" /> Loading activity…</div>
-      ) : (
+      )}
+
+      {adminSection === "sandboxActivity" && !loadingActivity && (
         <>
           <div className="flex flex-col gap-3 border border-border bg-slate-50 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
-            <p className="text-xs text-muted-foreground">Activity is cached for 15 minutes. Refresh only when you need current totals.</p>
-            <Button type="button" variant="outline" onClick={() => void loadAdminActivity(true)} className="rounded-none bg-white"><RefreshCw className="h-4 w-4" /> Refresh activity</Button>
+            <p className="text-xs text-muted-foreground">Sandbox API activity is cached for 15 minutes. Refresh only when you need current totals.</p>
+            <Button type="button" variant="outline" onClick={() => void loadAdminActivity(true)} className="rounded-none bg-white"><RefreshCw className="h-4 w-4" /> Refresh sandbox activity</Button>
           </div>
           <section className="border border-border bg-white">
             <div className="flex flex-col gap-3 border-b border-border px-6 py-5 sm:flex-row sm:items-end sm:justify-between">
@@ -2790,10 +2803,18 @@ const Admin = ({ demoMode }: { demoMode: boolean }) => {
 
           <section className="border border-border bg-white">
             <div className="border-b border-border px-6 py-5"><div className="font-mono text-xs uppercase tracking-widest text-primary">Operational review</div><h2 className="mt-2 text-xl font-light">Recent sandbox failures</h2></div>
-            {activityData.sandbox.recentFailures.length === 0 ? <div className="p-8 text-sm text-muted-foreground">No sandbox failures recorded in the last 30 days.</div> : <div className="divide-y divide-border">{activityData.sandbox.recentFailures.map((entry) => <div key={entry.id} className="grid gap-2 px-6 py-4 sm:grid-cols-[6rem_minmax(0,1fr)_8rem_12rem] sm:items-center"><span className="font-mono text-xs uppercase text-primary">{entry.tool}</span><div><div className="text-sm text-slate-800">{apiFailureLabel(entry.reason, entry.upstreamStatus)}{entry.attemptCount > 1 ? ` × ${entry.attemptCount}` : ""}</div><div className="mt-1 text-xs text-muted-foreground">{apiCountryName(entry.countryCode)}{entry.city ? ` · ${entry.city}` : ""}</div></div><div className="font-mono text-xs text-muted-foreground">{apiDuration(entry.durationMs)}</div><div className="text-xs text-muted-foreground">{activityDate(entry.occurredAt)}</div></div>)}</div>}
+            {activityData.sandbox.recentFailures.length === 0 ? <div className="p-8 text-sm text-muted-foreground">No sandbox failures recorded in the last 30 days.</div> : <div className="divide-y divide-border">{activityData.sandbox.recentFailures.map((entry) => <div key={entry.id} className="grid gap-2 px-6 py-4 sm:grid-cols-[6rem_minmax(0,1fr)_8rem_12rem] sm:items-center"><span className="font-mono text-xs uppercase text-primary">{entry.tool}</span><div><div className="text-sm text-slate-800">{apiFailureLabel(entry.reason, entry.upstreamStatus)} <span className="text-xs text-muted-foreground">· {entry.attemptCount} {entry.attemptCount === 1 ? "attempt" : "attempts"}</span></div><div className="mt-1 text-xs text-muted-foreground">{apiCountryName(entry.countryCode)}{entry.city ? ` · ${entry.city}` : ""}</div></div><div className="font-mono text-xs text-muted-foreground">{apiDuration(entry.durationMs)}</div><div className="text-xs text-muted-foreground">{activityDate(entry.occurredAt)}</div></div>)}</div>}
           </section>
+        </>
+      )}
 
-          <div className="pt-2"><div className="font-mono text-xs uppercase tracking-widest text-primary">Approved user portal</div><h2 className="mt-2 text-xl font-light">Sign-ins and downloads</h2></div>
+      {adminSection === "portalActivity" && !loadingActivity && (
+        <>
+          <div className="flex flex-col gap-3 border border-border bg-slate-50 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
+            <p className="text-xs text-muted-foreground">User Portal activity is cached for 15 minutes. Refresh only when you need current totals.</p>
+            <Button type="button" variant="outline" onClick={() => void loadAdminActivity(true)} className="rounded-none bg-white"><RefreshCw className="h-4 w-4" /> Refresh portal activity</Button>
+          </div>
+          <div><div className="font-mono text-xs uppercase tracking-widest text-primary">Approved user portal</div><h2 className="mt-2 text-xl font-light">Sign-ins and downloads</h2></div>
 
           <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
             <StatusCard icon={Download} label="Today" value={String(activityData.summary.downloadsToday)} note="Downloads in 24 hours" />
@@ -2819,7 +2840,7 @@ const Admin = ({ demoMode }: { demoMode: boolean }) => {
             {activityData.recent.length === 0 ? <div className="p-8 text-sm text-muted-foreground">No activity recorded.</div> : <div className="divide-y divide-border">{activityData.recent.map((entry) => <div key={entry.id} className="grid gap-2 px-6 py-4 md:grid-cols-[150px_minmax(0,1fr)_minmax(0,1.2fr)] md:items-center"><div><span className={cn("inline-flex px-2 py-1 font-mono text-[11px] uppercase", entry.eventType === "download" ? "bg-primary/10 text-primary" : "bg-slate-100 text-slate-600")}>{entry.eventType}</span></div><div className="min-w-0"><div className="truncate text-sm text-slate-800">{entry.name || entry.email || "Unknown user"}</div>{entry.name && <div className="mt-1 truncate text-xs text-muted-foreground">{entry.email}</div>}</div><div className="min-w-0 text-xs text-muted-foreground"><div className="truncate">{entry.file || "Portal sign-in"}</div><div className="mt-1">{activityDate(entry.occurredAt)}</div></div></div>)}</div>}
           </section>
         </>
-      ))}
+      )}
 
       {adminSection === "announcements" && <section className="border border-border bg-white p-6 sm:p-8">
         <div className="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">

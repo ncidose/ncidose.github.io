@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import portalWorker, { adminRecentActivityQuery, adminUsersQuery, announcementEmailHtml, canPublishQuestion, canViewDiscussion, discussionAuthorForUser, folderArchiveKeys, generateLoginCode, isFolderDownloadPrefix, linkedEmailWelcomeHtml, loginCodeEmailHtml, normalizeAdminUserDetails, normalizePortalEmail, normalizeQuestionVisibility, portalSessionCookieHeader, qaAttachmentValidationError, secondaryEmailAddedHtml, shouldNotifyDiscussionReplyRecipient, shouldNotifyNewDiscussionRecipient, vendorDemoLimits, vendorDemoLocationForRequest, vendorDemoPresetForInput, vendorDemoPresets, vendorDemoRequestForInput, welcomeEmailHtml } from "../../scripts/portal/worker.js";
+import portalWorker, { adminPortalActivityFilter, adminPortalActivityQueries, adminPortalExcludedEmails, adminRecentActivityQuery, adminSandboxActivityQueries, adminSandboxExcludedCities, adminSandboxReportingFilter, adminUsersQuery, announcementEmailHtml, canPublishQuestion, canViewDiscussion, discussionAuthorForUser, folderArchiveKeys, generateLoginCode, isFolderDownloadPrefix, linkedEmailWelcomeHtml, loginCodeEmailHtml, normalizeAdminUserDetails, normalizePortalEmail, normalizeQuestionVisibility, portalSessionCookieHeader, qaAttachmentValidationError, secondaryEmailAddedHtml, shouldNotifyDiscussionReplyRecipient, shouldNotifyNewDiscussionRecipient, vendorDemoLimits, vendorDemoLocationForRequest, vendorDemoPresetForInput, vendorDemoPresets, vendorDemoRequestForInput, welcomeEmailHtml } from "../../scripts/portal/worker.js";
 
 describe("admin activity query", () => {
   it("uses an indexed primary-identity join instead of a per-event correlated lookup", () => {
@@ -8,6 +8,22 @@ describe("admin activity query", () => {
     expect(adminRecentActivityQuery).toContain("WHERE event_type='login'");
     expect(adminRecentActivityQuery).toContain("WHERE event_type='download'");
     expect(adminRecentActivityQuery).not.toContain("(SELECT identities.normalized_email");
+  });
+
+  it("excludes the administrator account from every User Portal activity report", () => {
+    expect(adminPortalExcludedEmails).toEqual(["choonsiklee@gmail.com"]);
+    expect(adminPortalActivityFilter).toContain("LOWER(TRIM(excluded_identity.normalized_email))");
+    for (const query of Object.values(adminPortalActivityQueries)) {
+      expect(query).toContain("choonsiklee@gmail.com");
+    }
+  });
+
+  it("excludes the Maryland test cities from every sandbox activity report", () => {
+    expect(adminSandboxExcludedCities).toEqual(["rockville", "gaithersburg", "frederick"]);
+    expect(adminSandboxReportingFilter).toContain("UPPER(TRIM(COALESCE(country_code, ''))) = 'US'");
+    for (const query of Object.values(adminSandboxActivityQueries)) {
+      expect(query).toContain("'rockville', 'gaithersburg', 'frederick'");
+    }
   });
 });
 
@@ -29,6 +45,37 @@ describe("public vendor API demo", () => {
     });
     expect(vendorDemoLocationForRequest({ cf: { country: "USA", city: "" } })).toEqual({ countryCode: null, city: null });
     expect(vendorDemoLocationForRequest(new Request("https://portal.ncidosetools.com"))).toEqual({ countryCode: null, city: null });
+  });
+
+  it("reports the selected calculation service availability with usage", async () => {
+    const statement = {
+      bind: vi.fn(() => statement),
+      first: vi.fn(async () => ({ total: 2 })),
+      run: vi.fn(async () => ({ success: true })),
+    };
+    vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify({ ok: true, service: "ncictapi" }), {
+      status: 200,
+      headers: { "content-type": "application/json" },
+    })));
+
+    const response = await portalWorker.fetch(new Request("https://portal.ncidosetools.com/api/public/vendor-demo?tool=ncict", {
+      headers: {
+        "origin": "https://ncidose.github.io",
+        "cf-connecting-ip": "192.0.2.4",
+      },
+    }), {
+      ALLOWED_ORIGINS: "https://ncidose.github.io",
+      AUTH_SECRET: "unit-test-auth-secret",
+      DB: { prepare: vi.fn(() => statement) },
+    }, { waitUntil: vi.fn() });
+
+    expect(response.status).toBe(200);
+    expect(response.headers.get("cache-control")).toBe("no-store");
+    expect(await response.json()).toMatchObject({
+      usage: { used: 2, limit: 30, remaining: 28, windowMinutes: 60 },
+      service: { status: "available", checkedAt: expect.any(String) },
+    });
+    expect(fetch).toHaveBeenCalledWith(new URL("https://ncict-api.ncidosetools.com/health"), expect.objectContaining({ signal: expect.any(AbortSignal) }));
   });
 
   it("accepts bounded parameters and rejects arbitrary calculation input", () => {
@@ -194,6 +241,43 @@ describe("public vendor API demo", () => {
     expect(statements.some((sql) => sql.includes("counts_toward_limit=1") && sql.includes("request_ip_hash=?"))).toBe(true);
     expect(statements.some((sql) => sql.includes("counts_toward_limit, failure_reason, attempt_count") && sql.includes("ON CONFLICT(id) DO UPDATE"))).toBe(true);
     expect(upstreamFetch).not.toHaveBeenCalled();
+  });
+
+  it("identifies restart-like upstream statuses as temporary maintenance", async () => {
+    const completedRequests: unknown[][] = [];
+    const db = {
+      prepare: vi.fn((sql: string) => {
+        const statement = {
+          bind: vi.fn((...values: unknown[]) => {
+            if (sql.includes("UPDATE vendor_demo_requests SET result=")) completedRequests.push(values);
+            return statement;
+          }),
+          first: vi.fn(async () => ({ total: 0 })),
+          run: vi.fn(async () => ({ success: true })),
+        };
+        return statement;
+      }),
+    };
+    vi.stubGlobal("fetch", vi.fn(async () => new Response("Connection timed out", { status: 522 })));
+
+    const response = await portalWorker.fetch(new Request("https://portal.ncidosetools.com/api/public/vendor-demo", {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        "origin": "https://ncidose.github.io",
+        "cf-connecting-ip": "192.0.2.4",
+      },
+      body: JSON.stringify({ presetId: "ncict-adult-chest", parameters: {} }),
+    }), {
+      ALLOWED_ORIGINS: "https://ncidose.github.io",
+      AUTH_SECRET: "unit-test-auth-secret",
+      NCIDOSE_VENDOR_DEMO_API_KEY: "unit-test-demo-key",
+      DB: db,
+    }, { waitUntil: vi.fn() });
+
+    expect(response.status).toBe(503);
+    expect(await response.json()).toMatchObject({ error: "demo_server_maintenance" });
+    expect(completedRequests).toContainEqual(["failed", 522, expect.any(Number), "upstream_maintenance", expect.any(String)]);
   });
 
   it("keeps the API key server-side while proxying the fixed payload", async () => {

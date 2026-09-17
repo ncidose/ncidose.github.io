@@ -31,7 +31,7 @@ describe("vendor API sandbox", () => {
             request: { phantom_library: 2 },
             response: { ok: true, dose_mGy: { effective_dose_mSv: 3.251234567, brain: 0.0047328 } },
           }
-        : { ok: true, usage: { used: 2, limit: 30, remaining: 28, windowMinutes: 60 } },
+        : { ok: true, usage: { used: 2, limit: 30, remaining: 28, windowMinutes: 60 }, service: { status: "available" } },
     ), { status: 200, headers: { "content-type": "application/json" } }));
     vi.stubGlobal("fetch", fetchMock);
 
@@ -66,6 +66,7 @@ describe("vendor API sandbox", () => {
     expect(screen.queryByText(/Readable preview/i)).not.toBeInTheDocument();
     expect(screen.queryByLabelText(/Show full-precision JSON/i)).not.toBeInTheDocument();
     expect(screen.getByText(/3 of 30 runs used in the last hour/i)).toBeInTheDocument();
+    expect(screen.getByTestId("vendor-api-service-status")).toHaveTextContent(/NCINM API available/i);
     expect(analyticsMocks.trackVendorSandboxEvent).toHaveBeenCalledWith(
       "vendor_sandbox_run",
       "ncinm",
@@ -78,6 +79,27 @@ describe("vendor API sandbox", () => {
       200,
       expect.any(Number),
     );
+  });
+
+  it("explains when the calculation server is likely restarting or under maintenance", async () => {
+    const fetchMock = vi.fn(async (_url: RequestInfo | URL, options?: RequestInit) => new Response(JSON.stringify(
+      options?.method === "POST"
+        ? { error: "demo_server_maintenance", usage: { used: 1, limit: 30, remaining: 29, windowMinutes: 60 } }
+        : { ok: true, usage: { used: 0, limit: 30, remaining: 30, windowMinutes: 60 }, service: { status: "available" } },
+    ), {
+      status: options?.method === "POST" ? 503 : 200,
+      headers: { "content-type": "application/json" },
+    }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(<VendorApiSandbox />);
+    expect(await screen.findByText(/NCICT API available/i)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: /Run NCICT demo/i }));
+
+    expect(await screen.findByText(/likely because of maintenance or a restart/i)).toBeInTheDocument();
+    expect(screen.getByText(/status will refresh automatically/i)).toBeInTheDocument();
+    expect(screen.getByTestId("vendor-api-service-status")).toHaveTextContent(/temporarily unavailable/i);
+    expect(screen.getByRole("button", { name: /Run NCICT demo/i })).toBeDisabled();
   });
 
   it("shows NCICT and NCINM inputs directly while stating evaluation boundaries", () => {

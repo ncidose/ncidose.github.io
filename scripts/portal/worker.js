@@ -38,12 +38,20 @@ export const vendorDemoLimits = Object.freeze({
   concurrent: 10,
   concurrentNcirf: 1,
 });
+export const adminPortalExcludedEmails = Object.freeze(["choonsiklee@gmail.com"]);
+const adminPortalExcludedEmailSql = adminPortalExcludedEmails.map((email) => `'${email}'`).join(", ");
+export const adminPortalActivityFilter = `NOT EXISTS (
+  SELECT 1
+  FROM user_identities excluded_identity
+  WHERE excluded_identity.user_id=access_events.user_id
+    AND LOWER(TRIM(excluded_identity.normalized_email)) IN (${adminPortalExcludedEmailSql})
+)`;
 export const adminRecentActivityQuery = `
   WITH recent_events AS (
     SELECT * FROM (
       SELECT id, user_id, event_type, object_key, occurred_at
       FROM access_events
-      WHERE event_type='login'
+      WHERE event_type='login' AND ${adminPortalActivityFilter}
       ORDER BY occurred_at DESC
       LIMIT 100
     )
@@ -51,7 +59,7 @@ export const adminRecentActivityQuery = `
     SELECT * FROM (
       SELECT id, user_id, event_type, object_key, occurred_at
       FROM access_events
-      WHERE event_type='download'
+      WHERE event_type='download' AND ${adminPortalActivityFilter}
       ORDER BY occurred_at DESC
       LIMIT 100
     )
@@ -65,6 +73,37 @@ export const adminRecentActivityQuery = `
   ORDER BY events.occurred_at DESC
   LIMIT 100
 `;
+export const adminPortalActivityQueries = Object.freeze({
+  summary: `
+    SELECT
+      SUM(CASE WHEN event_type='download' AND occurred_at >= datetime('now', '-1 day') THEN 1 ELSE 0 END) AS downloads_today,
+      SUM(CASE WHEN event_type='download' AND occurred_at >= datetime('now', '-7 days') THEN 1 ELSE 0 END) AS downloads_7_days,
+      SUM(CASE WHEN event_type='download' AND occurred_at >= datetime('now', '-30 days') THEN 1 ELSE 0 END) AS downloads_30_days,
+      COUNT(DISTINCT CASE WHEN event_type='download' AND occurred_at >= datetime('now', '-30 days') THEN user_id END) AS download_users_30_days,
+      SUM(CASE WHEN event_type='login' AND occurred_at >= datetime('now', '-30 days') THEN 1 ELSE 0 END) AS logins_30_days
+    FROM access_events
+    WHERE ${adminPortalActivityFilter}
+  `,
+  tools: `
+    SELECT CASE WHEN instr(object_key, '/') > 0 THEN substr(object_key, 1, instr(object_key, '/') - 1) ELSE object_key END AS tool,
+      COUNT(*) AS downloads
+    FROM access_events
+    WHERE event_type='download' AND occurred_at >= datetime('now', '-30 days') AND object_key IS NOT NULL
+      AND ${adminPortalActivityFilter}
+    GROUP BY tool
+    ORDER BY downloads DESC, tool ASC
+  `,
+  files: `
+    SELECT object_key AS file, COUNT(*) AS downloads
+    FROM access_events
+    WHERE event_type='download' AND occurred_at >= datetime('now', '-30 days') AND object_key IS NOT NULL
+      AND ${adminPortalActivityFilter}
+    GROUP BY object_key
+    ORDER BY downloads DESC, object_key ASC
+    LIMIT 20
+  `,
+  recent: adminRecentActivityQuery,
+});
 export const adminUsersQuery = `
   WITH login_activity AS (
     SELECT user_id, MAX(occurred_at) AS last_login_at
@@ -89,8 +128,81 @@ export const adminUsersQuery = `
   ORDER BY COALESCE(users.display_name, '') COLLATE NOCASE, users.created_at DESC
   LIMIT 1000
 `;
+export const adminSandboxExcludedCities = Object.freeze(["rockville", "gaithersburg", "frederick"]);
+const adminSandboxExcludedCitySql = adminSandboxExcludedCities.map((city) => `'${city}'`).join(", ");
+export const adminSandboxReportingFilter = `NOT (
+  UPPER(TRIM(COALESCE(country_code, ''))) = 'US'
+  AND LOWER(TRIM(COALESCE(city, ''))) IN (${adminSandboxExcludedCitySql})
+)`;
+export const adminSandboxActivityQueries = Object.freeze({
+  summary: `
+    SELECT
+      SUM(CASE WHEN counts_toward_limit=1 AND created_at >= datetime('now', '-1 day') THEN 1 ELSE 0 END) AS requests_today,
+      SUM(CASE WHEN counts_toward_limit=1 AND created_at >= datetime('now', '-7 days') THEN 1 ELSE 0 END) AS requests_7_days,
+      SUM(CASE WHEN counts_toward_limit=1 AND created_at >= datetime('now', '-30 days') THEN 1 ELSE 0 END) AS requests_30_days,
+      COUNT(DISTINCT CASE WHEN counts_toward_limit=1 AND created_at >= datetime('now', '-30 days') THEN request_ip_hash END) AS unique_clients_30_days,
+      SUM(CASE WHEN counts_toward_limit=1 AND result='succeeded' AND created_at >= datetime('now', '-30 days') THEN 1 ELSE 0 END) AS succeeded_30_days,
+      SUM(CASE WHEN counts_toward_limit=1 AND result='failed' AND created_at >= datetime('now', '-30 days') THEN 1 ELSE 0 END) AS failed_30_days,
+      SUM(CASE WHEN counts_toward_limit=1 AND result='started' AND created_at >= datetime('now', '-30 days') THEN 1 ELSE 0 END) AS unfinished_30_days,
+      SUM(CASE WHEN failure_reason='rate_limited' AND created_at >= datetime('now', '-30 days') THEN attempt_count ELSE 0 END) AS rate_limited_30_days,
+      SUM(CASE WHEN failure_reason='busy' AND created_at >= datetime('now', '-30 days') THEN attempt_count ELSE 0 END) AS busy_30_days,
+      AVG(CASE WHEN counts_toward_limit=1 AND result='succeeded' AND created_at >= datetime('now', '-30 days') THEN duration_ms END) AS average_duration_ms_30_days
+    FROM vendor_demo_requests
+    WHERE ${adminSandboxReportingFilter}
+  `,
+  percentiles: `
+    WITH ranked AS (
+      SELECT duration_ms,
+        ROW_NUMBER() OVER (ORDER BY duration_ms) AS row_number,
+        COUNT(*) OVER () AS total
+      FROM vendor_demo_requests
+      WHERE counts_toward_limit=1 AND result='succeeded' AND duration_ms IS NOT NULL
+        AND created_at >= datetime('now', '-30 days')
+        AND ${adminSandboxReportingFilter}
+    )
+    SELECT
+      MAX(CASE WHEN row_number=CAST(((total - 1) * 0.50) AS INTEGER) + 1 THEN duration_ms END) AS median_duration_ms,
+      MAX(CASE WHEN row_number=CAST((total * 95 + 99) / 100 AS INTEGER) THEN duration_ms END) AS p95_duration_ms
+    FROM ranked
+  `,
+  tools: `
+    SELECT tool,
+      SUM(CASE WHEN counts_toward_limit=1 THEN 1 ELSE 0 END) AS requests,
+      COUNT(DISTINCT CASE WHEN counts_toward_limit=1 THEN request_ip_hash END) AS unique_clients,
+      SUM(CASE WHEN counts_toward_limit=1 AND result='succeeded' THEN 1 ELSE 0 END) AS succeeded,
+      SUM(CASE WHEN counts_toward_limit=1 AND result='failed' THEN 1 ELSE 0 END) AS failed,
+      SUM(CASE WHEN failure_reason='rate_limited' THEN attempt_count ELSE 0 END) AS rate_limited,
+      SUM(CASE WHEN failure_reason='busy' THEN attempt_count ELSE 0 END) AS busy,
+      AVG(CASE WHEN counts_toward_limit=1 AND result='succeeded' THEN duration_ms END) AS average_duration_ms
+    FROM vendor_demo_requests
+    WHERE created_at >= datetime('now', '-30 days')
+      AND ${adminSandboxReportingFilter}
+    GROUP BY tool
+    ORDER BY CASE tool WHEN 'ncict' THEN 1 WHEN 'ncinm' THEN 2 ELSE 3 END
+  `,
+  locations: `
+    SELECT country_code, city, COUNT(*) AS requests,
+      COUNT(DISTINCT request_ip_hash) AS unique_clients
+    FROM vendor_demo_requests
+    WHERE counts_toward_limit=1 AND created_at >= datetime('now', '-30 days')
+      AND ${adminSandboxReportingFilter}
+    GROUP BY country_code, city
+    ORDER BY requests DESC, country_code ASC, city ASC
+    LIMIT 20
+  `,
+  failures: `
+    SELECT id, tool, upstream_status, duration_ms, failure_reason, country_code, city, attempt_count,
+      COALESCE(completed_at, created_at) AS occurred_at
+    FROM vendor_demo_requests
+    WHERE result='failed' AND created_at >= datetime('now', '-30 days')
+      AND ${adminSandboxReportingFilter}
+    ORDER BY COALESCE(completed_at, created_at) DESC
+    LIMIT 20
+  `,
+});
 export const vendorDemoPresetForInput = (input = {}) =>
   typeof input.presetId === "string" ? vendorDemoPresets[input.presetId] || null : null;
+const vendorDemoMaintenanceStatuses = new Set([503, 521, 522, 523, 524]);
 const vendorDemoProtocolRanges = Object.freeze({
   head: [1001, 1003],
   neck: [1002, 1005],
@@ -373,6 +485,22 @@ async function completeVendorDemoRequest(env, id, result, upstreamStatus, durati
   await env.DB.prepare("UPDATE vendor_demo_requests SET result=?, upstream_status=?, duration_ms=?, failure_reason=?, completed_at=CURRENT_TIMESTAMP WHERE id=?").bind(result, upstreamStatus || null, durationMs, failureReason, id).run();
 }
 
+async function vendorDemoServiceStatus(preset) {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 5_000);
+  try {
+    const response = await fetch(new URL("/health", preset.endpoint), {
+      headers: { "user-agent": "NCI-Dose-Tools-Vendor-Sandbox/1.0" },
+      signal: controller.signal,
+    });
+    return { status: response.ok ? "available" : "unavailable", checkedAt: new Date().toISOString() };
+  } catch {
+    return { status: "unavailable", checkedAt: new Date().toISOString() };
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
 async function runVendorDemo(request, env, context, cors) {
   if (!requestHasAllowedOrigin(request, env)) return json({ error: "invalid_origin" }, 403, cors);
   if (!env.AUTH_SECRET || !env.NCIDOSE_VENDOR_DEMO_API_KEY || !env.DB) return json({ error: "demo_not_configured" }, 503, cors);
@@ -401,7 +529,11 @@ async function runVendorDemo(request, env, context, cors) {
     const upstreamBody = (() => { try { return JSON.parse(upstreamText); } catch { return null; } })();
     const durationMs = Date.now() - startedAt;
     if (!upstream.ok || upstreamBody === null) {
-      await completeVendorDemoRequest(env, reservation.id, "failed", upstreamStatus, durationMs, "upstream_error");
+      const maintenanceLikely = vendorDemoMaintenanceStatuses.has(upstreamStatus);
+      await completeVendorDemoRequest(env, reservation.id, "failed", upstreamStatus, durationMs, maintenanceLikely ? "upstream_maintenance" : "upstream_error");
+      if (maintenanceLikely) {
+        return json({ error: "demo_server_maintenance", usage: reservation.usage }, 503, cors);
+      }
       return json({ error: "demo_upstream_error", usage: reservation.usage }, 502, cors);
     }
     await completeVendorDemoRequest(env, reservation.id, "succeeded", upstreamStatus, durationMs);
@@ -1267,8 +1399,13 @@ export default {
         if (!requestHasAllowedOrigin(request, env)) return json({ error: "invalid_origin" }, 403, cors);
         if (!env.AUTH_SECRET || !env.DB) return json({ error: "demo_not_configured" }, 503, cors);
         if (!["ncict", "ncinm", "ncirf"].includes(tool)) return json({ error: "invalid_demo_parameters" }, 400, cors);
-        const { used, limit, remaining, windowMinutes } = await vendorDemoUsageForRequest(request, env, tool);
-        return json({ ok: true, usage: { used, limit, remaining, windowMinutes } }, 200, cors);
+        const preset = Object.values(vendorDemoPresets).find((candidate) => candidate.tool === tool);
+        const [usage, service] = await Promise.all([
+          vendorDemoUsageForRequest(request, env, tool),
+          vendorDemoServiceStatus(preset),
+        ]);
+        const { used, limit, remaining, windowMinutes } = usage;
+        return json({ ok: true, usage: { used, limit, remaining, windowMinutes }, service }, 200, { ...cors, "cache-control": "no-store" });
       }
       return Response.json({ ok: true, mode: "bounded_parameters", presets: Object.values(vendorDemoPresets).map(({ id, tool, endpoint }) => ({ id, tool, endpoint })) }, {
         headers: { ...cors, "cache-control": "public, max-age=300, s-maxage=300" },
@@ -1610,91 +1747,15 @@ export default {
       if (request.method === "GET" && url.pathname === "/api/admin/activity") {
         if (user.role !== "admin") return json({ error: "administrator_required" }, 403, cors);
         const [summary, toolResult, fileResult, recentResult, sandboxSummary, sandboxPercentiles, sandboxToolResult, sandboxLocationResult, sandboxFailureResult] = await Promise.all([
-          env.DB.prepare(`
-            SELECT
-              SUM(CASE WHEN event_type='download' AND occurred_at >= datetime('now', '-1 day') THEN 1 ELSE 0 END) AS downloads_today,
-              SUM(CASE WHEN event_type='download' AND occurred_at >= datetime('now', '-7 days') THEN 1 ELSE 0 END) AS downloads_7_days,
-              SUM(CASE WHEN event_type='download' AND occurred_at >= datetime('now', '-30 days') THEN 1 ELSE 0 END) AS downloads_30_days,
-              COUNT(DISTINCT CASE WHEN event_type='download' AND occurred_at >= datetime('now', '-30 days') THEN user_id END) AS download_users_30_days,
-              SUM(CASE WHEN event_type='login' AND occurred_at >= datetime('now', '-30 days') THEN 1 ELSE 0 END) AS logins_30_days
-            FROM access_events
-          `).first(),
-          env.DB.prepare(`
-            SELECT CASE WHEN instr(object_key, '/') > 0 THEN substr(object_key, 1, instr(object_key, '/') - 1) ELSE object_key END AS tool,
-              COUNT(*) AS downloads
-            FROM access_events
-            WHERE event_type='download' AND occurred_at >= datetime('now', '-30 days') AND object_key IS NOT NULL
-            GROUP BY tool
-            ORDER BY downloads DESC, tool ASC
-          `).all(),
-          env.DB.prepare(`
-            SELECT object_key AS file, COUNT(*) AS downloads
-            FROM access_events
-            WHERE event_type='download' AND occurred_at >= datetime('now', '-30 days') AND object_key IS NOT NULL
-            GROUP BY object_key
-            ORDER BY downloads DESC, object_key ASC
-            LIMIT 20
-          `).all(),
-          env.DB.prepare(adminRecentActivityQuery).all(),
-          env.DB.prepare(`
-            SELECT
-              SUM(CASE WHEN counts_toward_limit=1 AND created_at >= datetime('now', '-1 day') THEN 1 ELSE 0 END) AS requests_today,
-              SUM(CASE WHEN counts_toward_limit=1 AND created_at >= datetime('now', '-7 days') THEN 1 ELSE 0 END) AS requests_7_days,
-              SUM(CASE WHEN counts_toward_limit=1 AND created_at >= datetime('now', '-30 days') THEN 1 ELSE 0 END) AS requests_30_days,
-              COUNT(DISTINCT CASE WHEN counts_toward_limit=1 AND created_at >= datetime('now', '-30 days') THEN request_ip_hash END) AS unique_clients_30_days,
-              SUM(CASE WHEN counts_toward_limit=1 AND result='succeeded' AND created_at >= datetime('now', '-30 days') THEN 1 ELSE 0 END) AS succeeded_30_days,
-              SUM(CASE WHEN counts_toward_limit=1 AND result='failed' AND created_at >= datetime('now', '-30 days') THEN 1 ELSE 0 END) AS failed_30_days,
-              SUM(CASE WHEN counts_toward_limit=1 AND result='started' AND created_at >= datetime('now', '-30 days') THEN 1 ELSE 0 END) AS unfinished_30_days,
-              SUM(CASE WHEN failure_reason='rate_limited' AND created_at >= datetime('now', '-30 days') THEN attempt_count ELSE 0 END) AS rate_limited_30_days,
-              SUM(CASE WHEN failure_reason='busy' AND created_at >= datetime('now', '-30 days') THEN attempt_count ELSE 0 END) AS busy_30_days,
-              AVG(CASE WHEN counts_toward_limit=1 AND result='succeeded' AND created_at >= datetime('now', '-30 days') THEN duration_ms END) AS average_duration_ms_30_days
-            FROM vendor_demo_requests
-          `).first(),
-          env.DB.prepare(`
-            WITH ranked AS (
-              SELECT duration_ms,
-                ROW_NUMBER() OVER (ORDER BY duration_ms) AS row_number,
-                COUNT(*) OVER () AS total
-              FROM vendor_demo_requests
-              WHERE counts_toward_limit=1 AND result='succeeded' AND duration_ms IS NOT NULL
-                AND created_at >= datetime('now', '-30 days')
-            )
-            SELECT
-              MAX(CASE WHEN row_number=CAST(((total - 1) * 0.50) AS INTEGER) + 1 THEN duration_ms END) AS median_duration_ms,
-              MAX(CASE WHEN row_number=CAST((total * 95 + 99) / 100 AS INTEGER) THEN duration_ms END) AS p95_duration_ms
-            FROM ranked
-          `).first(),
-          env.DB.prepare(`
-            SELECT tool,
-              SUM(CASE WHEN counts_toward_limit=1 THEN 1 ELSE 0 END) AS requests,
-              COUNT(DISTINCT CASE WHEN counts_toward_limit=1 THEN request_ip_hash END) AS unique_clients,
-              SUM(CASE WHEN counts_toward_limit=1 AND result='succeeded' THEN 1 ELSE 0 END) AS succeeded,
-              SUM(CASE WHEN counts_toward_limit=1 AND result='failed' THEN 1 ELSE 0 END) AS failed,
-              SUM(CASE WHEN failure_reason='rate_limited' THEN attempt_count ELSE 0 END) AS rate_limited,
-              SUM(CASE WHEN failure_reason='busy' THEN attempt_count ELSE 0 END) AS busy,
-              AVG(CASE WHEN counts_toward_limit=1 AND result='succeeded' THEN duration_ms END) AS average_duration_ms
-            FROM vendor_demo_requests
-            WHERE created_at >= datetime('now', '-30 days')
-            GROUP BY tool
-            ORDER BY CASE tool WHEN 'ncict' THEN 1 WHEN 'ncinm' THEN 2 ELSE 3 END
-          `).all(),
-          env.DB.prepare(`
-            SELECT country_code, city, COUNT(*) AS requests,
-              COUNT(DISTINCT request_ip_hash) AS unique_clients
-            FROM vendor_demo_requests
-            WHERE counts_toward_limit=1 AND created_at >= datetime('now', '-30 days')
-            GROUP BY country_code, city
-            ORDER BY requests DESC, country_code ASC, city ASC
-            LIMIT 20
-          `).all(),
-          env.DB.prepare(`
-            SELECT id, tool, upstream_status, duration_ms, failure_reason, country_code, city, attempt_count,
-              COALESCE(completed_at, created_at) AS occurred_at
-            FROM vendor_demo_requests
-            WHERE result='failed' AND created_at >= datetime('now', '-30 days')
-            ORDER BY COALESCE(completed_at, created_at) DESC
-            LIMIT 20
-          `).all(),
+          env.DB.prepare(adminPortalActivityQueries.summary).first(),
+          env.DB.prepare(adminPortalActivityQueries.tools).all(),
+          env.DB.prepare(adminPortalActivityQueries.files).all(),
+          env.DB.prepare(adminPortalActivityQueries.recent).all(),
+          env.DB.prepare(adminSandboxActivityQueries.summary).first(),
+          env.DB.prepare(adminSandboxActivityQueries.percentiles).first(),
+          env.DB.prepare(adminSandboxActivityQueries.tools).all(),
+          env.DB.prepare(adminSandboxActivityQueries.locations).all(),
+          env.DB.prepare(adminSandboxActivityQueries.failures).all(),
         ]);
         const sandboxSucceeded = Number(sandboxSummary.succeeded_30_days || 0);
         const sandboxFailed = Number(sandboxSummary.failed_30_days || 0);
