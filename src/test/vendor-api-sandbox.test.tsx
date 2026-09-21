@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { VendorApiSandbox } from "@/components/VendorApiSandbox";
 
@@ -176,7 +176,7 @@ describe("vendor API sandbox", () => {
     expect(screen.queryByText("Major input")).not.toBeInTheDocument();
     expect(screen.queryByText(/Advanced RDSR-derived geometry/i)).not.toBeInTheDocument();
     expect(screen.getByText(/CPU and GPU: 1,000,000 histories/i)).toBeInTheDocument();
-    expect(screen.getByText(/full-Geant4 CPU API with the hybrid CUDA \+ optimized Geant4 PSD GPU API/i)).toBeInTheDocument();
+    expect(screen.getByText(/newly launched GPU-based NCIRF API/i)).toHaveTextContent(/substantial speedup over the full-Geant4 CPU API/i);
     expect(screen.getByRole("button", { name: "Run NCIRF CPU demo" })).toHaveClass("bg-sky-100");
     expect(screen.getByRole("button", { name: "Run NCIRF GPU demo" })).toBeInTheDocument();
     expect(await screen.findByTestId("vendor-api-service-status-cpu")).toHaveTextContent("CPU API available");
@@ -260,6 +260,72 @@ describe("vendor API sandbox", () => {
       "ncirf",
       "ncirf-gpu-size-demo",
     );
+  });
+
+  it("shows the live NCIRF queue position and then the running state", async () => {
+    const encoder = new TextEncoder();
+    let streamController: ReadableStreamDefaultController<Uint8Array> | null = null;
+    const fetchMock = vi.fn(async (_url: RequestInfo | URL, options?: RequestInit) => {
+      if (options?.method !== "POST") {
+        return Response.json({
+          ok: true,
+          usage: { used: 0, limit: 5, remaining: 5, windowMinutes: 30 },
+          service: { status: "available" },
+        });
+      }
+      const stream = new ReadableStream<Uint8Array>({
+        start(controller) {
+          streamController = controller;
+          controller.enqueue(encoder.encode(`${JSON.stringify({
+            event: "progress",
+            queue: { status: "queued", queuePosition: 2, jobsAhead: 1, estimatedWaitSeconds: 42 },
+            usage: { used: 1, limit: 5, remaining: 4, windowMinutes: 30 },
+          })}\n`));
+        },
+      });
+      return new Response(stream, { headers: { "content-type": "application/x-ndjson" } });
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(<VendorApiSandbox initialTool="ncirf" />);
+    fireEvent.click(await screen.findByRole("button", { name: "Run NCIRF CPU demo" }));
+
+    expect(await screen.findByText("Queue position: 2 · 1 job ahead")).toBeInTheDocument();
+    expect(screen.getByText("Estimated wait: about 42 seconds")).toBeInTheDocument();
+    const postCall = fetchMock.mock.calls.find(([, options]) => options?.method === "POST");
+    expect(postCall?.[1]?.headers).toMatchObject({ accept: "application/x-ndjson" });
+
+    await act(async () => {
+      streamController?.enqueue(encoder.encode(`${JSON.stringify({
+        event: "progress",
+        queue: { status: "running", queuePosition: 1, jobsAhead: 0, estimatedWaitSeconds: 0 },
+      })}\n`));
+    });
+    expect(await screen.findByText("NCIRF CPU calculation in progress…")).toBeInTheDocument();
+
+    await act(async () => {
+      streamController?.enqueue(encoder.encode(`${JSON.stringify({
+        event: "result",
+        httpStatus: 200,
+        ok: true,
+        demo: {
+          tool: "ncirf",
+          presetId: "ncirf-size-demo",
+          upstreamStatus: 200,
+          durationMs: 35000,
+          calculationDurationMs: 33000,
+          engine: "NCIRF CPU",
+          engineDetail: "Full Geant4",
+          histories: 1000000,
+        },
+        usage: { used: 1, limit: 5, remaining: 4, windowMinutes: 30 },
+        request: { Hist: 1000000, Thread: 4 },
+        response: { ok: true, dose: { brain: 1 }, error_percent: { brain: 2 } },
+      })}\n`));
+      streamController?.close();
+    });
+    expect(await screen.findByText("Live calculation completed")).toBeInTheDocument();
+    expect(screen.getByText("33.0 s")).toBeInTheDocument();
   });
 
   it("links the NCIRF frontal field preview to field size and isocenter inputs", () => {

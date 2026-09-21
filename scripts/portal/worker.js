@@ -555,7 +555,18 @@ const vendorDemoJobUrl = (preset, path) => {
   return new URL(path, preset.endpoint).toString();
 };
 
-async function runQueuedVendorDemo(preset, payload, apiKey, signal) {
+const publicVendorDemoQueueProgress = (body, fallbackStatus = "queued") => {
+  const integerOrNull = (value) => Number.isFinite(Number(value)) ? Math.max(0, Math.trunc(Number(value))) : null;
+  const numberOrNull = (value) => Number.isFinite(Number(value)) ? Math.max(0, Number(value)) : null;
+  return {
+    status: typeof body?.status === "string" ? body.status : fallbackStatus,
+    queuePosition: integerOrNull(body?.queue_position),
+    jobsAhead: integerOrNull(body?.jobs_ahead),
+    estimatedWaitSeconds: numberOrNull(body?.estimated_wait_seconds),
+  };
+};
+
+async function runQueuedVendorDemo(preset, payload, apiKey, signal, onProgress) {
   const headers = {
     "content-type": "application/json",
     "x-api-key": apiKey,
@@ -578,6 +589,7 @@ async function runQueuedVendorDemo(preset, payload, apiKey, signal) {
   const statusUrl = vendorDemoJobUrl(preset, submissionBody.status_url);
   const resultUrl = vendorDemoJobUrl(preset, submissionBody.result_url);
   if (!statusUrl || !resultUrl) return { upstreamStatus: 502, upstreamBody: null, calculationDurationMs: null };
+  onProgress?.(publicVendorDemoQueueProgress(submissionBody));
 
   while (true) {
     const statusResponse = await fetch(statusUrl, {
@@ -601,8 +613,102 @@ async function runQueuedVendorDemo(preset, payload, apiKey, signal) {
           : null,
       };
     }
+    onProgress?.(publicVendorDemoQueueProgress(statusBody));
     await vendorDemoDelay(preset.pollIntervalMs || 750);
   }
+}
+
+function streamQueuedVendorDemo(preset, payload, parameters, apiKey, reservation, env, context, cors) {
+  const encoder = new TextEncoder();
+  const abortController = new AbortController();
+  let streamClosed = false;
+  const stream = new ReadableStream({
+    async start(streamController) {
+      const send = (event) => {
+        if (streamClosed) return;
+        try {
+          streamController.enqueue(encoder.encode(`${JSON.stringify(event)}\n`));
+        } catch {
+          streamClosed = true;
+          abortController.abort();
+        }
+      };
+      const startedAt = Date.now();
+      let upstreamStatus = 0;
+      const timeout = setTimeout(() => abortController.abort(), preset.timeoutMs);
+      try {
+        const queuedResult = await runQueuedVendorDemo(
+          preset,
+          payload,
+          apiKey,
+          abortController.signal,
+          (queue) => send({ event: "progress", queue, usage: reservation.usage }),
+        );
+        upstreamStatus = queuedResult.upstreamStatus;
+        const durationMs = Date.now() - startedAt;
+        if (upstreamStatus === 429) {
+          await completeVendorDemoRequest(env, reservation.id, "failed", upstreamStatus, durationMs, "busy");
+          send({ event: "result", httpStatus: 429, error: "demo_busy", retryAfter: 30, usage: reservation.usage });
+        } else if (upstreamStatus < 200 || upstreamStatus >= 300 || queuedResult.upstreamBody === null) {
+          const maintenanceLikely = vendorDemoMaintenanceStatuses.has(upstreamStatus);
+          await completeVendorDemoRequest(env, reservation.id, "failed", upstreamStatus, durationMs, maintenanceLikely ? "upstream_maintenance" : "upstream_error");
+          send({
+            event: "result",
+            httpStatus: maintenanceLikely ? 503 : 502,
+            error: maintenanceLikely ? "demo_server_maintenance" : "demo_upstream_error",
+            usage: reservation.usage,
+          });
+        } else {
+          await completeVendorDemoRequest(env, reservation.id, "succeeded", upstreamStatus, durationMs);
+          context.waitUntil(env.DB.prepare("DELETE FROM vendor_demo_requests WHERE created_at < datetime('now', '-30 days')").run());
+          send({
+            event: "result",
+            httpStatus: 200,
+            ok: true,
+            demo: {
+              tool: preset.tool,
+              presetId: preset.id,
+              parameters,
+              upstreamStatus,
+              durationMs,
+              calculationDurationMs: queuedResult.calculationDurationMs,
+              engine: preset.engine,
+              engineDetail: preset.engineDetail,
+              histories: preset.histories,
+              psdHistories: preset.psdHistories,
+              completedAt: new Date().toISOString(),
+            },
+            usage: reservation.usage,
+            request: payload,
+            response: queuedResult.upstreamBody,
+          });
+        }
+      } catch (error) {
+        const durationMs = Date.now() - startedAt;
+        await completeVendorDemoRequest(env, reservation.id, "failed", upstreamStatus, durationMs, error?.name === "AbortError" ? "timeout" : "upstream_unavailable");
+        send({ event: "result", httpStatus: 502, error: "demo_upstream_error", usage: reservation.usage });
+      } finally {
+        clearTimeout(timeout);
+        if (!streamClosed) {
+          streamClosed = true;
+          streamController.close();
+        }
+      }
+    },
+    cancel() {
+      streamClosed = true;
+      abortController.abort();
+    },
+  });
+  return new Response(stream, {
+    status: 200,
+    headers: {
+      ...cors,
+      "cache-control": "no-store",
+      "content-type": "application/x-ndjson; charset=utf-8",
+      "x-content-type-options": "nosniff",
+    },
+  });
 }
 
 async function runVendorDemo(request, env, context, cors) {
@@ -618,6 +724,9 @@ async function runVendorDemo(request, env, context, cors) {
   if (!apiKey) return json({ error: "demo_not_configured" }, 503, cors);
   const reservation = await reserveVendorDemoRequest(request, env, preset);
   if (reservation.error) return json({ error: reservation.error, retryAfter: reservation.retryAfter, usage: reservation.usage }, 429, { ...cors, "retry-after": String(reservation.retryAfter) });
+  if (preset.queued && request.headers.get("accept")?.includes("application/x-ndjson")) {
+    return streamQueuedVendorDemo(preset, payload, parameters, apiKey, reservation, env, context, cors);
+  }
 
   const startedAt = Date.now();
   let upstreamStatus = 0;

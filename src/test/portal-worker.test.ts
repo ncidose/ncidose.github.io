@@ -291,6 +291,60 @@ describe("public vendor API demo", () => {
     expect(JSON.stringify(payload)).not.toContain("unit-test-gpu-key");
   });
 
+  it("streams the NCIRF queue position before the final result", async () => {
+    const statement = {
+      bind: vi.fn(() => statement),
+      first: vi.fn(async () => ({ total: 0 })),
+      run: vi.fn(async () => ({ success: true })),
+    };
+    vi.stubGlobal("fetch", vi.fn(async (url: RequestInfo | URL, options?: RequestInit) => {
+      const href = String(url);
+      if (href.endsWith("/jobs") && options?.method === "POST") {
+        return Response.json({
+          status: "queued",
+          queue_position: 2,
+          jobs_ahead: 1,
+          estimated_wait_seconds: 42,
+          status_url: "/jobs/cpu-stream-demo",
+          result_url: "/jobs/cpu-stream-demo/result",
+        }, { status: 202 });
+      }
+      if (href.endsWith("/result")) return Response.json({ ok: true, dose: { brain: 1 } });
+      return Response.json({ status: "completed", duration_seconds: 33 });
+    }));
+
+    const response = await portalWorker.fetch(new Request("https://portal.ncidosetools.com/api/public/vendor-demo", {
+      method: "POST",
+      headers: {
+        accept: "application/x-ndjson",
+        "content-type": "application/json",
+        origin: "https://ncidose.github.io",
+        "cf-connecting-ip": "192.0.2.6",
+      },
+      body: JSON.stringify({ presetId: "ncirf-size-demo", parameters: {} }),
+    }), {
+      ALLOWED_ORIGINS: "https://ncidose.github.io",
+      AUTH_SECRET: "unit-test-auth-secret",
+      NCIDOSE_VENDOR_DEMO_API_KEY: "unit-test-cpu-key",
+      DB: { prepare: vi.fn(() => statement) },
+    }, { waitUntil: vi.fn() });
+
+    expect(response.status).toBe(200);
+    expect(response.headers.get("content-type")).toContain("application/x-ndjson");
+    const events = (await response.text()).trim().split("\n").map((line) => JSON.parse(line));
+    expect(events[0]).toMatchObject({
+      event: "progress",
+      queue: { status: "queued", queuePosition: 2, jobsAhead: 1, estimatedWaitSeconds: 42 },
+      usage: { used: 1, limit: 5, remaining: 4, windowMinutes: 30 },
+    });
+    expect(events.at(-1)).toMatchObject({
+      event: "result",
+      httpStatus: 200,
+      ok: true,
+      demo: { engine: "NCIRF CPU", calculationDurationMs: 33000 },
+    });
+  });
+
   it("records rejected sandbox traffic without consuming more allowance", async () => {
     const statements: string[] = [];
     const db = {

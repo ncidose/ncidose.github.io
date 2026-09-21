@@ -51,6 +51,19 @@ type DemoUsage = {
   windowMinutes: number;
 };
 
+type DemoQueueProgress = {
+  status: string;
+  queuePosition: number | null;
+  jobsAhead: number | null;
+  estimatedWaitSeconds: number | null;
+};
+
+type DemoStreamEvent = DemoResponse & {
+  event?: "progress" | "result";
+  httpStatus?: number;
+  queue?: DemoQueueProgress;
+};
+
 const demoErrors: Record<string, string> = {
   demo_busy: "This demo calculator is already running. Please try again shortly.",
   demo_not_configured: "The live demo is temporarily unavailable.",
@@ -65,6 +78,45 @@ const formattedJson = (value: unknown) => JSON.stringify(value, null, 2);
 const remainingUsageLabel = (usage?: DemoUsage) => usage
   ? `${usage.remaining} of ${usage.limit} runs remaining · ${usage.windowMinutes === 60 ? "1 hour" : `${usage.windowMinutes} min`} window`
   : "Checking allowance…";
+
+const readDemoResponse = async (
+  response: Response,
+  onProgress: (event: DemoStreamEvent) => void,
+) => {
+  if (!response.headers.get("content-type")?.includes("application/x-ndjson") || !response.body) {
+    const payload = await response.json().catch(() => ({ error: "demo_upstream_error" })) as DemoResponse;
+    return { payload, httpStatus: response.status };
+  }
+
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = "";
+  let finalEvent: DemoStreamEvent | null = null;
+  const handleLine = (line: string) => {
+    if (!line.trim()) return;
+    try {
+      const event = JSON.parse(line) as DemoStreamEvent;
+      if (event.event === "progress" && event.queue) onProgress(event);
+      if (event.event === "result") finalEvent = event;
+    } catch {
+      // A malformed progress line is ignored; a missing final event becomes a generic error below.
+    }
+  };
+
+  while (true) {
+    const { done, value } = await reader.read();
+    buffer += decoder.decode(value, { stream: !done });
+    const lines = buffer.split("\n");
+    buffer = lines.pop() || "";
+    for (const line of lines) handleLine(line);
+    if (done) break;
+  }
+  handleLine(buffer);
+  return {
+    payload: finalEvent || { error: "demo_upstream_error" },
+    httpStatus: finalEvent?.httpStatus ?? response.status,
+  };
+};
 
 type ParameterValue = string | number;
 type ServiceAvailability = "checking" | "available" | "unavailable" | "unknown";
@@ -403,7 +455,7 @@ const ParameterControls = ({
     {preset.tool === "ncirf" && (
       <div className="mt-3 space-y-5">
         <p className="text-sm leading-6 text-slate-300">
-          Compare the full-Geant4 CPU API with the hybrid CUDA + optimized Geant4 PSD GPU API using the same inputs and 1,000,000 histories.
+          The newly launched GPU-based NCIRF API combines CUDA transport with optimized Geant4 PSD for a substantial speedup over the full-Geant4 CPU API. Run both with the same inputs and 1,000,000 histories to compare.
         </p>
         <div>
           <div className="font-mono text-[10px] uppercase tracking-widest text-slate-400">Phantom</div>
@@ -506,6 +558,7 @@ export const VendorApiSandbox = ({ initialTool }: { initialTool?: string | null 
   const [result, setResult] = useState<DemoResponse | null>(null);
   const [error, setError] = useState("");
   const [activeNcirfBackend, setActiveNcirfBackend] = useState<NcirfDemoBackend>("cpu");
+  const [queueProgress, setQueueProgress] = useState<DemoQueueProgress | null>(null);
   const [usageByPreset, setUsageByPreset] = useState<Record<string, DemoUsage>>({});
   const [serviceAvailabilityByPreset, setServiceAvailabilityByPreset] = useState<Record<string, ServiceAvailability>>({});
   const requestSequence = useRef(0);
@@ -581,6 +634,7 @@ export const VendorApiSandbox = ({ initialTool }: { initialTool?: string | null 
     setStatus("idle");
     setResult(null);
     setError("");
+    setQueueProgress(null);
   };
 
   const selectPreset = (presetId: string) => {
@@ -591,6 +645,7 @@ export const VendorApiSandbox = ({ initialTool }: { initialTool?: string | null 
     setStatus("idle");
     setResult(null);
     setError("");
+    setQueueProgress(null);
   };
 
   const runDemo = async (ncirfBackend: NcirfDemoBackend = "cpu") => {
@@ -605,6 +660,7 @@ export const VendorApiSandbox = ({ initialTool }: { initialTool?: string | null 
     setStatus("running");
     setResult(null);
     setError("");
+    setQueueProgress(null);
     trackVendorSandboxEvent("vendor_sandbox_run", selected.tool, targetPresetId);
 
     const controller = new AbortController();
@@ -615,14 +671,21 @@ export const VendorApiSandbox = ({ initialTool }: { initialTool?: string | null 
     try {
       const response = await fetch(demoEndpoint, {
         method: "POST",
-        headers: { "content-type": "application/json" },
+        headers: {
+          "content-type": "application/json",
+          ...(selected.tool === "ncirf" ? { accept: "application/x-ndjson" } : {}),
+        },
         body: JSON.stringify({ presetId: targetPresetId, parameters: selectedParameters }),
         signal: controller.signal,
       });
-      const payload = await response.json().catch(() => ({ error: "demo_upstream_error" })) as DemoResponse;
+      const { payload, httpStatus } = await readDemoResponse(response, (event) => {
+        if (requestSequence.current !== sequence) return;
+        setQueueProgress(event.queue || null);
+        if (event.usage) setUsageByPreset((current) => ({ ...current, [targetPresetId]: event.usage! }));
+      });
       if (requestSequence.current !== sequence) return;
       if (payload.usage) setUsageByPreset((current) => ({ ...current, [targetPresetId]: payload.usage! }));
-      if (!response.ok || payload.ok !== true) {
+      if (httpStatus < 200 || httpStatus >= 300 || payload.ok !== true) {
         const message = demoErrors[payload.error || ""] || "The live demo could not complete this request.";
         const retry = payload.retryAfter ? ` Try again in about ${Math.ceil(payload.retryAfter / 60)} minutes.` : "";
         if (payload.error === "demo_server_maintenance") {
@@ -630,7 +693,7 @@ export const VendorApiSandbox = ({ initialTool }: { initialTool?: string | null 
         }
         setError(`${message}${retry}`);
         setStatus("error");
-        trackVendorSandboxEvent("vendor_sandbox_error", selected.tool, targetPresetId, response.status);
+        trackVendorSandboxEvent("vendor_sandbox_error", selected.tool, targetPresetId, httpStatus);
         return;
       }
       setResult(payload);
@@ -639,7 +702,7 @@ export const VendorApiSandbox = ({ initialTool }: { initialTool?: string | null 
         "vendor_sandbox_success",
         selected.tool,
         targetPresetId,
-        payload.demo?.upstreamStatus ?? response.status,
+        payload.demo?.upstreamStatus ?? httpStatus,
         Math.round(performance.now() - startedAt),
       );
     } catch (caught) {
@@ -819,7 +882,24 @@ export const VendorApiSandbox = ({ initialTool }: { initialTool?: string | null 
                 {status === "running" && (
                   <div className="flex flex-1 flex-col items-center justify-center px-8 py-14 text-center" aria-live="polite">
                     <Loader2 className="h-9 w-9 animate-spin text-primary" />
-                    <p className="mt-5 text-sm text-slate-700">Running {activeServiceLabel} on the live API…</p>
+                    {selected.tool === "ncirf" && queueProgress?.status === "queued" ? (
+                      <>
+                        <p className="mt-5 text-sm font-medium text-slate-800">
+                          {queueProgress.queuePosition && queueProgress.queuePosition > 1
+                            ? `Queue position: ${queueProgress.queuePosition} · ${queueProgress.jobsAhead ?? queueProgress.queuePosition - 1} ${(queueProgress.jobsAhead ?? queueProgress.queuePosition - 1) === 1 ? "job" : "jobs"} ahead`
+                            : "Next in queue"}
+                        </p>
+                        {queueProgress.estimatedWaitSeconds !== null && queueProgress.estimatedWaitSeconds > 0 && (
+                          <p className="mt-2 text-xs text-slate-500">Estimated wait: about {Math.ceil(queueProgress.estimatedWaitSeconds)} seconds</p>
+                        )}
+                      </>
+                    ) : (
+                      <p className="mt-5 text-sm text-slate-700">
+                        {selected.tool === "ncirf" && queueProgress?.status === "running"
+                          ? `${activeServiceLabel} calculation in progress…`
+                          : `Submitting to ${activeServiceLabel}…`}
+                      </p>
+                    )}
                     <p className="mt-2 text-xs text-slate-500">Keep this page open while the calculation completes.</p>
                   </div>
                 )}
