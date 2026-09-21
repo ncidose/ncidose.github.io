@@ -56,6 +56,7 @@ import { trackResearchAccessPdfPrepared } from "@/lib/analytics";
 import { createLicensingMailto } from "@/lib/licensing";
 import { cn } from "@/lib/utils";
 import { getPortalHeaderEmail, selectPrimaryPortalIdentity } from "@/lib/portalUser";
+import { sandboxApiLabel, sandboxApiUsageRows, type SandboxApiUsage } from "@/lib/sandboxActivity";
 import { buildAnswerThreads, questionAnswerLabel, questionAuthorLabel, questionRequestTypeLabels, questionRequestTypes, questionTools, type ManagedQuestion, type QuestionAnswerThread, type QuestionRequestType, type QuestionTool, type QuestionVisibility } from "@/lib/questions";
 
 type PortalIdentity = {
@@ -1901,7 +1902,7 @@ type AdminActivityData = {
       medianDurationMs30Days: number | null;
       p95DurationMs30Days: number | null;
     };
-    tools: Array<{ tool: string; requests: number; uniqueClients: number; succeeded: number; failed: number; rateLimited: number; busy: number; successRate: number | null; averageDurationMs: number | null }>;
+    tools: SandboxApiUsage[];
     locations: Array<{ countryCode: string | null; city: string | null; requests: number; uniqueClients: number }>;
     recentFailures: Array<{ id: string; tool: string; upstreamStatus: number | null; durationMs: number | null; reason: string | null; attemptCount: number; countryCode: string | null; city: string | null; occurredAt: string }>;
     locationNotice: string;
@@ -2790,9 +2791,7 @@ const Admin = ({ demoMode }: { demoMode: boolean }) => {
           <div className="grid gap-6 xl:grid-cols-2">
             <section className="overflow-hidden border border-border bg-white">
               <div className="border-b border-border px-6 py-5"><div className="font-mono text-xs uppercase tracking-widest text-primary">Last 30 days</div><h2 className="mt-2 text-xl font-light">Usage by API</h2></div>
-              {activityData.sandbox.tools.length === 0 ? <div className="p-8 text-sm text-muted-foreground">No sandbox runs recorded yet.</div> : (
-                <div className="overflow-x-auto"><table className="w-full min-w-[560px] text-left text-sm"><thead className="bg-slate-50 text-xs uppercase tracking-wide text-muted-foreground"><tr><th className="px-5 py-3 font-medium">API</th><th className="px-4 py-3 font-medium">Runs</th><th className="px-4 py-3 font-medium">Clients</th><th className="px-4 py-3 font-medium">Success</th><th className="px-4 py-3 font-medium">Average</th><th className="px-4 py-3 font-medium">Limited / busy</th></tr></thead><tbody className="divide-y divide-border">{activityData.sandbox.tools.map((entry) => <tr key={entry.tool}><td className="px-5 py-4 font-mono font-medium uppercase text-primary">{entry.tool}</td><td className="px-4 py-4">{entry.requests}</td><td className="px-4 py-4">{entry.uniqueClients}</td><td className="px-4 py-4">{entry.successRate === null ? "—" : `${entry.successRate}%`}</td><td className="px-4 py-4">{apiDuration(entry.averageDurationMs)}</td><td className="px-4 py-4">{entry.rateLimited} / {entry.busy}</td></tr>)}</tbody></table></div>
-              )}
+              <div className="overflow-x-auto"><table className="w-full min-w-[560px] text-left text-sm"><thead className="bg-slate-50 text-xs uppercase tracking-wide text-muted-foreground"><tr><th className="px-5 py-3 font-medium">API</th><th className="px-4 py-3 font-medium">Runs</th><th className="px-4 py-3 font-medium">Clients</th><th className="px-4 py-3 font-medium">Success</th><th className="px-4 py-3 font-medium">Average</th><th className="px-4 py-3 font-medium">Limited / busy</th></tr></thead><tbody className="divide-y divide-border">{sandboxApiUsageRows(activityData.sandbox.tools).map((entry) => <tr key={entry.tool}><td className="whitespace-nowrap px-5 py-4 font-mono font-medium text-primary">{sandboxApiLabel(entry.tool)}</td><td className="px-4 py-4">{entry.requests}</td><td className="px-4 py-4">{entry.uniqueClients}</td><td className="px-4 py-4">{entry.successRate === null ? "—" : `${entry.successRate}%`}</td><td className="px-4 py-4">{apiDuration(entry.averageDurationMs)}</td><td className="px-4 py-4">{entry.rateLimited} / {entry.busy}</td></tr>)}</tbody></table></div>
             </section>
 
             <section className="overflow-hidden border border-border bg-white">
@@ -2803,7 +2802,7 @@ const Admin = ({ demoMode }: { demoMode: boolean }) => {
 
           <section className="border border-border bg-white">
             <div className="border-b border-border px-6 py-5"><div className="font-mono text-xs uppercase tracking-widest text-primary">Operational review</div><h2 className="mt-2 text-xl font-light">Recent sandbox failures</h2></div>
-            {activityData.sandbox.recentFailures.length === 0 ? <div className="p-8 text-sm text-muted-foreground">No sandbox failures recorded in the last 30 days.</div> : <div className="divide-y divide-border">{activityData.sandbox.recentFailures.map((entry) => <div key={entry.id} className="grid gap-2 px-6 py-4 sm:grid-cols-[6rem_minmax(0,1fr)_8rem_12rem] sm:items-center"><span className="font-mono text-xs uppercase text-primary">{entry.tool}</span><div><div className="text-sm text-slate-800">{apiFailureLabel(entry.reason, entry.upstreamStatus)} <span className="text-xs text-muted-foreground">· {entry.attemptCount} {entry.attemptCount === 1 ? "attempt" : "attempts"}</span></div><div className="mt-1 text-xs text-muted-foreground">{apiCountryName(entry.countryCode)}{entry.city ? ` · ${entry.city}` : ""}</div></div><div className="font-mono text-xs text-muted-foreground">{apiDuration(entry.durationMs)}</div><div className="text-xs text-muted-foreground">{activityDate(entry.occurredAt)}</div></div>)}</div>}
+            {activityData.sandbox.recentFailures.length === 0 ? <div className="p-8 text-sm text-muted-foreground">No sandbox failures recorded in the last 30 days.</div> : <div className="divide-y divide-border">{activityData.sandbox.recentFailures.map((entry) => <div key={entry.id} className="grid gap-2 px-6 py-4 sm:grid-cols-[6rem_minmax(0,1fr)_8rem_12rem] sm:items-center"><span className="whitespace-nowrap font-mono text-xs text-primary">{sandboxApiLabel(entry.tool)}</span><div><div className="text-sm text-slate-800">{apiFailureLabel(entry.reason, entry.upstreamStatus)} <span className="text-xs text-muted-foreground">· {entry.attemptCount} {entry.attemptCount === 1 ? "attempt" : "attempts"}</span></div><div className="mt-1 text-xs text-muted-foreground">{apiCountryName(entry.countryCode)}{entry.city ? ` · ${entry.city}` : ""}</div></div><div className="font-mono text-xs text-muted-foreground">{apiDuration(entry.durationMs)}</div><div className="text-xs text-muted-foreground">{activityDate(entry.occurredAt)}</div></div>)}</div>}
           </section>
         </>
       )}

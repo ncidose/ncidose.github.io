@@ -170,6 +170,10 @@ describe("portal migration experience", () => {
     expect(screen.getByRole("button", { name: "User Portal Activity" })).toBeInTheDocument();
     expect(screen.getAllByRole("link", { name: "Overview" }).every((link) => link.getAttribute("href") === "/portal/overview")).toBe(true);
 
+    fireEvent.click(screen.getByRole("button", { name: "Sandbox API Activity" }));
+    expect(screen.getByRole("row", { name: "NCIRF CPU 0 0 — — 0 / 0" })).toBeInTheDocument();
+    expect(screen.getByRole("row", { name: "NCIRF GPU 0 0 — — 0 / 0" })).toBeInTheDocument();
+
     fireEvent.click(screen.getByRole("button", { name: "User Portal Activity" }));
     expect(screen.getByRole("heading", { name: "Sign-ins and downloads" })).toBeInTheDocument();
     expect(screen.queryByRole("heading", { name: "API sandbox usage" })).not.toBeInTheDocument();

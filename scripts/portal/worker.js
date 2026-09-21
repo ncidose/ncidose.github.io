@@ -510,7 +510,7 @@ async function reserveVendorDemoRequest(request, env, preset) {
 
 async function recordVendorDemoRejection(env, requestIpHash, preset, location, reason) {
   const fiveMinuteBucket = Math.floor(Date.now() / 300_000);
-  const id = await keyedHash(`vendor-demo-rejection:${requestIpHash}:${preset.tool}:${reason}:${fiveMinuteBucket}`, env.AUTH_SECRET);
+  const id = await keyedHash(`vendor-demo-rejection:${requestIpHash}:${preset.id}:${reason}:${fiveMinuteBucket}`, env.AUTH_SECRET);
   await env.DB.prepare(`
     INSERT INTO vendor_demo_requests
       (id, request_ip_hash, tool, preset_id, result, upstream_status, duration_ms, completed_at, country_code, city, counts_toward_limit, failure_reason, attempt_count)
