@@ -119,8 +119,11 @@ describe("public vendor API demo", () => {
 
   it("keeps the public NCIRF example computationally bounded", () => {
     const preset = vendorDemoPresets["ncirf-size-demo"];
+    const gpuPreset = vendorDemoPresets["ncirf-gpu-size-demo"];
     expect(preset.payload.Hist).toBe(10000);
     expect(preset.payload.Thread).toBe(2);
+    expect(gpuPreset.payload).toMatchObject({ Hist: 1000000, Thread: 4, PSDMode: 0 });
+    expect(gpuPreset.endpoint).toBe("https://ncirfgpu-api.ncidosetools.com/param");
     const varied = vendorDemoRequestForInput({
       presetId: "ncirf-size-demo",
       parameters: {
@@ -159,12 +162,26 @@ describe("public vendor API demo", () => {
       Hist: 10000,
       Thread: 2,
     });
+    const gpuVaried = vendorDemoRequestForInput({
+      presetId: "ncirf-gpu-size-demo",
+      parameters: { phantomLibrary: 5, pregnantAge: "35wk" },
+    });
+    expect(gpuVaried?.payload).toMatchObject({
+      PhtLib: 5,
+      Age: "35wk",
+      Hist: 1000000,
+      Thread: 4,
+      PSDMode: 0,
+    });
     expect(vendorDemoRequestForInput({ presetId: "ncirf-size-demo", parameters: { Hist: 5000000 } })).toBeNull();
     expect(vendorDemoRequestForInput({ presetId: "ncirf-size-demo", parameters: { threads: 8 } })).toBeNull();
     expect(vendorDemoLimits.perIpHourly).toBe(30);
     expect(vendorDemoLimits.perIpThirtyMinutesNcirf).toBe(5);
     expect(vendorDemoLimits.globalDailyNcirf).toBe(60);
     expect(vendorDemoLimits.concurrentNcirf).toBe(1);
+    expect(vendorDemoLimits.perIpThirtyMinutesNcirfGpu).toBe(5);
+    expect(vendorDemoLimits.globalDailyNcirfGpu).toBe(100);
+    expect(vendorDemoLimits.concurrentNcirfGpu).toBe(3);
   });
 
   it("counts the NCIRF hourly allowance separately from faster tool requests", async () => {
@@ -180,10 +197,17 @@ describe("public vendor API demo", () => {
         return statement;
       }),
     };
-    vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify({ ok: true }), {
-      status: 200,
-      headers: { "content-type": "application/json" },
-    })));
+    vi.stubGlobal("fetch", vi.fn(async (url: RequestInfo | URL, options?: RequestInit) => {
+      const href = String(url);
+      if (href.endsWith("/jobs") && options?.method === "POST") {
+        return new Response(JSON.stringify({ status_url: "/jobs/cpu-demo", result_url: "/jobs/cpu-demo/result" }), {
+          status: 202,
+          headers: { "content-type": "application/json" },
+        });
+      }
+      if (href.endsWith("/result")) return Response.json({ ok: true });
+      return Response.json({ status: "completed", duration_seconds: 2 });
+    }));
 
     const response = await portalWorker.fetch(new Request("https://portal.ncidosetools.com/api/public/vendor-demo", {
       method: "POST",
@@ -201,8 +225,64 @@ describe("public vendor API demo", () => {
     }, { waitUntil: vi.fn() });
 
     expect(response.status).toBe(200);
-    expect(statements.some((sql) => sql.includes("request_ip_hash=? AND tool='ncirf'") && sql.includes("datetime('now', '-30 minutes')"))).toBe(true);
+    expect(statements.some((sql) => sql.includes("request_ip_hash=? AND preset_id=?") && sql.includes("datetime('now', '-30 minutes')"))).toBe(true);
     expect(await response.json()).toMatchObject({ usage: { used: 1, limit: 5, remaining: 4, windowMinutes: 30 } });
+  });
+
+  it("submits the GPU demo through the persistent queue with a separate key", async () => {
+    const statement = {
+      bind: vi.fn(() => statement),
+      first: vi.fn(async () => ({ total: 0 })),
+      run: vi.fn(async () => ({ success: true })),
+    };
+    const upstreamFetch = vi.fn(async (url: RequestInfo | URL, options?: RequestInit) => {
+      const href = String(url);
+      if (href.endsWith("/jobs") && options?.method === "POST") {
+        return new Response(JSON.stringify({ status_url: "/jobs/gpu-demo", result_url: "/jobs/gpu-demo/result" }), {
+          status: 202,
+          headers: { "content-type": "application/json" },
+        });
+      }
+      if (href.endsWith("/result")) {
+        return Response.json({ ok: true, patient_id: "public-vendor-gpu-demo", dose: { brain: 1 }, error_percent: { brain: 2 } });
+      }
+      return Response.json({ status: "completed", duration_seconds: 4 });
+    });
+    vi.stubGlobal("fetch", upstreamFetch);
+
+    const response = await portalWorker.fetch(new Request("https://portal.ncidosetools.com/api/public/vendor-demo", {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        "origin": "https://ncidose.github.io",
+        "cf-connecting-ip": "192.0.2.5",
+      },
+      body: JSON.stringify({ presetId: "ncirf-gpu-size-demo", parameters: { phantomLibrary: 5, pregnantAge: "20wk" } }),
+    }), {
+      ALLOWED_ORIGINS: "https://ncidose.github.io",
+      AUTH_SECRET: "unit-test-auth-secret",
+      NCIDOSE_VENDOR_DEMO_API_KEY: "unit-test-cpu-key",
+      NCIDOSE_VENDOR_GPU_DEMO_API_KEY: "unit-test-gpu-key",
+      DB: { prepare: vi.fn(() => statement) },
+    }, { waitUntil: vi.fn() });
+    const payload = await response.json();
+
+    expect(response.status, JSON.stringify(payload)).toBe(200);
+    expect(payload).toMatchObject({
+      demo: {
+        presetId: "ncirf-gpu-size-demo",
+        calculationDurationMs: 4000,
+        engine: "NCIRF GPU",
+        histories: 1000000,
+        psdHistories: 100000,
+      },
+      usage: { used: 1, limit: 5, remaining: 4, windowMinutes: 30 },
+      request: { PhtLib: 5, Age: "20wk", Hist: 1000000, Thread: 4, PSDMode: 0 },
+    });
+    const submission = upstreamFetch.mock.calls.find(([url, options]) => String(url).endsWith("/jobs") && options?.method === "POST");
+    expect(submission).toBeDefined();
+    expect(submission?.[1]?.headers).toMatchObject({ "x-api-key": "unit-test-gpu-key" });
+    expect(JSON.stringify(payload)).not.toContain("unit-test-gpu-key");
   });
 
   it("records rejected sandbox traffic without consuming more allowance", async () => {

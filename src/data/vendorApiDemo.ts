@@ -1,4 +1,8 @@
 export type VendorApiDemoTool = "ncict" | "ncinm" | "ncirf";
+export type NcirfDemoBackend = "cpu" | "gpu";
+
+export const ncirfGpuDemoPresetId = "ncirf-gpu-size-demo";
+export const ncirfGpuDemoEndpoint = "https://ncirfgpu-api.ncidosetools.com/param";
 
 export type VendorApiDemoPreset = {
   id: string;
@@ -90,7 +94,7 @@ export const vendorApiDemoPresets: VendorApiDemoPreset[] = [
       isoZCm: 119.9,
       tableCm: 1,
     },
-    expectedTime: "Fast demo: 10,000 histories, 2 threads, usually under 30 seconds. Larger tests require a dedicated deployment.",
+    expectedTime: "CPU: 10,000 histories · GPU: 1,000,000 histories.",
   },  {
     id: "ncinm-fdg-adult",
     tool: "ncinm",
@@ -132,6 +136,7 @@ const protocolRanges: Record<string, [number, number]> = {
 export const buildVendorApiDemoRequest = (
   preset: VendorApiDemoPreset,
   parameters: Record<string, string | number>,
+  ncirfBackend: NcirfDemoBackend = "cpu",
 ) => {
   if (preset.tool === "ncict") {
     const [start, end] = protocolRanges[String(parameters.protocol)] ?? protocolRanges.chest;
@@ -164,7 +169,7 @@ export const buildVendorApiDemoRequest = (
     };
   }
   const phantomLibrary = Number(parameters.phantomLibrary);
-  return {
+  const request = {
     ...preset.request,
     PhtLib: phantomLibrary,
     Age: phantomLibrary === 5 ? String(parameters.pregnantAge) : Number(parameters.age),
@@ -184,4 +189,14 @@ export const buildVendorApiDemoRequest = (
     ISOZ: Number(parameters.isoZCm),
     Tbl: Number(parameters.tableCm),
   };
+  if (ncirfBackend === "gpu") {
+    return {
+      ...request,
+      ID: "public-vendor-gpu-demo",
+      Hist: 1_000_000,
+      Thread: 4,
+      PSDMode: 0,
+    };
+  }
+  return request;
 };

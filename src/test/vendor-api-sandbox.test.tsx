@@ -148,7 +148,10 @@ describe("vendor API sandbox", () => {
     expect(screen.queryByText("Major input")).not.toBeInTheDocument();
     expect(screen.queryByText(/Advanced RDSR-derived geometry/i)).not.toBeInTheDocument();
     expect(screen.getByText(/5 runs \/ 30 min/i)).toBeInTheDocument();
-    expect(screen.getByText(/Fast demo: 10,000 histories, 2 threads, usually under 30 seconds/i)).toBeInTheDocument();
+    expect(screen.getByText(/CPU: 10,000 histories · GPU: 1,000,000 histories/i)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Run NCIRF demo" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Run NCIRF GPU demo" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /NCIRF-GPU/i })).not.toBeInTheDocument();
     expect(screen.queryByText(/Particle histories \(10,000\)/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/Case ID is synthetic/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/Adjust the bounded inputs/i)).not.toBeInTheDocument();
@@ -173,7 +176,56 @@ describe("vendor API sandbox", () => {
     expect(screen.queryByLabelText("Height (cm)")).not.toBeInTheDocument();
     expect(screen.getByRole("tabpanel").textContent).toContain("\"Hist\": 10000");
     expect(screen.getByRole("tabpanel").textContent).toContain("\"Thread\": 2");
-    expect(screen.getByText(/Larger tests require a dedicated deployment/i)).toBeInTheDocument();
+    expect(screen.getByText(/Fetal dose tallies may require more histories for stable uncertainty/i)).toBeInTheDocument();
+    expect(screen.getByText(/Large demo error values are shown unchanged/i)).toBeInTheDocument();
+  });
+
+  it("runs one GPU request per page action and emphasizes engine and calculation time", async () => {
+    const fetchMock = vi.fn(async (_url: RequestInfo | URL, options?: RequestInit) => new Response(JSON.stringify(
+      options?.method === "POST"
+        ? {
+            ok: true,
+            demo: {
+              tool: "ncirf",
+              presetId: "ncirf-gpu-size-demo",
+              upstreamStatus: 200,
+              durationMs: 4700,
+              calculationDurationMs: 4000,
+              engine: "NCIRF GPU",
+              engineDetail: "CUDA organ and bone transport + optimized Geant4 PSD",
+              histories: 1000000,
+              psdHistories: 100000,
+            },
+            usage: { used: 1, limit: 5, remaining: 4, windowMinutes: 30 },
+            request: { PhtLib: 4, Hist: 1000000, Thread: 4, PSDMode: 0 },
+            response: { ok: true, dose: { brain: 1.234 }, error_percent: { brain: 2.345 } },
+          }
+        : { ok: true, usage: { used: 0, limit: 5, remaining: 5, windowMinutes: 30 }, service: { status: "available" } },
+    ), { status: 200, headers: { "content-type": "application/json" } }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(<VendorApiSandbox initialTool="ncirf" />);
+    const gpuButton = await screen.findByRole("button", { name: "Run NCIRF GPU demo" });
+    fireEvent.click(gpuButton);
+    fireEvent.click(gpuButton);
+
+    expect(await screen.findByText("NCIRF GPU")).toBeInTheDocument();
+    expect(screen.getByText("CUDA organ and bone transport + optimized Geant4 PSD")).toBeInTheDocument();
+    expect(screen.getByText("4.0 s")).toBeInTheDocument();
+    expect(screen.getByText(/1,000,000 histories · PSD 100,000/)).toBeInTheDocument();
+    const postCalls = fetchMock.mock.calls.filter(([, options]) => options?.method === "POST");
+    expect(postCalls).toHaveLength(1);
+    expect(JSON.parse(String(postCalls[0][1]?.body))).toEqual({
+      presetId: "ncirf-gpu-size-demo",
+      parameters: expect.objectContaining({ phantomLibrary: 4 }),
+    });
+    expect(screen.getByRole("tabpanel").textContent).toContain("https://ncirfgpu-api.ncidosetools.com/param");
+    expect(screen.getByRole("tabpanel").textContent).toContain("\"Hist\": 1000000");
+    expect(analyticsMocks.trackVendorSandboxEvent).toHaveBeenCalledWith(
+      "vendor_sandbox_run",
+      "ncirf",
+      "ncirf-gpu-size-demo",
+    );
   });
 
   it("links the NCIRF frontal field preview to field size and isocenter inputs", () => {

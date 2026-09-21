@@ -1,6 +1,14 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { AlertCircle, CheckCircle2, ChevronDown, ChevronUp, Clock3, Loader2, Play } from "lucide-react";
-import { buildVendorApiDemoRequest, vendorApiDemoPresetForTool, vendorApiDemoPresets, type VendorApiDemoPreset } from "@/data/vendorApiDemo";
+import {
+  buildVendorApiDemoRequest,
+  ncirfGpuDemoEndpoint,
+  ncirfGpuDemoPresetId,
+  vendorApiDemoPresetForTool,
+  vendorApiDemoPresets,
+  type NcirfDemoBackend,
+  type VendorApiDemoPreset,
+} from "@/data/vendorApiDemo";
 import pregnantPhantomsCsv from "@/data/ncirf-phantoms/pregnant.csv?raw";
 import referencePhantomsCsv from "@/data/ncirf-phantoms/reference.csv?raw";
 import sizePhantomsCsv from "@/data/ncirf-phantoms/size.csv?raw";
@@ -24,6 +32,11 @@ type DemoResponse = {
     presetId?: string;
     upstreamStatus?: number;
     durationMs?: number;
+    calculationDurationMs?: number | null;
+    engine?: string;
+    engineDetail?: string;
+    histories?: number;
+    psdHistories?: number;
     completedAt?: string;
   };
   request?: Record<string, unknown>;
@@ -51,6 +64,7 @@ const demoErrors: Record<string, string> = {
 const formattedJson = (value: unknown) => JSON.stringify(value, null, 2);
 
 type ParameterValue = string | number;
+type ServiceAvailability = "checking" | "available" | "unavailable" | "unknown";
 
 const selectClassName = "mt-2 w-full border border-slate-600 bg-slate-950 px-3 py-2 text-sm text-white outline-none focus:border-sky-400";
 const numberInputClassName = "mt-2 w-full border border-slate-600 bg-slate-950 px-3 py-2 text-sm text-white outline-none focus:border-sky-400";
@@ -434,6 +448,11 @@ const ParameterControls = ({
             <Clock3 className="h-3.5 w-3.5" /> {preset.expectedTime}
           </p>
         )}
+        {Number(parameters.phantomLibrary) === 5 && (
+          <p className="border-l-2 border-amber-400/70 pl-3 text-xs leading-5 text-slate-300">
+            Fetal dose tallies may require more histories for stable uncertainty. Large demo error values are shown unchanged.
+          </p>
+        )}
         <p className="text-xs leading-5 text-slate-400">See the <a className="text-sky-300 underline decoration-sky-500/50 underline-offset-2 hover:text-white" href="/manuals/ncirf-api">NCIRF API manual</a>.</p>
       </div>
     )}
@@ -449,12 +468,25 @@ export const VendorApiSandbox = ({ initialTool }: { initialTool?: string | null 
   const [status, setStatus] = useState<"idle" | "running" | "success" | "error">("idle");
   const [result, setResult] = useState<DemoResponse | null>(null);
   const [error, setError] = useState("");
-  const [usage, setUsage] = useState<DemoUsage | null>(null);
-  const [serviceAvailability, setServiceAvailability] = useState<"checking" | "available" | "unavailable" | "unknown">("checking");
+  const [activeNcirfBackend, setActiveNcirfBackend] = useState<NcirfDemoBackend>("cpu");
+  const [usageByPreset, setUsageByPreset] = useState<Record<string, DemoUsage>>({});
+  const [serviceAvailabilityByPreset, setServiceAvailabilityByPreset] = useState<Record<string, ServiceAvailability>>({});
   const requestSequence = useRef(0);
+  const runInFlight = useRef(false);
   const selected = vendorApiDemoPresets.find((preset) => preset.id === selectedId) ?? initialPreset;
   const selectedParameters = parameterSets[selected.id] ?? selected.defaultParameters;
-  const displayedRequest = buildVendorApiDemoRequest(selected, selectedParameters);
+  const activeDemoPresetId = selected.tool === "ncirf" && activeNcirfBackend === "gpu"
+    ? ncirfGpuDemoPresetId
+    : selected.id;
+  const displayedRequest = buildVendorApiDemoRequest(selected, selectedParameters, activeNcirfBackend);
+  const displayedEndpoint = selected.tool === "ncirf" && activeNcirfBackend === "gpu"
+    ? ncirfGpuDemoEndpoint
+    : selected.endpoint;
+  const usage = usageByPreset[activeDemoPresetId] ?? null;
+  const serviceAvailability = serviceAvailabilityByPreset[activeDemoPresetId] ?? "checking";
+  const activeServiceLabel = selected.tool === "ncirf"
+    ? `NCIRF ${activeNcirfBackend.toUpperCase()}`
+    : selected.modality;
   const rateLimitLabel = selected.tool === "ncirf" ? "5 runs / 30 min" : "30 runs / hour";
   const usageLabel = usage
     ? `${usage.used} of ${usage.limit} runs used in the last ${usage.windowMinutes === 60 ? "hour" : `${usage.windowMinutes} min`}`
@@ -462,20 +494,25 @@ export const VendorApiSandbox = ({ initialTool }: { initialTool?: string | null 
 
   useEffect(() => {
     const controller = new AbortController();
-    setUsage(null);
-    setServiceAvailability("checking");
-    const usageUrl = new URL(demoEndpoint, window.location.href);
-    usageUrl.searchParams.set("tool", selected.tool);
+    const presetIds = selected.tool === "ncirf" ? [selected.id, ncirfGpuDemoPresetId] : [selected.id];
+    setUsageByPreset({});
+    setServiceAvailabilityByPreset(Object.fromEntries(presetIds.map((presetId) => [presetId, "checking"])));
     const refreshServiceStatus = () => {
-      fetch(usageUrl.toString(), { signal: controller.signal })
-        .then(async (response) => response.ok ? response.json() as Promise<DemoResponse> : null)
-        .then((payload) => {
-          if (payload?.usage) setUsage(payload.usage);
-          setServiceAvailability(payload?.service?.status || "unknown");
-        })
-        .catch(() => {
-          if (!controller.signal.aborted) setServiceAvailability("unknown");
-        });
+      for (const presetId of presetIds) {
+        const usageUrl = new URL(demoEndpoint, window.location.href);
+        usageUrl.searchParams.set("presetId", presetId);
+        fetch(usageUrl.toString(), { signal: controller.signal })
+          .then(async (response) => response.ok ? response.json() as Promise<DemoResponse> : null)
+          .then((payload) => {
+            if (payload?.usage) setUsageByPreset((current) => ({ ...current, [presetId]: payload.usage! }));
+            setServiceAvailabilityByPreset((current) => ({ ...current, [presetId]: payload?.service?.status || "unknown" }));
+          })
+          .catch(() => {
+            if (!controller.signal.aborted) {
+              setServiceAvailabilityByPreset((current) => ({ ...current, [presetId]: "unknown" }));
+            }
+          });
+      }
     };
     refreshServiceStatus();
     const refreshInterval = window.setInterval(refreshServiceStatus, 60_000);
@@ -483,7 +520,7 @@ export const VendorApiSandbox = ({ initialTool }: { initialTool?: string | null 
       window.clearInterval(refreshInterval);
       controller.abort();
     };
-  }, [selected.tool]);
+  }, [selected.id, selected.tool]);
 
   const updateParameter = (name: string, value: ParameterValue) => {
     setParameterSets((current) => ({
@@ -499,18 +536,25 @@ export const VendorApiSandbox = ({ initialTool }: { initialTool?: string | null 
     if (status === "running") return;
     requestSequence.current += 1;
     setSelectedId(presetId);
+    setActiveNcirfBackend("cpu");
     setStatus("idle");
     setResult(null);
     setError("");
   };
 
-  const runDemo = async () => {
+  const runDemo = async (ncirfBackend: NcirfDemoBackend = "cpu") => {
+    if (runInFlight.current) return;
+    runInFlight.current = true;
+    const targetPresetId = selected.tool === "ncirf" && ncirfBackend === "gpu"
+      ? ncirfGpuDemoPresetId
+      : selected.id;
     const sequence = requestSequence.current + 1;
     requestSequence.current = sequence;
+    setActiveNcirfBackend(ncirfBackend);
     setStatus("running");
     setResult(null);
     setError("");
-    trackVendorSandboxEvent("vendor_sandbox_run", selected.tool, selected.id);
+    trackVendorSandboxEvent("vendor_sandbox_run", selected.tool, targetPresetId);
 
     const controller = new AbortController();
     const timeout = window.setTimeout(() => controller.abort(), 95_000);
@@ -520,19 +564,21 @@ export const VendorApiSandbox = ({ initialTool }: { initialTool?: string | null 
       const response = await fetch(demoEndpoint, {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ presetId: selected.id, parameters: selectedParameters }),
+        body: JSON.stringify({ presetId: targetPresetId, parameters: selectedParameters }),
         signal: controller.signal,
       });
       const payload = await response.json().catch(() => ({ error: "demo_upstream_error" })) as DemoResponse;
       if (requestSequence.current !== sequence) return;
-      if (payload.usage) setUsage(payload.usage);
+      if (payload.usage) setUsageByPreset((current) => ({ ...current, [targetPresetId]: payload.usage! }));
       if (!response.ok || payload.ok !== true) {
         const message = demoErrors[payload.error || ""] || "The live demo could not complete this request.";
         const retry = payload.retryAfter ? ` Try again in about ${Math.ceil(payload.retryAfter / 60)} minutes.` : "";
-        if (payload.error === "demo_server_maintenance") setServiceAvailability("unavailable");
+        if (payload.error === "demo_server_maintenance") {
+          setServiceAvailabilityByPreset((current) => ({ ...current, [targetPresetId]: "unavailable" }));
+        }
         setError(`${message}${retry}`);
         setStatus("error");
-        trackVendorSandboxEvent("vendor_sandbox_error", selected.tool, selected.id, response.status);
+        trackVendorSandboxEvent("vendor_sandbox_error", selected.tool, targetPresetId, response.status);
         return;
       }
       setResult(payload);
@@ -540,7 +586,7 @@ export const VendorApiSandbox = ({ initialTool }: { initialTool?: string | null 
       trackVendorSandboxEvent(
         "vendor_sandbox_success",
         selected.tool,
-        selected.id,
+        targetPresetId,
         payload.demo?.upstreamStatus ?? response.status,
         Math.round(performance.now() - startedAt),
       );
@@ -551,8 +597,9 @@ export const VendorApiSandbox = ({ initialTool }: { initialTool?: string | null 
         ? "The live calculation took too long to complete. Please try again later."
         : "The live demo could not reach the calculation service.");
       setStatus("error");
-      trackVendorSandboxEvent("vendor_sandbox_error", selected.tool, selected.id, 0);
+      trackVendorSandboxEvent("vendor_sandbox_error", selected.tool, targetPresetId, 0);
     } finally {
+      runInFlight.current = false;
       window.clearTimeout(timeout);
     }
   };
@@ -604,7 +651,7 @@ export const VendorApiSandbox = ({ initialTool }: { initialTool?: string | null 
                 <ParameterControls preset={selected} parameters={selectedParameters} disabled={status === "running"} onChange={updateParameter} />
                 <details>
                   <summary className="cursor-pointer px-5 py-4 font-mono text-xs text-sky-300 hover:text-white">View request JSON</summary>
-                  <div className="grid grid-cols-[auto_1fr] gap-x-4 border-y border-slate-700 px-5 py-3 font-mono text-xs"><span className="text-emerald-300">POST</span><span className="break-all text-slate-200">{selected.endpoint}</span></div>
+                  <div className="grid grid-cols-[auto_1fr] gap-x-4 border-y border-slate-700 px-5 py-3 font-mono text-xs"><span className="text-emerald-300">POST</span><span className="break-all text-slate-200">{displayedEndpoint}</span></div>
                   <pre className="whitespace-pre-wrap break-words p-5 text-xs leading-relaxed text-slate-200"><code>{formattedJson(displayedRequest)}</code></pre>
                 </details>
               </div>
@@ -631,36 +678,69 @@ export const VendorApiSandbox = ({ initialTool }: { initialTool?: string | null 
                       {serviceAvailability === "available" && <CheckCircle2 className="h-3.5 w-3.5" />}
                       {serviceAvailability === "unavailable" && <AlertCircle className="h-3.5 w-3.5" />}
                       <span>{serviceAvailability === "checking"
-                        ? `Checking ${selected.modality} API availability…`
+                        ? `Checking ${activeServiceLabel} API availability…`
                         : serviceAvailability === "available"
-                          ? `${selected.modality} API available`
+                          ? `${activeServiceLabel} API available`
                           : serviceAvailability === "unavailable"
-                            ? `${selected.modality} API temporarily unavailable`
-                            : `${selected.modality} API status unavailable`}</span>
+                            ? `${activeServiceLabel} API temporarily unavailable`
+                            : `${activeServiceLabel} API status unavailable`}</span>
                     </div>
-                    {result?.demo?.durationMs !== undefined && (
+                    {result?.demo?.durationMs !== undefined && selected.tool !== "ncirf" && (
                       <p className="mt-1 text-xs text-slate-500">
                         Upstream HTTP {result.demo.upstreamStatus} · {result.demo.durationMs.toLocaleString()} ms
                       </p>
                     )}
                   </div>
                   <div className="flex flex-none flex-col items-end gap-1.5">
-                    <button
-                      type="button"
-                      onClick={runDemo}
-                      disabled={status === "running" || serviceAvailability === "unavailable"}
-                      className="btn-precision inline-flex flex-none items-center gap-2 disabled:cursor-not-allowed disabled:opacity-60"
-                      data-analytics-location="vendor_api_sandbox"
-                      data-analytics-tool={selected.tool}
-                      data-analytics-audience="vendor"
-                      data-analytics-action="run_live_demo"
-                    >
-                      {status === "running" ? (
-                        <><Loader2 className="h-4 w-4 animate-spin" /> Running</>
+                    <div className="flex flex-wrap justify-end gap-2">
+                      {selected.tool === "ncirf" ? (
+                        <>
+                          <button
+                            type="button"
+                            onClick={() => runDemo("cpu")}
+                            disabled={status === "running" || serviceAvailabilityByPreset[selected.id] === "unavailable"}
+                            className="inline-flex flex-none items-center gap-2 border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-800 transition-colors hover:border-slate-500 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
+                            data-analytics-location="vendor_api_sandbox"
+                            data-analytics-tool={selected.tool}
+                            data-analytics-audience="vendor"
+                            data-analytics-action="run_live_demo"
+                          >
+                            {status === "running" && activeNcirfBackend === "cpu" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Play className="h-4 w-4" />}
+                            {status === "running" && activeNcirfBackend === "cpu" ? "Running" : "Run NCIRF demo"}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => runDemo("gpu")}
+                            disabled={status === "running" || serviceAvailabilityByPreset[ncirfGpuDemoPresetId] === "unavailable"}
+                            className="btn-precision inline-flex flex-none items-center gap-2 disabled:cursor-not-allowed disabled:opacity-60"
+                            data-analytics-location="vendor_api_sandbox"
+                            data-analytics-tool="ncirfgpu"
+                            data-analytics-audience="vendor"
+                            data-analytics-action="run_live_demo"
+                          >
+                            {status === "running" && activeNcirfBackend === "gpu" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Play className="h-4 w-4" />}
+                            {status === "running" && activeNcirfBackend === "gpu" ? "Running" : "Run NCIRF GPU demo"}
+                          </button>
+                        </>
                       ) : (
-                        <><Play className="h-4 w-4" /> Run {selected.modality} demo</>
+                        <button
+                          type="button"
+                          onClick={() => runDemo()}
+                          disabled={status === "running" || serviceAvailability === "unavailable"}
+                          className="btn-precision inline-flex flex-none items-center gap-2 disabled:cursor-not-allowed disabled:opacity-60"
+                          data-analytics-location="vendor_api_sandbox"
+                          data-analytics-tool={selected.tool}
+                          data-analytics-audience="vendor"
+                          data-analytics-action="run_live_demo"
+                        >
+                          {status === "running" ? (
+                            <><Loader2 className="h-4 w-4 animate-spin" /> Running</>
+                          ) : (
+                            <><Play className="h-4 w-4" /> Run {selected.modality} demo</>
+                          )}
+                        </button>
                       )}
-                    </button>
+                    </div>
                     <p className="text-right text-[11px] text-slate-500" aria-live="polite">{usageLabel}</p>
                   </div>
                 </div>
@@ -670,7 +750,7 @@ export const VendorApiSandbox = ({ initialTool }: { initialTool?: string | null 
                     {serviceAvailability === "unavailable" ? (
                       <>
                         <AlertCircle className="h-9 w-9 text-amber-500" />
-                        <p className="mt-5 text-sm font-medium text-slate-800">The {selected.modality} calculation service is temporarily unavailable.</p>
+                        <p className="mt-5 text-sm font-medium text-slate-800">The {activeServiceLabel} calculation service is temporarily unavailable.</p>
                         <p className="mt-2 max-w-md text-xs leading-5 text-slate-500">The server may be restarting or under maintenance. This status refreshes automatically.</p>
                       </>
                     ) : <Play className="h-9 w-9 text-slate-300" />}
@@ -680,7 +760,7 @@ export const VendorApiSandbox = ({ initialTool }: { initialTool?: string | null 
                 {status === "running" && (
                   <div className="flex flex-1 flex-col items-center justify-center px-8 py-14 text-center" aria-live="polite">
                     <Loader2 className="h-9 w-9 animate-spin text-primary" />
-                    <p className="mt-5 text-sm text-slate-700">Running {selected.modality} on the live API…</p>
+                    <p className="mt-5 text-sm text-slate-700">Running {activeServiceLabel} on the live API…</p>
                     <p className="mt-2 text-xs text-slate-500">Keep this page open while the calculation completes.</p>
                   </div>
                 )}
@@ -702,6 +782,24 @@ export const VendorApiSandbox = ({ initialTool }: { initialTool?: string | null 
                     <div className="flex items-center gap-2 border-b border-emerald-200 bg-emerald-50 px-5 py-3 text-sm text-emerald-900" role="status">
                       <CheckCircle2 className="h-4 w-4" /> Live calculation completed
                     </div>
+                    {result?.demo?.engine && (
+                      <div className="grid gap-4 border-b border-slate-200 bg-slate-50 px-5 py-4 sm:grid-cols-[1fr_auto] sm:items-end">
+                        <div>
+                          <div className="font-mono text-[11px] uppercase tracking-widest text-primary">{result.demo.engine}</div>
+                          <p className="mt-1 text-xs text-slate-600">{result.demo.engineDetail}</p>
+                          <p className="mt-2 text-xs text-slate-500">
+                            {result.demo.histories?.toLocaleString()} histories
+                            {result.demo.psdHistories ? ` · PSD ${result.demo.psdHistories.toLocaleString()}` : ""}
+                          </p>
+                        </div>
+                        <div className="sm:text-right">
+                          <div className="font-mono text-[10px] uppercase tracking-widest text-slate-500">Calculation time</div>
+                          <div className="mt-1 text-3xl font-semibold tabular-nums text-slate-950">
+                            {((result.demo.calculationDurationMs ?? result.demo.durationMs ?? 0) / 1000).toFixed(1)} s
+                          </div>
+                        </div>
+                      </div>
+                    )}
                     <pre className="whitespace-pre-wrap break-words p-5 text-xs leading-relaxed text-slate-800 sm:text-sm">
                       <code>{formatVendorResponse(responseBody, selected.tool)}</code>
                     </pre>
