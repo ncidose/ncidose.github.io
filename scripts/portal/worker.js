@@ -26,12 +26,13 @@ export const vendorDemoPresets = Object.freeze({
     id: "ncirf-size-demo",
     tool: "ncirf",
     endpoint: "https://ncirf-api.ncidosetools.com/param",
-    timeoutMs: 90_000,
+    timeoutMs: 30 * 60_000,
+    pollIntervalMs: 5_000,
     queued: true,
     engine: "NCIRF CPU",
     engineDetail: "Full Geant4",
-    histories: 10_000,
-    payload: { ID: "public-vendor-demo", PhtLib: 4, Age: 30, Sex: "f", HT: 150, WT: 40, kVp: 28, HVL: 0.46, SID: 80, FW: 10, FH: 10, DAP: 100, PPA: 180, PSA: 0, ISOX: 16.5, ISOY: 13.7, ISOZ: 75.1, Tbl: 1, Hist: 10000, Thread: 2 },
+    histories: 1_000_000,
+    payload: { ID: "public-vendor-demo", PhtLib: 4, Age: 30, Sex: "f", HT: 150, WT: 40, kVp: 28, HVL: 0.46, SID: 80, FW: 10, FH: 10, DAP: 100, PPA: 180, PSA: 0, ISOX: 16.5, ISOY: 13.7, ISOZ: 75.1, Tbl: 1, Hist: 1000000, Thread: 4 },
   },
   "ncirf-gpu-size-demo": {
     id: "ncirf-gpu-size-demo",
@@ -55,7 +56,7 @@ export const vendorDemoLimits = Object.freeze({
   globalDailyNcirf: 60,
   globalDailyNcirfGpu: 100,
   concurrent: 10,
-  concurrentNcirf: 1,
+  concurrentNcirf: 3,
   concurrentNcirfGpu: 3,
 });
 export const adminPortalExcludedEmails = Object.freeze(["choonsiklee@gmail.com"]);
@@ -470,7 +471,7 @@ const vendorDemoUsageForRequest = async (request, env, preset) => {
 async function reserveVendorDemoRequest(request, env, preset) {
   const isNcirf = preset.tool === "ncirf";
   const isNcirfGpu = isNcirfGpuDemo(preset);
-  const activeWindow = isNcirfGpu ? "-3 minutes" : isNcirf ? "-10 minutes" : "-2 minutes";
+  const activeWindow = isNcirfGpu ? "-3 minutes" : isNcirf ? "-35 minutes" : "-2 minutes";
   const location = vendorDemoLocationForRequest(request);
   const toolRecentStatement = isNcirf
     ? env.DB.prepare("SELECT COUNT(*) AS total FROM vendor_demo_requests WHERE preset_id=? AND counts_toward_limit=1 AND created_at >= datetime('now', '-1 day')").bind(preset.id)
@@ -497,7 +498,7 @@ async function reserveVendorDemoRequest(request, env, preset) {
   }
   if (Number(active?.total) >= concurrentLimit) {
     await recordVendorDemoRejection(env, usage.requestIpHash, preset, location, "busy");
-    return { error: "demo_busy", retryAfter: isNcirfGpu ? 30 : preset.tool === "ncirf" ? 120 : 30, usage: publicUsage(usage) };
+    return { error: "demo_busy", retryAfter: isNcirfGpu ? 30 : preset.tool === "ncirf" ? 300 : 30, usage: publicUsage(usage) };
   }
   const id = crypto.randomUUID();
   await env.DB.prepare(`
@@ -600,7 +601,7 @@ async function runQueuedVendorDemo(preset, payload, apiKey, signal) {
           : null,
       };
     }
-    await vendorDemoDelay(750);
+    await vendorDemoDelay(preset.pollIntervalMs || 750);
   }
 }
 

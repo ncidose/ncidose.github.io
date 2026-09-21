@@ -15,9 +15,10 @@ describe("vendor API sandbox", () => {
   beforeEach(() => {
     analyticsMocks.trackVendorSandboxEvent.mockReset();
     vi.unstubAllGlobals();
-    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(JSON.stringify({
+    vi.stubGlobal("fetch", vi.fn().mockImplementation(async () => new Response(JSON.stringify({
       ok: true,
       usage: { used: 0, limit: 30, remaining: 30, windowMinutes: 60 },
+      service: { status: "available" },
     }), { status: 200, headers: { "content-type": "application/json" } })));
   });
 
@@ -102,6 +103,25 @@ describe("vendor API sandbox", () => {
     expect(screen.getByRole("button", { name: /Run NCICT demo/i })).toBeDisabled();
   });
 
+  it("retries a transient NCIRF availability check before showing a neutral pending state", async () => {
+    let cpuAttempts = 0;
+    vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL) => {
+      const presetId = new URL(String(input)).searchParams.get("presetId");
+      if (presetId === "ncirf-size-demo" && cpuAttempts++ === 0) throw new TypeError("temporary network error");
+      return new Response(JSON.stringify({
+        ok: true,
+        usage: { used: 0, limit: 5, remaining: 5, windowMinutes: 30 },
+        service: { status: "available" },
+      }), { status: 200, headers: { "content-type": "application/json" } });
+    }));
+
+    render(<VendorApiSandbox initialTool="ncirf" />);
+
+    expect(screen.getByTestId("vendor-api-service-status-cpu")).toHaveTextContent("Checking CPU");
+    expect(await screen.findByText("CPU available", {}, { timeout: 2_500 })).toBeInTheDocument();
+    expect(cpuAttempts).toBe(2);
+  });
+
   it("shows NCICT and NCINM inputs directly while stating evaluation boundaries", () => {
     render(<VendorApiSandbox />);
 
@@ -141,16 +161,20 @@ describe("vendor API sandbox", () => {
     expect(screen.getByRole("link", { name: /NCINM API manual/i })).toHaveAttribute("href", "/manuals/ncinm-api");
   });
 
-  it("offers varied NCIRF phantom and geometry inputs while fixing compute controls", () => {
+  it("offers varied NCIRF phantom and geometry inputs while fixing equal CPU/GPU compute controls", async () => {
     render(<VendorApiSandbox initialTool="ncirf" />);
 
     expect(screen.getByText("Geometry")).toBeInTheDocument();
     expect(screen.queryByText("Major input")).not.toBeInTheDocument();
     expect(screen.queryByText(/Advanced RDSR-derived geometry/i)).not.toBeInTheDocument();
     expect(screen.getByText(/5 runs \/ 30 min/i)).toBeInTheDocument();
-    expect(screen.getByText(/CPU: 10,000 histories · GPU: 1,000,000 histories/i)).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Run NCIRF demo" })).toBeInTheDocument();
+    expect(screen.getByText(/CPU and GPU: 1,000,000 histories/i)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Run NCIRF CPU demo" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Run NCIRF GPU demo" })).toBeInTheDocument();
+    expect(await screen.findByTestId("vendor-api-service-status-cpu")).toHaveTextContent("CPU available");
+    await waitFor(() => expect(screen.getByTestId("vendor-api-service-status-gpu")).toHaveTextContent("GPU available"));
+    expect(screen.getByTestId("ncirf-cpu-action")).toContainElement(screen.getByTestId("vendor-api-service-status-cpu"));
+    expect(screen.getByTestId("ncirf-gpu-action")).toContainElement(screen.getByTestId("vendor-api-service-status-gpu"));
     expect(screen.queryByRole("button", { name: /NCIRF-GPU/i })).not.toBeInTheDocument();
     expect(screen.queryByText(/Particle histories \(10,000\)/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/Case ID is synthetic/i)).not.toBeInTheDocument();
@@ -174,8 +198,8 @@ describe("vendor API sandbox", () => {
     fireEvent.change(screen.getByLabelText("Phantom library"), { target: { value: "5" } });
     expect(screen.getByLabelText("Gestational age")).toBeInTheDocument();
     expect(screen.queryByLabelText("Height (cm)")).not.toBeInTheDocument();
-    expect(screen.getByRole("tabpanel").textContent).toContain("\"Hist\": 10000");
-    expect(screen.getByRole("tabpanel").textContent).toContain("\"Thread\": 2");
+    expect(screen.getByRole("tabpanel").textContent).toContain("\"Hist\": 1000000");
+    expect(screen.getByRole("tabpanel").textContent).toContain("\"Thread\": 4");
     expect(screen.getByText(/Fetal dose tallies may require more histories for stable uncertainty/i)).toBeInTheDocument();
     expect(screen.getByText(/Large demo error values are shown unchanged/i)).toBeInTheDocument();
   });

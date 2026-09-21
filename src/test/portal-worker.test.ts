@@ -120,8 +120,10 @@ describe("public vendor API demo", () => {
   it("keeps the public NCIRF example computationally bounded", () => {
     const preset = vendorDemoPresets["ncirf-size-demo"];
     const gpuPreset = vendorDemoPresets["ncirf-gpu-size-demo"];
-    expect(preset.payload.Hist).toBe(10000);
-    expect(preset.payload.Thread).toBe(2);
+    expect(preset.payload.Hist).toBe(1000000);
+    expect(preset.payload.Thread).toBe(4);
+    expect(preset.timeoutMs).toBe(30 * 60_000);
+    expect(preset.pollIntervalMs).toBe(5_000);
     expect(gpuPreset.payload).toMatchObject({ Hist: 1000000, Thread: 4, PSDMode: 0 });
     expect(gpuPreset.endpoint).toBe("https://ncirfgpu-api.ncidosetools.com/param");
     const varied = vendorDemoRequestForInput({
@@ -159,8 +161,8 @@ describe("public vendor API demo", () => {
       PPA: 90,
       PSA: -15,
       ISOZ: 90,
-      Hist: 10000,
-      Thread: 2,
+      Hist: 1000000,
+      Thread: 4,
     });
     const gpuVaried = vendorDemoRequestForInput({
       presetId: "ncirf-gpu-size-demo",
@@ -178,7 +180,7 @@ describe("public vendor API demo", () => {
     expect(vendorDemoLimits.perIpHourly).toBe(30);
     expect(vendorDemoLimits.perIpThirtyMinutesNcirf).toBe(5);
     expect(vendorDemoLimits.globalDailyNcirf).toBe(60);
-    expect(vendorDemoLimits.concurrentNcirf).toBe(1);
+    expect(vendorDemoLimits.concurrentNcirf).toBe(3);
     expect(vendorDemoLimits.perIpThirtyMinutesNcirfGpu).toBe(5);
     expect(vendorDemoLimits.globalDailyNcirfGpu).toBe(100);
     expect(vendorDemoLimits.concurrentNcirfGpu).toBe(3);
@@ -226,7 +228,11 @@ describe("public vendor API demo", () => {
 
     expect(response.status).toBe(200);
     expect(statements.some((sql) => sql.includes("request_ip_hash=? AND preset_id=?") && sql.includes("datetime('now', '-30 minutes')"))).toBe(true);
-    expect(await response.json()).toMatchObject({ usage: { used: 1, limit: 5, remaining: 4, windowMinutes: 30 } });
+    expect(await response.json()).toMatchObject({
+      usage: { used: 1, limit: 5, remaining: 4, windowMinutes: 30 },
+      request: { Hist: 1000000, Thread: 4 },
+      demo: { engine: "NCIRF CPU", histories: 1000000 },
+    });
   });
 
   it("submits the GPU demo through the persistent queue with a separate key", async () => {

@@ -71,8 +71,8 @@ export const vendorApiDemoPresets: VendorApiDemoPreset[] = [
       ISOY: 13.6,
       ISOZ: 119.9,
       Tbl: 1,
-      Hist: 10000,
-      Thread: 2,
+      Hist: 1_000_000,
+      Thread: 4,
     },
     defaultParameters: {
       phantomLibrary: 4,
@@ -94,7 +94,7 @@ export const vendorApiDemoPresets: VendorApiDemoPreset[] = [
       isoZCm: 119.9,
       tableCm: 1,
     },
-    expectedTime: "CPU: 10,000 histories · GPU: 1,000,000 histories.",
+    expectedTime: "CPU and GPU: 1,000,000 histories.",
   },  {
     id: "ncinm-fdg-adult",
     tool: "ncinm",

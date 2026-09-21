@@ -66,6 +66,40 @@ const formattedJson = (value: unknown) => JSON.stringify(value, null, 2);
 type ParameterValue = string | number;
 type ServiceAvailability = "checking" | "available" | "unavailable" | "unknown";
 
+const ServiceAvailabilityIndicator = ({
+  availability,
+  label,
+  testId,
+}: {
+  availability: ServiceAvailability;
+  label: string;
+  testId: string;
+}) => (
+  <div
+    className={`inline-flex items-center gap-1.5 text-xs ${
+      availability === "available"
+        ? "text-emerald-700"
+        : availability === "unavailable"
+          ? "text-amber-700"
+          : "text-slate-500"
+    }`}
+    role="status"
+    aria-live="polite"
+    data-testid={testId}
+  >
+    {availability === "checking" && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+    {availability === "available" && <CheckCircle2 className="h-3.5 w-3.5" />}
+    {availability === "unavailable" && <AlertCircle className="h-3.5 w-3.5" />}
+    <span>{availability === "checking"
+      ? `Checking ${label}…`
+      : availability === "available"
+        ? `${label} available`
+        : availability === "unavailable"
+          ? `${label} temporarily unavailable`
+          : `${label} status check pending`}</span>
+  </div>
+);
+
 const selectClassName = "mt-2 w-full border border-slate-600 bg-slate-950 px-3 py-2 text-sm text-white outline-none focus:border-sky-400";
 const numberInputClassName = "mt-2 w-full border border-slate-600 bg-slate-950 px-3 py-2 text-sm text-white outline-none focus:border-sky-400";
 const textInputClassName = "mt-2 w-full border border-slate-600 bg-slate-950 px-3 py-2 text-sm text-white outline-none placeholder:text-slate-600 focus:border-sky-400";
@@ -494,30 +528,44 @@ export const VendorApiSandbox = ({ initialTool }: { initialTool?: string | null 
 
   useEffect(() => {
     const controller = new AbortController();
+    const retryTimeouts = new Set<number>();
     const presetIds = selected.tool === "ncirf" ? [selected.id, ncirfGpuDemoPresetId] : [selected.id];
     setUsageByPreset({});
     setServiceAvailabilityByPreset(Object.fromEntries(presetIds.map((presetId) => [presetId, "checking"])));
+    const refreshPresetStatus = (presetId: string, attempt = 0) => {
+      const usageUrl = new URL(demoEndpoint, window.location.href);
+      usageUrl.searchParams.set("presetId", presetId);
+      fetch(usageUrl.toString(), { signal: controller.signal })
+        .then(async (response) => {
+          if (!response.ok) throw new Error(`Status request failed with HTTP ${response.status}`);
+          return response.json() as Promise<DemoResponse>;
+        })
+        .then((payload) => {
+          if (payload.usage) setUsageByPreset((current) => ({ ...current, [presetId]: payload.usage! }));
+          if (!payload.service?.status) throw new Error("Status response did not include service availability");
+          setServiceAvailabilityByPreset((current) => ({ ...current, [presetId]: payload.service!.status! }));
+        })
+        .catch(() => {
+          if (controller.signal.aborted) return;
+          if (attempt < 2) {
+            const retryTimeout = window.setTimeout(() => {
+              retryTimeouts.delete(retryTimeout);
+              refreshPresetStatus(presetId, attempt + 1);
+            }, 1_500 * (attempt + 1));
+            retryTimeouts.add(retryTimeout);
+            return;
+          }
+          setServiceAvailabilityByPreset((current) => ({ ...current, [presetId]: "unknown" }));
+        });
+    };
     const refreshServiceStatus = () => {
-      for (const presetId of presetIds) {
-        const usageUrl = new URL(demoEndpoint, window.location.href);
-        usageUrl.searchParams.set("presetId", presetId);
-        fetch(usageUrl.toString(), { signal: controller.signal })
-          .then(async (response) => response.ok ? response.json() as Promise<DemoResponse> : null)
-          .then((payload) => {
-            if (payload?.usage) setUsageByPreset((current) => ({ ...current, [presetId]: payload.usage! }));
-            setServiceAvailabilityByPreset((current) => ({ ...current, [presetId]: payload?.service?.status || "unknown" }));
-          })
-          .catch(() => {
-            if (!controller.signal.aborted) {
-              setServiceAvailabilityByPreset((current) => ({ ...current, [presetId]: "unknown" }));
-            }
-          });
-      }
+      for (const presetId of presetIds) refreshPresetStatus(presetId);
     };
     refreshServiceStatus();
-    const refreshInterval = window.setInterval(refreshServiceStatus, 60_000);
+    const refreshInterval = window.setInterval(refreshServiceStatus, 30_000);
     return () => {
       window.clearInterval(refreshInterval);
+      for (const retryTimeout of retryTimeouts) window.clearTimeout(retryTimeout);
       controller.abort();
     };
   }, [selected.id, selected.tool]);
@@ -557,7 +605,8 @@ export const VendorApiSandbox = ({ initialTool }: { initialTool?: string | null 
     trackVendorSandboxEvent("vendor_sandbox_run", selected.tool, targetPresetId);
 
     const controller = new AbortController();
-    const timeout = window.setTimeout(() => controller.abort(), 95_000);
+    const timeoutMs = selected.tool === "ncirf" && ncirfBackend === "cpu" ? 30 * 60_000 + 30_000 : 95_000;
+    const timeout = window.setTimeout(() => controller.abort(), timeoutMs);
     const startedAt = performance.now();
 
     try {
@@ -657,93 +706,95 @@ export const VendorApiSandbox = ({ initialTool }: { initialTool?: string | null 
               </div>
 
               <div className="flex min-h-[430px] flex-col bg-white text-slate-900">
-                <div className="flex min-h-[74px] items-center justify-between gap-4 border-b border-slate-200 px-5 py-4">
-                  <div>
-                    <div className="font-mono text-[11px] uppercase tracking-widest text-primary">
-                      Live JSON response
-                    </div>
-                    <div
-                      className={`mt-1.5 inline-flex items-center gap-1.5 text-xs ${
-                        serviceAvailability === "available"
-                          ? "text-emerald-700"
-                          : serviceAvailability === "unavailable"
-                            ? "text-amber-700"
-                            : "text-slate-500"
-                      }`}
-                      role="status"
-                      aria-live="polite"
-                      data-testid="vendor-api-service-status"
-                    >
-                      {serviceAvailability === "checking" && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
-                      {serviceAvailability === "available" && <CheckCircle2 className="h-3.5 w-3.5" />}
-                      {serviceAvailability === "unavailable" && <AlertCircle className="h-3.5 w-3.5" />}
-                      <span>{serviceAvailability === "checking"
-                        ? `Checking ${activeServiceLabel} API availability…`
-                        : serviceAvailability === "available"
-                          ? `${activeServiceLabel} API available`
-                          : serviceAvailability === "unavailable"
-                            ? `${activeServiceLabel} API temporarily unavailable`
-                            : `${activeServiceLabel} API status unavailable`}</span>
-                    </div>
-                    {result?.demo?.durationMs !== undefined && selected.tool !== "ncirf" && (
-                      <p className="mt-1 text-xs text-slate-500">
-                        Upstream HTTP {result.demo.upstreamStatus} · {result.demo.durationMs.toLocaleString()} ms
-                      </p>
-                    )}
-                  </div>
-                  <div className="flex flex-none flex-col items-end gap-1.5">
-                    <div className="flex flex-wrap justify-end gap-2">
-                      {selected.tool === "ncirf" ? (
-                        <>
-                          <button
-                            type="button"
-                            onClick={() => runDemo("cpu")}
-                            disabled={status === "running" || serviceAvailabilityByPreset[selected.id] === "unavailable"}
-                            className="inline-flex flex-none items-center gap-2 border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-800 transition-colors hover:border-slate-500 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
-                            data-analytics-location="vendor_api_sandbox"
-                            data-analytics-tool={selected.tool}
-                            data-analytics-audience="vendor"
-                            data-analytics-action="run_live_demo"
-                          >
-                            {status === "running" && activeNcirfBackend === "cpu" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Play className="h-4 w-4" />}
-                            {status === "running" && activeNcirfBackend === "cpu" ? "Running" : "Run NCIRF demo"}
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => runDemo("gpu")}
-                            disabled={status === "running" || serviceAvailabilityByPreset[ncirfGpuDemoPresetId] === "unavailable"}
-                            className="btn-precision inline-flex flex-none items-center gap-2 disabled:cursor-not-allowed disabled:opacity-60"
-                            data-analytics-location="vendor_api_sandbox"
-                            data-analytics-tool="ncirfgpu"
-                            data-analytics-audience="vendor"
-                            data-analytics-action="run_live_demo"
-                          >
-                            {status === "running" && activeNcirfBackend === "gpu" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Play className="h-4 w-4" />}
-                            {status === "running" && activeNcirfBackend === "gpu" ? "Running" : "Run NCIRF GPU demo"}
-                          </button>
-                        </>
-                      ) : (
+                {selected.tool === "ncirf" ? (
+                  <div className="border-b border-slate-200 px-5 py-4">
+                    <div className="flex flex-wrap items-start justify-end gap-3">
+                      <div className="flex flex-col items-center gap-1.5" data-testid="ncirf-cpu-action">
                         <button
                           type="button"
-                          onClick={() => runDemo()}
-                          disabled={status === "running" || serviceAvailability === "unavailable"}
-                          className="btn-precision inline-flex flex-none items-center gap-2 disabled:cursor-not-allowed disabled:opacity-60"
+                          onClick={() => runDemo("cpu")}
+                          disabled={status === "running" || serviceAvailabilityByPreset[selected.id] === "unavailable"}
+                          className="inline-flex flex-none items-center justify-center gap-2 whitespace-nowrap border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-800 transition-colors hover:border-slate-500 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
                           data-analytics-location="vendor_api_sandbox"
                           data-analytics-tool={selected.tool}
                           data-analytics-audience="vendor"
                           data-analytics-action="run_live_demo"
                         >
-                          {status === "running" ? (
-                            <><Loader2 className="h-4 w-4 animate-spin" /> Running</>
-                          ) : (
-                            <><Play className="h-4 w-4" /> Run {selected.modality} demo</>
-                          )}
+                          {status === "running" && activeNcirfBackend === "cpu" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Play className="h-4 w-4" />}
+                          {status === "running" && activeNcirfBackend === "cpu" ? "Running" : "Run NCIRF CPU demo"}
                         </button>
+                        <ServiceAvailabilityIndicator
+                          availability={serviceAvailabilityByPreset[selected.id] ?? "checking"}
+                          label="CPU"
+                          testId="vendor-api-service-status-cpu"
+                        />
+                      </div>
+                      <div className="flex flex-col items-center gap-1.5" data-testid="ncirf-gpu-action">
+                        <button
+                          type="button"
+                          onClick={() => runDemo("gpu")}
+                          disabled={status === "running" || serviceAvailabilityByPreset[ncirfGpuDemoPresetId] === "unavailable"}
+                          className="btn-precision inline-flex flex-none items-center justify-center gap-2 whitespace-nowrap disabled:cursor-not-allowed disabled:opacity-60"
+                          data-analytics-location="vendor_api_sandbox"
+                          data-analytics-tool="ncirfgpu"
+                          data-analytics-audience="vendor"
+                          data-analytics-action="run_live_demo"
+                        >
+                          {status === "running" && activeNcirfBackend === "gpu" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Play className="h-4 w-4" />}
+                          {status === "running" && activeNcirfBackend === "gpu" ? "Running" : "Run NCIRF GPU demo"}
+                        </button>
+                        <ServiceAvailabilityIndicator
+                          availability={serviceAvailabilityByPreset[ncirfGpuDemoPresetId] ?? "checking"}
+                          label="GPU"
+                          testId="vendor-api-service-status-gpu"
+                        />
+                      </div>
+                    </div>
+                    <p className="mt-2 text-right text-[11px] text-slate-500" aria-live="polite">{usageLabel}</p>
+                    <div className="mt-4 border-t border-slate-200 pt-3 font-mono text-[11px] uppercase tracking-widest text-primary">
+                      Live JSON response
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex min-h-[74px] items-center justify-between gap-4 border-b border-slate-200 px-5 py-4">
+                    <div>
+                      <div className="font-mono text-[11px] uppercase tracking-widest text-primary">
+                        Live JSON response
+                      </div>
+                      <div className="mt-1.5">
+                        <ServiceAvailabilityIndicator
+                          availability={serviceAvailability}
+                          label={`${activeServiceLabel} API`}
+                          testId="vendor-api-service-status"
+                        />
+                      </div>
+                      {result?.demo?.durationMs !== undefined && (
+                        <p className="mt-1 text-xs text-slate-500">
+                          Upstream HTTP {result.demo.upstreamStatus} · {result.demo.durationMs.toLocaleString()} ms
+                        </p>
                       )}
                     </div>
-                    <p className="text-right text-[11px] text-slate-500" aria-live="polite">{usageLabel}</p>
+                    <div className="flex flex-none flex-col items-end gap-1.5">
+                      <button
+                        type="button"
+                        onClick={() => runDemo()}
+                        disabled={status === "running" || serviceAvailability === "unavailable"}
+                        className="btn-precision inline-flex flex-none items-center gap-2 disabled:cursor-not-allowed disabled:opacity-60"
+                        data-analytics-location="vendor_api_sandbox"
+                        data-analytics-tool={selected.tool}
+                        data-analytics-audience="vendor"
+                        data-analytics-action="run_live_demo"
+                      >
+                        {status === "running" ? (
+                          <><Loader2 className="h-4 w-4 animate-spin" /> Running</>
+                        ) : (
+                          <><Play className="h-4 w-4" /> Run {selected.modality} demo</>
+                        )}
+                      </button>
+                      <p className="text-right text-[11px] text-slate-500" aria-live="polite">{usageLabel}</p>
+                    </div>
                   </div>
-                </div>
+                )}
 
                 {status === "idle" && (
                   <div className="flex flex-1 flex-col items-center justify-center px-8 py-14 text-center">
