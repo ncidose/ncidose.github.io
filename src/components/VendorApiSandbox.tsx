@@ -62,6 +62,9 @@ const demoErrors: Record<string, string> = {
 };
 
 const formattedJson = (value: unknown) => JSON.stringify(value, null, 2);
+const remainingUsageLabel = (usage?: DemoUsage) => usage
+  ? `${usage.remaining} of ${usage.limit} runs remaining · ${usage.windowMinutes === 60 ? "1 hour" : `${usage.windowMinutes} min`} window`
+  : "Checking allowance…";
 
 type ParameterValue = string | number;
 type ServiceAvailability = "checking" | "available" | "unavailable" | "unknown";
@@ -400,7 +403,7 @@ const ParameterControls = ({
     {preset.tool === "ncirf" && (
       <div className="mt-3 space-y-5">
         <p className="text-sm leading-6 text-slate-300">
-          The NCIRF API sandbox runs Geant4 Monte Carlo radiation transport on the backend.
+          Compare the full-Geant4 CPU API with the hybrid CUDA + optimized Geant4 PSD GPU API using the same inputs and 1,000,000 histories.
         </p>
         <div>
           <div className="font-mono text-[10px] uppercase tracking-widest text-slate-400">Phantom</div>
@@ -714,7 +717,7 @@ export const VendorApiSandbox = ({ initialTool }: { initialTool?: string | null 
                           type="button"
                           onClick={() => runDemo("cpu")}
                           disabled={status === "running" || serviceAvailabilityByPreset[selected.id] === "unavailable"}
-                          className="inline-flex flex-none items-center justify-center gap-2 whitespace-nowrap border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-800 transition-colors hover:border-slate-500 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
+                          className="inline-flex flex-none items-center justify-center gap-2 whitespace-nowrap border border-sky-300 bg-sky-100 px-4 py-2 text-sm font-medium text-sky-900 transition-colors hover:border-sky-400 hover:bg-sky-200 disabled:cursor-not-allowed disabled:opacity-60"
                           data-analytics-location="vendor_api_sandbox"
                           data-analytics-tool={selected.tool}
                           data-analytics-audience="vendor"
@@ -725,9 +728,12 @@ export const VendorApiSandbox = ({ initialTool }: { initialTool?: string | null 
                         </button>
                         <ServiceAvailabilityIndicator
                           availability={serviceAvailabilityByPreset[selected.id] ?? "checking"}
-                          label="CPU"
+                          label="CPU API"
                           testId="vendor-api-service-status-cpu"
                         />
+                        <p className="text-[11px] text-slate-500" aria-live="polite" data-testid="vendor-api-usage-cpu">
+                          {remainingUsageLabel(usageByPreset[selected.id])}
+                        </p>
                       </div>
                       <div className="flex flex-col items-center gap-1.5" data-testid="ncirf-gpu-action">
                         <button
@@ -745,12 +751,14 @@ export const VendorApiSandbox = ({ initialTool }: { initialTool?: string | null 
                         </button>
                         <ServiceAvailabilityIndicator
                           availability={serviceAvailabilityByPreset[ncirfGpuDemoPresetId] ?? "checking"}
-                          label="GPU"
+                          label="GPU API"
                           testId="vendor-api-service-status-gpu"
                         />
+                        <p className="text-[11px] text-slate-500" aria-live="polite" data-testid="vendor-api-usage-gpu">
+                          {remainingUsageLabel(usageByPreset[ncirfGpuDemoPresetId])}
+                        </p>
                       </div>
                     </div>
-                    <p className="mt-2 text-right text-[11px] text-slate-500" aria-live="polite">{usageLabel}</p>
                     <div className="mt-4 border-t border-slate-200 pt-3 font-mono text-[11px] uppercase tracking-widest text-primary">
                       Live JSON response
                     </div>

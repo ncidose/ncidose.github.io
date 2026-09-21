@@ -5,9 +5,9 @@ Current release type: **Scientific Update**
 Latest scientific update: **September 10, 2026**
 
 NCIRFAPI provides REST-style access to the NCIRF4 batch calculation workflow. A
-client sends one JSON object to `/param`; the server prepares the matching
-NCIRF4 phantom, runs GEANT4, parses the tally output, and returns organ dose
-and uncertainty values as JSON.
+client sends one JSON object to `/param` or `/jobs`; the selected service
+prepares the matching NCIRF4 phantom, runs the calculation, parses the tally
+output, and returns organ dose and uncertainty values as JSON.
 
 The September 10 scientific update adds **registered custom x-ray spectra**
 alongside the built-in spectrum library. Vendors can use spectra generated in
@@ -16,10 +16,43 @@ once through the NCI Dose Tools administrator, and reuse their IDs in dose
 requests. `GET /spectra` lists the beams available to the authenticated company.
 Existing integrations using only kVp/HVL continue to use the built-in library.
 
-Cloud endpoint:
+## CPU and GPU Services
+
+The licensed API is available through two compatible services:
+
+- **CPU API** — full Geant4 transport and scoring at
+  `https://ncirf-api.ncidosetools.com`.
+- **GPU API** — hybrid CUDA organ/bone transport with a concurrent optimized
+  Geant4 PSD calculation at `https://ncirfgpu-api.ncidosetools.com`.
+
+Both services accept the same core NCIRF request fields, support phantom
+libraries 1-5, and return the same core dose and uncertainty structure. On the
+GPU service, `PSDMode: 0` selects the fixed-history optimized PSD calculation;
+`Thread` controls its Geant4 PSD branch rather than CUDA launch geometry.
+
+### GPU Stopping Modes
+
+For phantom libraries 1-4, the GPU API accepts exactly one CUDA stopping input:
+`Hist` for a fixed number of histories or `TopDoseError` for an uncertainty
+threshold from greater than 0% through 100%. Adaptive runs check 100,000-history
+batches, can first stop at 600,000 histories, and have a 10,000,000-history
+ceiling. The response `cuda` object reports the histories used and whether the
+threshold was reached. Pregnant phantoms (`PhtLib: 5`) require explicit `Hist`
+and do not accept `TopDoseError`. The concurrent Geant4 PSD branch uses 100,000
+histories in either mode.
+
+CPU cloud endpoint:
 
 ```text
 POST https://ncirf-api.ncidosetools.com/param
+Content-Type: application/json
+X-API-Key: <assigned vendor API key>
+```
+
+GPU cloud endpoint:
+
+```text
+POST https://ncirfgpu-api.ncidosetools.com/param
 Content-Type: application/json
 X-API-Key: <assigned vendor API key>
 ```
@@ -37,9 +70,10 @@ X-API-Key: <assigned vendor API key>
 
 ## Authentication
 
-`POST /param` and `GET /spectra` require the API key assigned to the licensed vendor. Send the
-key in the `X-API-Key` request header. Do not include it in the URL or JSON
-body. Missing, disabled, or invalid keys return HTTP `401`.
+`POST /param`, `/jobs`, and `GET /spectra` require an API key assigned to the
+licensed vendor and enabled for the selected service. Send the key in the
+`X-API-Key` request header. Do not include it in the URL or JSON body. Missing,
+disabled, or invalid keys return HTTP `401`.
 
 The API key is a bearer credential. Store it in an environment variable or a
 server-side secret manager, and send requests only over HTTPS. Server-to-server
@@ -101,13 +135,57 @@ print(response.json())
 
 ```http
 GET http://localhost:8080/health
+GET https://ncirf-api.ncidosetools.com/health
+GET https://ncirfgpu-api.ncidosetools.com/health
 ```
 
-A healthy local debug server returns:
+A healthy service returns JSON containing:
 
 ```json
 {"ok": true, "service": "ncirf4api"}
 ```
+
+The public health routes do not require an API key.
+
+## Asynchronous FIFO Queue
+
+Both services execute calculations through their own persistent, single-worker
+FIFO queue. Synchronous `POST /param` waits for the same queue. For long-running
+or batch integration, submit asynchronously:
+
+```http
+POST /jobs
+POST /param
+Prefer: respond-async
+```
+
+An accepted asynchronous submission returns HTTP `202` with `job_id`,
+`status_url`, and `result_url`. Poll `GET /jobs/{job_id}` until `status` is
+`completed`, `failed`, or `cancelled`, then retrieve the calculation with
+`GET /jobs/{job_id}/result`. Queued status responses include
+`queue_position`, `jobs_ahead`, and `estimated_wait_seconds` when available.
+`DELETE /jobs/{job_id}` can cancel a queued job; a running transport job cannot
+be cancelled safely.
+
+Queue records survive a service restart. If a submission response is lost or
+ambiguous, do not automatically repeat the POST: doing so can create a second
+calculation. Retain the returned job ID and retry status polling after temporary
+network failures.
+
+## Public CPU/GPU Comparison Sandbox
+
+The [NCIRF vendor sandbox](/vendors?tool=ncirf#api-sandbox) compares both
+services without exposing a vendor API key in the browser. CPU and GPU receive
+the same selected inputs, 1,000,000 histories, and four threads. The result
+identifies the calculation engine and highlights server calculation time.
+
+The page reports CPU API and GPU API availability plus each service's remaining
+allowance before submission. Each backend has a separate limit of five runs per
+IP address per 30 minutes and accepts up to three demo requests at a time; its
+FIFO queue then runs one calculation at a time. Pregnant-phantom fetal tallies
+may require more histories for stable uncertainty, and the sandbox shows large
+uncertainties unchanged. The sandbox is for technical evaluation, not clinical
+or production use.
 
 ## Spectrum Catalog and Custom Beams
 
@@ -117,6 +195,9 @@ Query the available spectra before configuring equipment or protocol mappings:
 GET https://ncirf-api.ncidosetools.com/spectra
 X-API-Key: <assigned vendor API key>
 ```
+
+For a GPU integration, use the same route on
+`https://ncirfgpu-api.ncidosetools.com`.
 
 The response contains `ok`, `builtin_count`, `custom_count`, `count`, and a
 `spectra` array. All 114 built-in spectra are shared; custom entries are visible
@@ -286,8 +367,10 @@ Parameter | Required | Definition
 `ISOY` | yes | Isocenter y position in cm
 `ISOZ` | yes | Isocenter z position in cm
 `Tbl` | no | Patient table thickness in cm; defaults to `0` if omitted
-`Hist` | yes | Number of Monte Carlo particle histories
-`Thread` | yes | Number of GEANT4 threads
+`Hist` | CPU: yes; GPU: one of `Hist` or `TopDoseError` | Fixed number of particle histories; required for pregnant phantoms
+`TopDoseError` | GPU libraries 1-4 only, as an alternative to `Hist` | Adaptive CUDA stopping threshold in percent, greater than 0 and at most 100
+`Thread` | yes | Number of Geant4 threads; on the GPU service this controls the concurrent PSD branch
+`PSDMode` | GPU only, optional | `0` selects the optimized fixed-history Geant4 PSD calculation
 
 Supported aliases include `id`, `phantom_library`, `age`, `sex`, `height_cm`, `weight_kg`, `kvp`, `hvl`, `sid`, `field_width_cm`, `field_height_cm`, `dap_gy_cm2`, `ppa`, `psa`, `iso_x`, `iso_y`, `iso_z`, `table_thickness_cm`, `history`, and `threads`.
 
@@ -402,6 +485,10 @@ The dose values below are illustrative placeholders, not calculation results.
 ```
 
 `dose` contains organ doses in mGy, except `effective_dose_mSv`, which is in mSv. `error_percent` contains the corresponding relative uncertainty in percent.
+
+GPU responses additionally include a `cuda` object describing the stopping
+mode, histories used, maximum histories, target threshold, threshold status,
+top-dose organ, and its final uncertainty.
 
 `matched.spectrum` describes the beam actually used and includes its
 `display_name` and available generation/filtration metadata in addition to

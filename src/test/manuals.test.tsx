@@ -99,6 +99,18 @@ describe("public manuals", () => {
     expect(screen.getByText("Documented release September 10, 2026")).toBeInTheDocument();
     expect(screen.getByText("Scientific Update")).toBeInTheDocument();
     expect(screen.getByText("Latest scientific update September 10, 2026")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "CPU and GPU Services" })).toBeInTheDocument();
+    expect(screen.getAllByText("https://ncirfgpu-api.ncidosetools.com").length).toBeGreaterThan(0);
+    expect(screen.getByRole("heading", { name: "GPU Stopping Modes" })).toBeInTheDocument();
+    expect(screen.getAllByText("TopDoseError").length).toBeGreaterThan(0);
+    expect(screen.getByRole("heading", { name: "Asynchronous FIFO Queue" })).toBeInTheDocument();
+    expect(screen.getByText("queue_position")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Public CPU/GPU Comparison Sandbox" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "NCIRF vendor sandbox" })).toHaveAttribute(
+      "href",
+      "/vendors?tool=ncirf#api-sandbox",
+    );
+    expect(screen.getByText(/remaining allowance before submission/i)).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Spectrum Catalog and Custom Beams" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Vendor Workflow" })).toBeInTheDocument();
     expect(screen.getByRole("heading", {

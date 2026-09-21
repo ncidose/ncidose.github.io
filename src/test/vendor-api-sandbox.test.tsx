@@ -15,11 +15,19 @@ describe("vendor API sandbox", () => {
   beforeEach(() => {
     analyticsMocks.trackVendorSandboxEvent.mockReset();
     vi.unstubAllGlobals();
-    vi.stubGlobal("fetch", vi.fn().mockImplementation(async () => new Response(JSON.stringify({
-      ok: true,
-      usage: { used: 0, limit: 30, remaining: 30, windowMinutes: 60 },
-      service: { status: "available" },
-    }), { status: 200, headers: { "content-type": "application/json" } })));
+    vi.stubGlobal("fetch", vi.fn().mockImplementation(async (input: RequestInfo | URL) => {
+      const presetId = new URL(String(input)).searchParams.get("presetId");
+      const usage = presetId === "ncirf-size-demo"
+        ? { used: 1, limit: 5, remaining: 4, windowMinutes: 30 }
+        : presetId === "ncirf-gpu-size-demo"
+          ? { used: 2, limit: 5, remaining: 3, windowMinutes: 30 }
+          : { used: 0, limit: 30, remaining: 30, windowMinutes: 60 };
+      return new Response(JSON.stringify({
+        ok: true,
+        usage,
+        service: { status: "available" },
+      }), { status: 200, headers: { "content-type": "application/json" } });
+    }));
   });
 
   it("sends only a preset identifier and renders the live API response", async () => {
@@ -117,8 +125,8 @@ describe("vendor API sandbox", () => {
 
     render(<VendorApiSandbox initialTool="ncirf" />);
 
-    expect(screen.getByTestId("vendor-api-service-status-cpu")).toHaveTextContent("Checking CPU");
-    expect(await screen.findByText("CPU available", {}, { timeout: 2_500 })).toBeInTheDocument();
+    expect(screen.getByTestId("vendor-api-service-status-cpu")).toHaveTextContent("Checking CPU API");
+    expect(await screen.findByText("CPU API available", {}, { timeout: 2_500 })).toBeInTheDocument();
     expect(cpuAttempts).toBe(2);
   });
 
@@ -167,14 +175,16 @@ describe("vendor API sandbox", () => {
     expect(screen.getByText("Geometry")).toBeInTheDocument();
     expect(screen.queryByText("Major input")).not.toBeInTheDocument();
     expect(screen.queryByText(/Advanced RDSR-derived geometry/i)).not.toBeInTheDocument();
-    expect(screen.getByText(/5 runs \/ 30 min/i)).toBeInTheDocument();
     expect(screen.getByText(/CPU and GPU: 1,000,000 histories/i)).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Run NCIRF CPU demo" })).toBeInTheDocument();
+    expect(screen.getByText(/full-Geant4 CPU API with the hybrid CUDA \+ optimized Geant4 PSD GPU API/i)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Run NCIRF CPU demo" })).toHaveClass("bg-sky-100");
     expect(screen.getByRole("button", { name: "Run NCIRF GPU demo" })).toBeInTheDocument();
-    expect(await screen.findByTestId("vendor-api-service-status-cpu")).toHaveTextContent("CPU available");
-    await waitFor(() => expect(screen.getByTestId("vendor-api-service-status-gpu")).toHaveTextContent("GPU available"));
+    expect(await screen.findByTestId("vendor-api-service-status-cpu")).toHaveTextContent("CPU API available");
+    await waitFor(() => expect(screen.getByTestId("vendor-api-service-status-gpu")).toHaveTextContent("GPU API available"));
     expect(screen.getByTestId("ncirf-cpu-action")).toContainElement(screen.getByTestId("vendor-api-service-status-cpu"));
     expect(screen.getByTestId("ncirf-gpu-action")).toContainElement(screen.getByTestId("vendor-api-service-status-gpu"));
+    expect(screen.getByTestId("ncirf-cpu-action")).toHaveTextContent("4 of 5 runs remaining · 30 min window");
+    expect(screen.getByTestId("ncirf-gpu-action")).toHaveTextContent("3 of 5 runs remaining · 30 min window");
     expect(screen.queryByRole("button", { name: /NCIRF-GPU/i })).not.toBeInTheDocument();
     expect(screen.queryByText(/Particle histories \(10,000\)/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/Case ID is synthetic/i)).not.toBeInTheDocument();
