@@ -1,3 +1,5 @@
+import { ncirfBuiltInSpectrumForValues } from "./ncirfBuiltInSpectra.js";
+
 export type VendorApiDemoTool = "ncict" | "ncinm" | "ncirf";
 export type NcirfDemoBackend = "cpu" | "gpu";
 
@@ -169,8 +171,10 @@ export const buildVendorApiDemoRequest = (
     };
   }
   const phantomLibrary = Number(parameters.phantomLibrary);
+  const selectedSpectrum = ncirfBuiltInSpectrumForValues(parameters.kvp, parameters.hvlMmAl);
   const request = {
     ...preset.request,
+    ...(selectedSpectrum ? { SpectrumID: selectedSpectrum.id } : {}),
     PhtLib: phantomLibrary,
     Age: phantomLibrary === 5 ? String(parameters.pregnantAge) : Number(parameters.age),
     Sex: String(parameters.sex),

@@ -195,7 +195,17 @@ describe("vendor API sandbox", () => {
     expect(screen.getByLabelText("Phantom library")).toBeInTheDocument();
     expect(screen.getByLabelText("Height (cm)")).toBeInTheDocument();
     expect(screen.getByLabelText("Weight (kg)")).toBeInTheDocument();
-    expect(screen.getByLabelText("Tube potential (kVp)")).toBeInTheDocument();
+    expect(screen.getByLabelText("Tube potential (kVp)")).toHaveValue("80");
+    expect(screen.getByLabelText("HVL (mm Al)")).toHaveValue("4.56");
+    expect(screen.getByLabelText("Tube potential (kVp)").tagName).toBe("SELECT");
+    expect(screen.getByLabelText("HVL (mm Al)").tagName).toBe("SELECT");
+    fireEvent.change(screen.getByLabelText("Tube potential (kVp)"), { target: { value: "60" } });
+    expect(screen.getByLabelText("HVL (mm Al)")).toHaveValue("2.19");
+    expect(screen.getByRole("option", { name: "4.650 · builtin_007" })).toBeInTheDocument();
+    expect(screen.queryByRole("option", { name: /4\.560/ })).not.toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText("HVL (mm Al)"), { target: { value: "4.65" } });
+    expect(screen.getByRole("tabpanel").textContent).toContain('"kVp": 60');
+    expect(screen.getByRole("tabpanel").textContent).toContain('"HVL": 4.65');
     expect(screen.getByLabelText("Primary angle · PPA (°)")).toBeInTheDocument();
     expect(screen.getByLabelText("Isocenter Z · ISOZ (cm)")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Increase Isocenter X · ISOX by 1 cm" }));
@@ -357,12 +367,13 @@ describe("vendor API sandbox", () => {
     render(<VendorApiSandbox initialTool="ncirf" />);
 
     expect(screen.getByRole("heading", { name: "Custom spectrum support" })).toBeInTheDocument();
-    expect(screen.getByText(/registered/i)).toBeInTheDocument();
+    expect(screen.getByText(/generate a custom spectrum with NCIRF 4 or the SpekPy API/i)).toBeInTheDocument();
+    expect(screen.getByText(/export it as/i)).toHaveTextContent(/\.ncirfspc/);
     expect(screen.getByText("SpectrumID")).toBeInTheDocument();
-    expect(screen.getByText(/This demo uses built-in kVp\/HVL spectra/i)).toBeInTheDocument();
+    expect(screen.getByText(/public sandbox uses only the built-in kVp\/HVL combinations/i)).toBeInTheDocument();
     expect(screen.getByLabelText("Tube potential (kVp)")).toBeEnabled();
     expect(screen.getByLabelText("HVL (mm Al)")).toBeEnabled();
-    expect(screen.getByRole("tabpanel").querySelector("pre")?.textContent).not.toContain("SpectrumID");
+    expect(screen.getByRole("tabpanel").querySelector("pre")?.textContent).toContain('"SpectrumID": "builtin_036"');
 
     fireEvent.click(screen.getByRole("tab", { name: /NCICT/i }));
     expect(screen.queryByRole("heading", { name: "Custom spectrum support" })).not.toBeInTheDocument();

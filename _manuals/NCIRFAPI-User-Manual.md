@@ -185,7 +185,11 @@ IP address per 30 minutes and accepts up to three demo requests at a time; its
 FIFO queue then runs one calculation at a time. Pregnant-phantom fetal tallies
 may require more histories for stable uncertainty, and the sandbox shows large
 uncertainties unchanged. The sandbox is for technical evaluation, not clinical
-or production use.
+or production use. Its linked kVp and HVL selectors expose only the 114 built-in
+spectrum combinations; arbitrary pairs and custom spectra cannot be submitted.
+If a required beam is not listed, generate and validate a custom spectrum with
+NCIRF 4 using the SpekPy service, export `.ncirfspc`, and follow the licensed
+registration workflow below to use its assigned `SpectrumID`.
 
 ## Spectrum Catalog and Custom Beams
 
@@ -224,7 +228,8 @@ or resend its SpekPy parameters on every dose call.
 
 For a beam not already listed:
 
-1. Generate and validate it in the NCIRF GUI, then export its `.ncirfspc` file.
+1. Generate and validate it in NCIRF 4 using the SpekPy service, then export its
+   `.ncirfspc` file.
 2. Send the file and intended vendor/equipment/protocol information to the NCI
    Dose Tools administrator for registration.
 3. Query `/spectra` again after registration and retain the returned

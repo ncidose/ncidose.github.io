@@ -9,6 +9,7 @@ import {
   type NcirfDemoBackend,
   type VendorApiDemoPreset,
 } from "@/data/vendorApiDemo";
+import { ncirfBuiltInKvps, ncirfBuiltInSpectraForKvp } from "@/data/ncirfBuiltInSpectra.js";
 import pregnantPhantomsCsv from "@/data/ncirf-phantoms/pregnant.csv?raw";
 import referencePhantomsCsv from "@/data/ncirf-phantoms/reference.csv?raw";
 import sizePhantomsCsv from "@/data/ncirf-phantoms/size.csv?raw";
@@ -501,15 +502,38 @@ const ParameterControls = ({
         <div className="border-t border-slate-700 pt-5">
           <div className="font-mono text-[10px] uppercase tracking-widest text-slate-400">Exposure</div>
           <div className="mt-3 grid gap-3 sm:grid-cols-2">
-            <NumberInput label="Tube potential" name="kvp" value={parameters.kvp} min={20} max={150} unit="kVp" disabled={disabled} onChange={onChange} />
-            <NumberInput label="HVL" name="hvlMmAl" value={parameters.hvlMmAl} min={0.1} max={20} step={0.01} unit="mm Al" disabled={disabled} onChange={onChange} />
+            <label className="text-xs text-slate-300">
+              Tube potential (kVp)
+              <select
+                value={parameters.kvp}
+                disabled={disabled}
+                onChange={(event) => {
+                  const kvp = Number(event.target.value);
+                  const firstSpectrum = ncirfBuiltInSpectraForKvp(kvp)[0];
+                  onChange("kvp", kvp);
+                  if (firstSpectrum) onChange("hvlMmAl", firstSpectrum.hvlMmAl);
+                }}
+                className={selectClassName}
+              >
+                {ncirfBuiltInKvps.map((kvp) => <option key={kvp} value={kvp}>{kvp}</option>)}
+              </select>
+            </label>
+            <label className="text-xs text-slate-300">
+              HVL (mm Al)
+              <select value={parameters.hvlMmAl} disabled={disabled} onChange={(event) => onChange("hvlMmAl", Number(event.target.value))} className={selectClassName}>
+                {ncirfBuiltInSpectraForKvp(parameters.kvp).map((spectrum) => (
+                  <option key={spectrum.id} value={spectrum.hvlMmAl}>
+                    {spectrum.hvlMmAl.toFixed(3)} · {spectrum.id}
+                  </option>
+                ))}
+              </select>
+            </label>
             <NumberInput label="Dose-area product" name="dapGyCm2" value={parameters.dapGyCm2} min={0.1} max={1000} step={0.1} unit="Gy·cm²" disabled={disabled} onChange={onChange} />
           </div>
           <div className="mt-4 border-l-2 border-sky-400 bg-sky-950/30 px-4 py-3">
             <h4 className="text-sm font-medium text-sky-200">Custom spectrum support</h4>
             <p className="mt-2 text-xs leading-5 text-slate-300">
-              The licensed API accepts registered <code>.ncirfspc</code> spectra through <code>SpectrumID</code>.
-              This demo uses built-in kVp/HVL spectra.
+              This public sandbox uses only the built-in kVp/HVL combinations listed above. If the combination you need is not available, generate a custom spectrum with NCIRF 4 or the SpekPy API, export it as <code>.ncirfspc</code>, and register it for licensed API use through <code>SpectrumID</code>.
             </p>
           </div>
         </div>

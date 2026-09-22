@@ -1,4 +1,5 @@
 import { summarizeAnnouncement } from "../../src/lib/announcementSummary.js";
+import { ncirfBuiltInSpectrumForValues } from "../../src/data/ncirfBuiltInSpectra.js";
 const allowedPrefixes = ["NCICT/", "NCINM/", "NCIRF/", "PHANTOM/", "DCC/"];
 const folderDownloadPrefixes = ["PHANTOM/", "DCC/"];
 const portalSessionCookie = "__Host-ncidose_session";
@@ -356,6 +357,7 @@ export const vendorDemoRequestForInput = (input = {}) => {
     isoZCm: parameters.isoZCm ?? 75.1,
     tableCm: parameters.tableCm ?? 1,
   };
+  const selectedSpectrum = ncirfBuiltInSpectrumForValues(normalized.kvp, normalized.hvlMmAl);
   if (
     ![1, 2, 3, 4, 5].includes(normalized.phantomLibrary)
     || !finiteNumber(normalized.age, 0, 90)
@@ -375,12 +377,14 @@ export const vendorDemoRequestForInput = (input = {}) => {
     || !finiteNumber(normalized.isoYCm, -100, 150)
     || !finiteNumber(normalized.isoZCm, -20, 220)
     || !finiteNumber(normalized.tableCm, 0, 15)
+    || !selectedSpectrum
   ) return null;
   return {
     preset,
     parameters: normalized,
     payload: {
       ...preset.payload,
+      SpectrumID: selectedSpectrum.id,
       PhtLib: normalized.phantomLibrary,
       Age: normalized.phantomLibrary === 5 ? normalized.pregnantAge : normalized.age,
       Sex: normalized.sex,

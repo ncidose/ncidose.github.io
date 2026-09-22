@@ -136,7 +136,7 @@ describe("public vendor API demo", () => {
         heightCm: 170,
         weightKg: 70,
         kvp: 80,
-        hvlMmAl: 3.2,
+        hvlMmAl: 4.56,
         sidCm: 100,
         fieldWidthCm: 20,
         fieldHeightCm: 15,
@@ -152,8 +152,9 @@ describe("public vendor API demo", () => {
     expect(varied?.payload).toMatchObject({
       PhtLib: 5,
       Age: "35wk",
+      SpectrumID: "builtin_036",
       kVp: 80,
-      HVL: 3.2,
+      HVL: 4.56,
       SID: 100,
       FW: 20,
       FH: 15,
@@ -171,12 +172,15 @@ describe("public vendor API demo", () => {
     expect(gpuVaried?.payload).toMatchObject({
       PhtLib: 5,
       Age: "35wk",
+      SpectrumID: "builtin_001",
       Hist: 1000000,
       Thread: 4,
       PSDMode: 0,
     });
     expect(vendorDemoRequestForInput({ presetId: "ncirf-size-demo", parameters: { Hist: 5000000 } })).toBeNull();
     expect(vendorDemoRequestForInput({ presetId: "ncirf-size-demo", parameters: { threads: 8 } })).toBeNull();
+    expect(vendorDemoRequestForInput({ presetId: "ncirf-size-demo", parameters: { kvp: 60, hvlMmAl: 4.56 } })).toBeNull();
+    expect(vendorDemoRequestForInput({ presetId: "ncirf-size-demo", parameters: { kvp: 102, hvlMmAl: 4.5 } })).toBeNull();
     expect(vendorDemoLimits.perIpHourly).toBe(30);
     expect(vendorDemoLimits.perIpThirtyMinutesNcirf).toBe(5);
     expect(vendorDemoLimits.globalDailyNcirf).toBe(60);
