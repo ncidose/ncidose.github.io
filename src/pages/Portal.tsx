@@ -1159,10 +1159,10 @@ const StatusCard = ({ icon: Icon, label, value, note }: { icon: typeof ShieldChe
   </div>
 );
 
-const SelectableStatusCard = ({ icon: Icon, label, value, note, selected, onSelect }: { icon: typeof ShieldCheck; label: string; value: string; note: string; selected: boolean; onSelect: () => void }) => (
+const SelectableStatusCard = ({ icon: Icon, label, value, note, selected, onSelect, ariaLabel }: { icon: typeof ShieldCheck; label: string; value: string; note: string; selected: boolean; onSelect: () => void; ariaLabel?: string }) => (
   <button
     type="button"
-    aria-label={`Show ${label} sandbox activity`}
+    aria-label={ariaLabel || `Show ${label} sandbox activity`}
     aria-pressed={selected}
     onClick={onSelect}
     className={cn("w-full border p-5 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2", selected ? "border-primary bg-sky-50" : "border-border bg-white hover:bg-slate-50")}
@@ -1942,6 +1942,7 @@ type EmailAudienceStatus = {
 };
 
 type UserSortKey = "name" | "email" | "joined" | "lastLogin";
+type UserListView = "approved" | "active" | "suspended" | "unmatched";
 
 const emptyAdminActivity: AdminActivityData = {
   summary: { downloadsToday: 0, downloads7Days: 0, downloads30Days: 0, downloadUsers30Days: 0, logins30Days: 0 },
@@ -2130,6 +2131,7 @@ const Admin = ({ demoMode }: { demoMode: boolean }) => {
   const [managedUsers, setManagedUsers] = useState<ManagedPortalUser[]>(() => adminUsersCache?.users || []);
   const [unmatchedLoginAttempts, setUnmatchedLoginAttempts] = useState<UnmatchedLoginAttempt[]>(() => adminUsersCache?.unmatchedLoginAttempts || []);
   const [loadingUsers, setLoadingUsers] = useState(false);
+  const [userListView, setUserListView] = useState<UserListView>("approved");
   const [userSearch, setUserSearch] = useState("");
   const [userSort, setUserSort] = useState<{ key: UserSortKey; direction: "asc" | "desc" }>({ key: "name", direction: "asc" });
   const [newUserName, setNewUserName] = useState("");
@@ -2503,9 +2505,12 @@ const Admin = ({ demoMode }: { demoMode: boolean }) => {
 
   const filteredUsers = useMemo(() => {
     const query = userSearch.trim().toLowerCase();
-    const matchingUsers = query
-      ? managedUsers.filter((entry) => [entry.name, entry.institution, entry.country, ...entry.identities.map((identity) => identity.email)].filter(Boolean).some((value) => String(value).toLowerCase().includes(query)))
+    const usersInSelectedList = userListView === "active" || userListView === "suspended"
+      ? managedUsers.filter((entry) => entry.accessStatus === userListView)
       : managedUsers;
+    const matchingUsers = query
+      ? usersInSelectedList.filter((entry) => [entry.name, entry.institution, entry.country, ...entry.identities.map((identity) => identity.email)].filter(Boolean).some((value) => String(value).toLowerCase().includes(query)))
+      : usersInSelectedList;
     const sortValue = (entry: ManagedPortalUser): string | number => {
       const primaryEmail = entry.identities.find((identity) => identity.primary)?.email || entry.identities[0]?.email || "";
       if (userSort.key === "email") return primaryEmail;
@@ -2530,7 +2535,7 @@ const Admin = ({ demoMode }: { demoMode: boolean }) => {
         : String(leftValue).localeCompare(String(rightValue), undefined, { numeric: true, sensitivity: "base" });
       return userSort.direction === "asc" ? comparison : -comparison;
     });
-  }, [latestLoginByUserId, managedUsers, userSearch, userSort]);
+  }, [latestLoginByUserId, managedUsers, userListView, userSearch, userSort]);
 
   const changeUserSort = (key: UserSortKey) => {
     setUserSort((current) => current.key === key
@@ -2685,13 +2690,13 @@ const Admin = ({ demoMode }: { demoMode: boolean }) => {
       {adminSection === "questions" && <AdminQuestions demoMode={demoMode} />}
 
       {adminSection === "users" && <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <StatusCard icon={Users} label="Approved users" value={loadingUsers ? "—" : String(managedUsers.length)} note="All portal accounts" />
-        <StatusCard icon={UserRoundCheck} label="Active" value={loadingUsers ? "—" : String(managedUsers.filter((entry) => entry.accessStatus === "active").length)} note="Can access downloads" />
-        <StatusCard icon={ShieldCheck} label="Suspended" value={loadingUsers ? "—" : String(managedUsers.filter((entry) => entry.accessStatus === "suspended").length)} note="Access retained but disabled" />
-        <StatusCard icon={Mail} label="Unmatched sign-ins" value={loadingUsers ? "—" : String(unmatchedLoginAttempts.reduce((total, entry) => total + entry.requestCount, 0))} note="Code requests in 30 days" />
+        <SelectableStatusCard icon={Users} label="Approved users" value={loadingUsers ? "—" : String(managedUsers.length)} note="All portal accounts" selected={userListView === "approved"} onSelect={() => setUserListView("approved")} ariaLabel="Show all approved users" />
+        <SelectableStatusCard icon={UserRoundCheck} label="Active" value={loadingUsers ? "—" : String(managedUsers.filter((entry) => entry.accessStatus === "active").length)} note="Can access downloads" selected={userListView === "active"} onSelect={() => setUserListView("active")} ariaLabel="Show active users" />
+        <SelectableStatusCard icon={ShieldCheck} label="Suspended" value={loadingUsers ? "—" : String(managedUsers.filter((entry) => entry.accessStatus === "suspended").length)} note="Access retained but disabled" selected={userListView === "suspended"} onSelect={() => setUserListView("suspended")} ariaLabel="Show suspended users" />
+        <SelectableStatusCard icon={Mail} label="Unmatched sign-ins" value={loadingUsers ? "—" : String(unmatchedLoginAttempts.reduce((total, entry) => total + entry.requestCount, 0))} note="Code requests in 30 days" selected={userListView === "unmatched"} onSelect={() => setUserListView("unmatched")} ariaLabel="Show unmatched sign-in requests" />
       </div>}
 
-      {adminSection === "users" && <section className="border border-amber-200 bg-amber-50/40">
+      {adminSection === "users" && userListView === "unmatched" && <section className="border border-amber-200 bg-amber-50/40">
         <div className="border-b border-amber-200 px-6 py-5">
           <div className="font-mono text-xs uppercase tracking-widest text-amber-700">Sign-in support</div>
           <h2 className="mt-2 text-xl font-light text-slate-800">Unmatched sign-in requests</h2>
@@ -2712,26 +2717,9 @@ const Admin = ({ demoMode }: { demoMode: boolean }) => {
         )}
       </section>}
 
-      {adminSection === "users" && <section className="border border-border bg-white p-6 sm:p-8">
-        <div className="flex items-start gap-4">
-          <div className="flex h-10 w-10 shrink-0 items-center justify-center border border-primary text-primary"><UserRoundCheck className="h-5 w-5" /></div>
-          <div><div className="font-mono text-xs uppercase tracking-widest text-primary">New STA approval</div><h2 className="mt-2 text-xl font-light">Add an approved user</h2><p className="mt-2 text-sm text-muted-foreground">Use the email address included in the NCI Technology Transfer approval message. The user or an administrator can later link one alternate email.</p></div>
-        </div>
-        <div className="mt-6 grid gap-3 md:grid-cols-2 xl:grid-cols-5">
-          <Input value={newUserName} onChange={(event) => setNewUserName(event.target.value)} placeholder="Full name" className="rounded-none" />
-          <Input type="email" value={newUserEmail} onChange={(event) => setNewUserEmail(event.target.value)} placeholder="Approved email" className="rounded-none" />
-          <Input value={newUserInstitution} onChange={(event) => setNewUserInstitution(event.target.value)} placeholder="Institution (optional)" className="rounded-none" />
-          <Input value={newUserCountry} onChange={(event) => setNewUserCountry(event.target.value)} placeholder="Country (optional)" className="rounded-none" />
-          <Input type="date" value={newUserApprovedAt} onChange={(event) => setNewUserApprovedAt(event.target.value)} className="rounded-none" />
-        </div>
-        <div className="mt-4 flex justify-end">
-          <Button type="button" disabled={creatingUser || !newUserName.trim() || !newUserEmail.includes("@")} onClick={() => void createUser()} className="rounded-none">{creatingUser && <Loader2 className="h-4 w-4 animate-spin" />} Add approved user</Button>
-        </div>
-      </section>}
-
-      {adminSection === "users" && <section className="border border-border bg-white">
+      {adminSection === "users" && userListView !== "unmatched" && <section className="border border-border bg-white">
         <div className="flex flex-wrap items-center justify-between gap-4 border-b border-border px-6 py-5">
-          <div><div className="font-mono text-xs uppercase tracking-widest text-primary">User management</div><h2 className="mt-2 text-xl font-light">Approved user directory</h2></div>
+          <div><div className="font-mono text-xs uppercase tracking-widest text-primary">User management</div><h2 className="mt-2 text-xl font-light">{userListView === "active" ? "Active users" : userListView === "suspended" ? "Suspended users" : "Approved user directory"}</h2></div>
           <div className="flex w-full flex-wrap gap-2 sm:w-auto">
             <Button type="button" variant="outline" disabled={loadingUsers} onClick={() => void loadAdminUsers(true)} className="rounded-none"><RefreshCw className={cn("h-4 w-4", loadingUsers && "animate-spin")} /> Refresh</Button>
             <div className="relative min-w-60 flex-1 sm:w-80"><Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" /><Input value={userSearch} onChange={(event) => setUserSearch(event.target.value)} placeholder="Search name, email, or institution" className="rounded-none pl-9" /></div>
@@ -2787,7 +2775,24 @@ const Admin = ({ demoMode }: { demoMode: boolean }) => {
         )}
       </section>}
 
-      {adminSection === "users" && <section className="border border-border bg-white p-6"><div className="flex items-center justify-between"><div><div className="font-mono text-xs uppercase tracking-widest text-primary">New approvals</div><h2 className="mt-2 text-xl font-light">Simple activation workflow</h2></div><Users className="h-5 w-5 text-primary" /></div><div className="mt-6 grid gap-3 sm:grid-cols-2">{["Receive the executed STA approval email from NCI Technology Transfer", "Add the approved email in the form above", "Send the User Portal link to the recipient", "The user or an administrator may link one secondary email"].map((item, index) => <div key={item} className="flex items-center gap-3 border border-border p-3"><div className="flex h-6 w-6 shrink-0 items-center justify-center bg-primary/10 font-mono text-xs text-primary">{index + 1}</div><span className="text-sm text-slate-700">{item}</span></div>)}</div></section>}
+      {adminSection === "users" && userListView === "approved" && <section className="border border-border bg-white p-6 sm:p-8">
+        <div className="flex items-start gap-4">
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center border border-primary text-primary"><UserRoundCheck className="h-5 w-5" /></div>
+          <div><div className="font-mono text-xs uppercase tracking-widest text-primary">New STA approval</div><h2 className="mt-2 text-xl font-light">Add an approved user</h2><p className="mt-2 text-sm text-muted-foreground">Use the email address included in the NCI Technology Transfer approval message. The user or an administrator can later link one alternate email.</p></div>
+        </div>
+        <div className="mt-6 grid gap-3 md:grid-cols-2 xl:grid-cols-5">
+          <Input value={newUserName} onChange={(event) => setNewUserName(event.target.value)} placeholder="Full name" className="rounded-none" />
+          <Input type="email" value={newUserEmail} onChange={(event) => setNewUserEmail(event.target.value)} placeholder="Approved email" className="rounded-none" />
+          <Input value={newUserInstitution} onChange={(event) => setNewUserInstitution(event.target.value)} placeholder="Institution (optional)" className="rounded-none" />
+          <Input value={newUserCountry} onChange={(event) => setNewUserCountry(event.target.value)} placeholder="Country (optional)" className="rounded-none" />
+          <Input type="date" value={newUserApprovedAt} onChange={(event) => setNewUserApprovedAt(event.target.value)} className="rounded-none" />
+        </div>
+        <div className="mt-4 flex justify-end">
+          <Button type="button" disabled={creatingUser || !newUserName.trim() || !newUserEmail.includes("@")} onClick={() => void createUser()} className="rounded-none">{creatingUser && <Loader2 className="h-4 w-4 animate-spin" />} Add approved user</Button>
+        </div>
+      </section>}
+
+      {adminSection === "users" && userListView === "approved" && <section className="border border-border bg-white p-6"><div className="flex items-center justify-between"><div><div className="font-mono text-xs uppercase tracking-widest text-primary">New approvals</div><h2 className="mt-2 text-xl font-light">Simple activation workflow</h2></div><Users className="h-5 w-5 text-primary" /></div><div className="mt-6 grid gap-3 sm:grid-cols-2">{["Receive the executed STA approval email from NCI Technology Transfer", "Add the approved email in the form above", "Send the User Portal link to the recipient", "The user or an administrator may link one secondary email"].map((item, index) => <div key={item} className="flex items-center gap-3 border border-border p-3"><div className="flex h-6 w-6 shrink-0 items-center justify-center bg-primary/10 font-mono text-xs text-primary">{index + 1}</div><span className="text-sm text-slate-700">{item}</span></div>)}</div></section>}
 
       {(adminSection === "sandboxActivity" || adminSection === "portalActivity") && loadingActivity && (
         <div className="flex items-center justify-center gap-3 border border-border bg-white p-12 text-sm text-muted-foreground"><Loader2 className="h-5 w-5 animate-spin text-primary" /> Loading activity…</div>

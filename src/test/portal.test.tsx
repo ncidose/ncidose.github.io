@@ -362,8 +362,23 @@ describe("portal migration experience", () => {
     fireEvent.click(screen.getByRole("button", { name: /user management/i }));
     expect(screen.getByRole("heading", { name: /add an approved user/i })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: /approved user directory/i })).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: /unmatched sign-in requests/i })).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: /unmatched sign-in requests/i })).not.toBeInTheDocument();
     expect(screen.getByText("approved.user@gmail.com")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /show all approved users/i })).toHaveAttribute("aria-pressed", "true");
+
+    fireEvent.click(screen.getByRole("button", { name: /show active users/i }));
+    expect(screen.getByRole("heading", { name: /^active users$/i })).toBeInTheDocument();
+    expect(screen.getByText("approved.user@gmail.com")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: /show suspended users/i }));
+    expect(screen.getByRole("heading", { name: /^suspended users$/i })).toBeInTheDocument();
+    expect(screen.getByText("No matching users.")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: /show unmatched sign-in requests/i }));
+    expect(screen.getByRole("heading", { name: /unmatched sign-in requests/i })).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: /approved user directory/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: /add an approved user/i })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /show unmatched sign-in requests/i })).toHaveAttribute("aria-pressed", "true");
 
     fireEvent.click(screen.getByRole("button", { name: /announcements/i }));
     expect(screen.getByRole("heading", { name: /publish an update/i })).toBeInTheDocument();
