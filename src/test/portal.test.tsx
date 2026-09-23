@@ -174,6 +174,17 @@ describe("portal migration experience", () => {
     expect(screen.getByRole("row", { name: "NCIRF CPU 0 0 — — 0 / 0" })).toBeInTheDocument();
     expect(screen.getByRole("row", { name: "NCIRF GPU 0 0 — — 0 / 0" })).toBeInTheDocument();
 
+    const last30DaysButton = screen.getByRole("button", { name: "Show Last 30 days sandbox activity" });
+    expect(last30DaysButton).toHaveAttribute("aria-pressed", "true");
+    fireEvent.click(screen.getByRole("button", { name: "Show Today sandbox activity" }));
+    expect(screen.getByRole("button", { name: "Show Today sandbox activity" })).toHaveAttribute("aria-pressed", "true");
+    expect(last30DaysButton).toHaveAttribute("aria-pressed", "false");
+    expect(within(screen.getByRole("heading", { name: "Usage by API" }).parentElement as HTMLElement).getByText("Today")).toBeInTheDocument();
+    expect(within(screen.getByRole("heading", { name: "Approximate locations" }).parentElement as HTMLElement).getByText("Today")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Show Last 7 days sandbox activity" }));
+    expect(within(screen.getByRole("heading", { name: "Usage by API" }).parentElement as HTMLElement).getByText("Last 7 days")).toBeInTheDocument();
+    expect(within(screen.getByRole("heading", { name: "Approximate locations" }).parentElement as HTMLElement).getByText("Last 7 days")).toBeInTheDocument();
+
     fireEvent.click(screen.getByRole("button", { name: "User Portal Activity" }));
     expect(screen.getByRole("heading", { name: "Sign-ins and downloads" })).toBeInTheDocument();
     expect(screen.queryByRole("heading", { name: "API sandbox usage" })).not.toBeInTheDocument();

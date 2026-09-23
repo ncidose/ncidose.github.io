@@ -189,13 +189,27 @@ export const adminSandboxActivityQueries = Object.freeze({
   `,
   tools: `
     SELECT CASE WHEN preset_id='ncirf-gpu-size-demo' THEN 'ncirfgpu' ELSE tool END AS tool,
-      SUM(CASE WHEN counts_toward_limit=1 THEN 1 ELSE 0 END) AS requests,
-      COUNT(DISTINCT CASE WHEN counts_toward_limit=1 THEN request_ip_hash END) AS unique_clients,
-      SUM(CASE WHEN counts_toward_limit=1 AND result='succeeded' THEN 1 ELSE 0 END) AS succeeded,
-      SUM(CASE WHEN counts_toward_limit=1 AND result='failed' THEN 1 ELSE 0 END) AS failed,
-      SUM(CASE WHEN failure_reason='rate_limited' THEN attempt_count ELSE 0 END) AS rate_limited,
-      SUM(CASE WHEN failure_reason='busy' THEN attempt_count ELSE 0 END) AS busy,
-      AVG(CASE WHEN counts_toward_limit=1 AND result='succeeded' THEN duration_ms END) AS average_duration_ms
+      SUM(CASE WHEN counts_toward_limit=1 AND created_at >= datetime('now', '-1 day') THEN 1 ELSE 0 END) AS requests_today,
+      COUNT(DISTINCT CASE WHEN counts_toward_limit=1 AND created_at >= datetime('now', '-1 day') THEN request_ip_hash END) AS unique_clients_today,
+      SUM(CASE WHEN counts_toward_limit=1 AND result='succeeded' AND created_at >= datetime('now', '-1 day') THEN 1 ELSE 0 END) AS succeeded_today,
+      SUM(CASE WHEN counts_toward_limit=1 AND result='failed' AND created_at >= datetime('now', '-1 day') THEN 1 ELSE 0 END) AS failed_today,
+      SUM(CASE WHEN failure_reason='rate_limited' AND created_at >= datetime('now', '-1 day') THEN attempt_count ELSE 0 END) AS rate_limited_today,
+      SUM(CASE WHEN failure_reason='busy' AND created_at >= datetime('now', '-1 day') THEN attempt_count ELSE 0 END) AS busy_today,
+      AVG(CASE WHEN counts_toward_limit=1 AND result='succeeded' AND created_at >= datetime('now', '-1 day') THEN duration_ms END) AS average_duration_ms_today,
+      SUM(CASE WHEN counts_toward_limit=1 AND created_at >= datetime('now', '-7 days') THEN 1 ELSE 0 END) AS requests_7_days,
+      COUNT(DISTINCT CASE WHEN counts_toward_limit=1 AND created_at >= datetime('now', '-7 days') THEN request_ip_hash END) AS unique_clients_7_days,
+      SUM(CASE WHEN counts_toward_limit=1 AND result='succeeded' AND created_at >= datetime('now', '-7 days') THEN 1 ELSE 0 END) AS succeeded_7_days,
+      SUM(CASE WHEN counts_toward_limit=1 AND result='failed' AND created_at >= datetime('now', '-7 days') THEN 1 ELSE 0 END) AS failed_7_days,
+      SUM(CASE WHEN failure_reason='rate_limited' AND created_at >= datetime('now', '-7 days') THEN attempt_count ELSE 0 END) AS rate_limited_7_days,
+      SUM(CASE WHEN failure_reason='busy' AND created_at >= datetime('now', '-7 days') THEN attempt_count ELSE 0 END) AS busy_7_days,
+      AVG(CASE WHEN counts_toward_limit=1 AND result='succeeded' AND created_at >= datetime('now', '-7 days') THEN duration_ms END) AS average_duration_ms_7_days,
+      SUM(CASE WHEN counts_toward_limit=1 THEN 1 ELSE 0 END) AS requests_30_days,
+      COUNT(DISTINCT CASE WHEN counts_toward_limit=1 THEN request_ip_hash END) AS unique_clients_30_days,
+      SUM(CASE WHEN counts_toward_limit=1 AND result='succeeded' THEN 1 ELSE 0 END) AS succeeded_30_days,
+      SUM(CASE WHEN counts_toward_limit=1 AND result='failed' THEN 1 ELSE 0 END) AS failed_30_days,
+      SUM(CASE WHEN failure_reason='rate_limited' THEN attempt_count ELSE 0 END) AS rate_limited_30_days,
+      SUM(CASE WHEN failure_reason='busy' THEN attempt_count ELSE 0 END) AS busy_30_days,
+      AVG(CASE WHEN counts_toward_limit=1 AND result='succeeded' THEN duration_ms END) AS average_duration_ms_30_days
     FROM vendor_demo_requests
     WHERE created_at >= datetime('now', '-30 days')
       AND ${adminSandboxReportingFilter}
@@ -203,14 +217,18 @@ export const adminSandboxActivityQueries = Object.freeze({
     ORDER BY CASE tool WHEN 'ncict' THEN 1 WHEN 'ncinm' THEN 2 ELSE 3 END
   `,
   locations: `
-    SELECT country_code, city, COUNT(*) AS requests,
-      COUNT(DISTINCT request_ip_hash) AS unique_clients
+    SELECT country_code, city,
+      SUM(CASE WHEN created_at >= datetime('now', '-1 day') THEN 1 ELSE 0 END) AS requests_today,
+      COUNT(DISTINCT CASE WHEN created_at >= datetime('now', '-1 day') THEN request_ip_hash END) AS unique_clients_today,
+      SUM(CASE WHEN created_at >= datetime('now', '-7 days') THEN 1 ELSE 0 END) AS requests_7_days,
+      COUNT(DISTINCT CASE WHEN created_at >= datetime('now', '-7 days') THEN request_ip_hash END) AS unique_clients_7_days,
+      COUNT(*) AS requests_30_days,
+      COUNT(DISTINCT request_ip_hash) AS unique_clients_30_days
     FROM vendor_demo_requests
     WHERE counts_toward_limit=1 AND created_at >= datetime('now', '-30 days')
       AND ${adminSandboxReportingFilter}
     GROUP BY country_code, city
-    ORDER BY requests DESC, country_code ASC, city ASC
-    LIMIT 20
+    ORDER BY requests_30_days DESC, country_code ASC, city ASC
   `,
   failures: `
     SELECT id, CASE WHEN preset_id='ncirf-gpu-size-demo' THEN 'ncirfgpu' ELSE tool END AS tool,
@@ -2012,6 +2030,43 @@ export default {
         const sandboxSucceeded = Number(sandboxSummary.succeeded_30_days || 0);
         const sandboxFailed = Number(sandboxSummary.failed_30_days || 0);
         const sandboxCompleted = sandboxSucceeded + sandboxFailed;
+        const sandboxToolsForPeriod = (suffix) => sandboxToolResult.results.map((entry) => {
+          const succeeded = Number(entry[`succeeded_${suffix}`] || 0);
+          const failed = Number(entry[`failed_${suffix}`] || 0);
+          const completed = succeeded + failed;
+          const averageDuration = entry[`average_duration_ms_${suffix}`];
+          return {
+            tool: entry.tool,
+            requests: Number(entry[`requests_${suffix}`] || 0),
+            uniqueClients: Number(entry[`unique_clients_${suffix}`] || 0),
+            succeeded,
+            failed,
+            rateLimited: Number(entry[`rate_limited_${suffix}`] || 0),
+            busy: Number(entry[`busy_${suffix}`] || 0),
+            successRate: completed > 0 ? Math.round((succeeded / completed) * 1000) / 10 : null,
+            averageDurationMs: averageDuration === null ? null : Math.round(Number(averageDuration || 0)),
+          };
+        }).filter((entry) => entry.requests > 0 || entry.rateLimited > 0 || entry.busy > 0);
+        const sandboxLocationsForPeriod = (suffix) => sandboxLocationResult.results.map((entry) => ({
+          countryCode: entry.country_code,
+          city: entry.city,
+          requests: Number(entry[`requests_${suffix}`] || 0),
+          uniqueClients: Number(entry[`unique_clients_${suffix}`] || 0),
+        })).filter((entry) => entry.requests > 0)
+          .sort((left, right) => right.requests - left.requests
+            || String(left.countryCode || "").localeCompare(String(right.countryCode || ""))
+            || String(left.city || "").localeCompare(String(right.city || "")))
+          .slice(0, 20);
+        const sandboxToolsByPeriod = {
+          today: sandboxToolsForPeriod("today"),
+          last7Days: sandboxToolsForPeriod("7_days"),
+          last30Days: sandboxToolsForPeriod("30_days"),
+        };
+        const sandboxLocationsByPeriod = {
+          today: sandboxLocationsForPeriod("today"),
+          last7Days: sandboxLocationsForPeriod("7_days"),
+          last30Days: sandboxLocationsForPeriod("30_days"),
+        };
         return json({
           summary: {
             downloadsToday: Number(summary.downloads_today || 0),
@@ -2047,28 +2102,10 @@ export default {
               medianDurationMs30Days: sandboxPercentiles?.median_duration_ms === null ? null : Number(sandboxPercentiles?.median_duration_ms || 0),
               p95DurationMs30Days: sandboxPercentiles?.p95_duration_ms === null ? null : Number(sandboxPercentiles?.p95_duration_ms || 0),
             },
-            tools: sandboxToolResult.results.map((entry) => {
-              const succeeded = Number(entry.succeeded || 0);
-              const failed = Number(entry.failed || 0);
-              const completed = succeeded + failed;
-              return {
-                tool: entry.tool,
-                requests: Number(entry.requests || 0),
-                uniqueClients: Number(entry.unique_clients || 0),
-                succeeded,
-                failed,
-                rateLimited: Number(entry.rate_limited || 0),
-                busy: Number(entry.busy || 0),
-                successRate: completed > 0 ? Math.round((succeeded / completed) * 1000) / 10 : null,
-                averageDurationMs: entry.average_duration_ms === null ? null : Math.round(Number(entry.average_duration_ms || 0)),
-              };
-            }),
-            locations: sandboxLocationResult.results.map((entry) => ({
-              countryCode: entry.country_code,
-              city: entry.city,
-              requests: Number(entry.requests || 0),
-              uniqueClients: Number(entry.unique_clients || 0),
-            })),
+            tools: sandboxToolsByPeriod.last30Days,
+            toolsByPeriod: sandboxToolsByPeriod,
+            locations: sandboxLocationsByPeriod.last30Days,
+            locationsByPeriod: sandboxLocationsByPeriod,
             recentFailures: sandboxFailureResult.results.map((entry) => ({
               id: entry.id,
               tool: entry.tool,

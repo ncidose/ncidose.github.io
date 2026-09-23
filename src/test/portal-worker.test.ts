@@ -25,6 +25,20 @@ describe("admin activity query", () => {
       expect(query).toContain("'rockville', 'gaithersburg', 'frederick'");
     }
   });
+
+  it("aggregates API usage and locations for all selectable activity periods", () => {
+    for (const query of [adminSandboxActivityQueries.tools, adminSandboxActivityQueries.locations]) {
+      expect(query).toContain("datetime('now', '-1 day')");
+      expect(query).toContain("datetime('now', '-7 days')");
+      expect(query).toContain("datetime('now', '-30 days')");
+    }
+    expect(adminSandboxActivityQueries.tools).toContain("requests_today");
+    expect(adminSandboxActivityQueries.tools).toContain("requests_7_days");
+    expect(adminSandboxActivityQueries.tools).toContain("requests_30_days");
+    expect(adminSandboxActivityQueries.locations).toContain("unique_clients_today");
+    expect(adminSandboxActivityQueries.locations).toContain("unique_clients_7_days");
+    expect(adminSandboxActivityQueries.locations).toContain("unique_clients_30_days");
+  });
 });
 
 describe("admin users query", () => {

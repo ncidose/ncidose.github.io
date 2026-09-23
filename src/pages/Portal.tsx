@@ -1159,6 +1159,20 @@ const StatusCard = ({ icon: Icon, label, value, note }: { icon: typeof ShieldChe
   </div>
 );
 
+const SelectableStatusCard = ({ icon: Icon, label, value, note, selected, onSelect }: { icon: typeof ShieldCheck; label: string; value: string; note: string; selected: boolean; onSelect: () => void }) => (
+  <button
+    type="button"
+    aria-label={`Show ${label} sandbox activity`}
+    aria-pressed={selected}
+    onClick={onSelect}
+    className={cn("w-full border p-5 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2", selected ? "border-primary bg-sky-50" : "border-border bg-white hover:bg-slate-50")}
+  >
+    <div className="flex items-start justify-between"><div className={cn("font-mono text-xs uppercase tracking-widest", selected ? "text-primary" : "text-muted-foreground")}>{label}</div><Icon className="h-5 w-5 text-primary" /></div>
+    <div className="mt-5 text-3xl font-light text-slate-900">{value}</div>
+    <div className="mt-2 text-xs text-muted-foreground">{note}</div>
+  </button>
+);
+
 type PortalFile = { key: string; size: number; etag: string };
 type PortalFolder = { prefix: string; downloadAvailable: boolean };
 
@@ -1875,6 +1889,14 @@ type UnmatchedLoginAttempt = {
   latestRequestedAt: string;
 };
 
+type SandboxLocation = { countryCode: string | null; city: string | null; requests: number; uniqueClients: number };
+type SandboxActivityPeriod = "today" | "last7Days" | "last30Days";
+const sandboxActivityPeriodLabels: Record<SandboxActivityPeriod, string> = {
+  today: "Today",
+  last7Days: "Last 7 days",
+  last30Days: "Last 30 days",
+};
+
 type AdminActivityData = {
   summary: {
     downloadsToday: number;
@@ -1903,7 +1925,9 @@ type AdminActivityData = {
       p95DurationMs30Days: number | null;
     };
     tools: SandboxApiUsage[];
-    locations: Array<{ countryCode: string | null; city: string | null; requests: number; uniqueClients: number }>;
+    toolsByPeriod?: Record<SandboxActivityPeriod, SandboxApiUsage[]>;
+    locations: SandboxLocation[];
+    locationsByPeriod?: Record<SandboxActivityPeriod, SandboxLocation[]>;
     recentFailures: Array<{ id: string; tool: string; upstreamStatus: number | null; durationMs: number | null; reason: string | null; attemptCount: number; countryCode: string | null; city: string | null; occurredAt: string }>;
     locationNotice: string;
   };
@@ -1941,7 +1965,9 @@ const emptyAdminActivity: AdminActivityData = {
       p95DurationMs30Days: null,
     },
     tools: [],
+    toolsByPeriod: { today: [], last7Days: [], last30Days: [] },
     locations: [],
+    locationsByPeriod: { today: [], last7Days: [], last30Days: [] },
     recentFailures: [],
     locationNotice: "Approximate network location; VPNs, gateways, and cloud infrastructure may affect accuracy.",
   },
@@ -2122,6 +2148,7 @@ const Admin = ({ demoMode }: { demoMode: boolean }) => {
   const [deletingUserId, setDeletingUserId] = useState<string | null>(null);
   const [activityData, setActivityData] = useState<AdminActivityData>(() => adminActivityCache?.data || emptyAdminActivity);
   const [loadingActivity, setLoadingActivity] = useState(false);
+  const [sandboxActivityPeriod, setSandboxActivityPeriod] = useState<SandboxActivityPeriod>("last30Days");
   const [emailAudience, setEmailAudience] = useState<EmailAudienceStatus | null>(null);
   const [loadingEmailAudience, setLoadingEmailAudience] = useState(!demoMode);
   const [syncingEmailAudience, setSyncingEmailAudience] = useState(false);
@@ -2639,6 +2666,11 @@ const Admin = ({ demoMode }: { demoMode: boolean }) => {
 
   const editingAnnouncement = adminAnnouncements.find((announcement) => announcement.id === editingAnnouncementId) || null;
   const emailOptionDisabled = Boolean(originalPublishedAt || sourceUrl || editingAnnouncement?.emailDelivery);
+  const selectedSandboxTools = activityData.sandbox.toolsByPeriod?.[sandboxActivityPeriod]
+    ?? (sandboxActivityPeriod === "last30Days" ? activityData.sandbox.tools : []);
+  const selectedSandboxLocations = activityData.sandbox.locationsByPeriod?.[sandboxActivityPeriod]
+    ?? (sandboxActivityPeriod === "last30Days" ? activityData.sandbox.locations : []);
+  const selectedSandboxPeriodLabel = sandboxActivityPeriodLabels[sandboxActivityPeriod];
 
   return (
     <div className="space-y-8">
@@ -2773,9 +2805,9 @@ const Admin = ({ demoMode }: { demoMode: boolean }) => {
               <div className="text-xs text-muted-foreground">Valid sandbox requests only · no payloads or raw IP addresses stored</div>
             </div>
             <div className="grid gap-px bg-border sm:grid-cols-2 xl:grid-cols-6">
-              <StatusCard icon={BarChart3} label="Today" value={String(activityData.sandbox.summary.requestsToday)} note="Accepted runs" />
-              <StatusCard icon={BarChart3} label="Last 7 days" value={String(activityData.sandbox.summary.requests7Days)} note="Accepted runs" />
-              <StatusCard icon={BarChart3} label="Last 30 days" value={String(activityData.sandbox.summary.requests30Days)} note="Accepted runs" />
+              <SelectableStatusCard icon={BarChart3} label="Today" value={String(activityData.sandbox.summary.requestsToday)} note="Accepted runs" selected={sandboxActivityPeriod === "today"} onSelect={() => setSandboxActivityPeriod("today")} />
+              <SelectableStatusCard icon={BarChart3} label="Last 7 days" value={String(activityData.sandbox.summary.requests7Days)} note="Accepted runs" selected={sandboxActivityPeriod === "last7Days"} onSelect={() => setSandboxActivityPeriod("last7Days")} />
+              <SelectableStatusCard icon={BarChart3} label="Last 30 days" value={String(activityData.sandbox.summary.requests30Days)} note="Accepted runs" selected={sandboxActivityPeriod === "last30Days"} onSelect={() => setSandboxActivityPeriod("last30Days")} />
               <StatusCard icon={Users} label="Trial clients" value={String(activityData.sandbox.summary.uniqueClients30Days)} note="Anonymous, 30 days" />
               <StatusCard icon={ShieldCheck} label="Success rate" value={activityData.sandbox.summary.successRate30Days === null ? "—" : `${activityData.sandbox.summary.successRate30Days}%`} note={`${activityData.sandbox.summary.failed30Days} failed`} />
               <StatusCard icon={BarChart3} label="P95 response" value={apiDuration(activityData.sandbox.summary.p95DurationMs30Days)} note={`Median ${apiDuration(activityData.sandbox.summary.medianDurationMs30Days)}`} />
@@ -2790,13 +2822,13 @@ const Admin = ({ demoMode }: { demoMode: boolean }) => {
 
           <div className="grid gap-6 xl:grid-cols-2">
             <section className="overflow-hidden border border-border bg-white">
-              <div className="border-b border-border px-6 py-5"><div className="font-mono text-xs uppercase tracking-widest text-primary">Last 30 days</div><h2 className="mt-2 text-xl font-light">Usage by API</h2></div>
-              <div className="overflow-x-auto"><table className="w-full min-w-[560px] text-left text-sm"><thead className="bg-slate-50 text-xs uppercase tracking-wide text-muted-foreground"><tr><th className="px-5 py-3 font-medium">API</th><th className="px-4 py-3 font-medium">Runs</th><th className="px-4 py-3 font-medium">Clients</th><th className="px-4 py-3 font-medium">Success</th><th className="px-4 py-3 font-medium">Average</th><th className="px-4 py-3 font-medium">Limited / busy</th></tr></thead><tbody className="divide-y divide-border">{sandboxApiUsageRows(activityData.sandbox.tools).map((entry) => <tr key={entry.tool}><td className="whitespace-nowrap px-5 py-4 font-mono font-medium text-primary">{sandboxApiLabel(entry.tool)}</td><td className="px-4 py-4">{entry.requests}</td><td className="px-4 py-4">{entry.uniqueClients}</td><td className="px-4 py-4">{entry.successRate === null ? "—" : `${entry.successRate}%`}</td><td className="px-4 py-4">{apiDuration(entry.averageDurationMs)}</td><td className="px-4 py-4">{entry.rateLimited} / {entry.busy}</td></tr>)}</tbody></table></div>
+              <div className="border-b border-border px-6 py-5"><div className="font-mono text-xs uppercase tracking-widest text-primary">{selectedSandboxPeriodLabel}</div><h2 className="mt-2 text-xl font-light">Usage by API</h2></div>
+              <div className="overflow-x-auto"><table className="w-full min-w-[560px] text-left text-sm"><thead className="bg-slate-50 text-xs uppercase tracking-wide text-muted-foreground"><tr><th className="px-5 py-3 font-medium">API</th><th className="px-4 py-3 font-medium">Runs</th><th className="px-4 py-3 font-medium">Clients</th><th className="px-4 py-3 font-medium">Success</th><th className="px-4 py-3 font-medium">Average</th><th className="px-4 py-3 font-medium">Limited / busy</th></tr></thead><tbody className="divide-y divide-border">{sandboxApiUsageRows(selectedSandboxTools).map((entry) => <tr key={entry.tool}><td className="whitespace-nowrap px-5 py-4 font-mono font-medium text-primary">{sandboxApiLabel(entry.tool)}</td><td className="px-4 py-4">{entry.requests}</td><td className="px-4 py-4">{entry.uniqueClients}</td><td className="px-4 py-4">{entry.successRate === null ? "—" : `${entry.successRate}%`}</td><td className="px-4 py-4">{apiDuration(entry.averageDurationMs)}</td><td className="px-4 py-4">{entry.rateLimited} / {entry.busy}</td></tr>)}</tbody></table></div>
             </section>
 
             <section className="overflow-hidden border border-border bg-white">
-              <div className="border-b border-border px-6 py-5"><div className="font-mono text-xs uppercase tracking-widest text-primary">Last 30 days</div><h2 className="mt-2 text-xl font-light">Approximate locations</h2><p className="mt-2 text-xs text-muted-foreground">{activityData.sandbox.locationNotice}</p></div>
-              {activityData.sandbox.locations.length === 0 ? <div className="p-8 text-sm text-muted-foreground">Location data will appear after new sandbox runs.</div> : <div className="divide-y divide-border">{activityData.sandbox.locations.slice(0, 12).map((entry, index) => <div key={`${entry.countryCode || "unknown"}-${entry.city || "unknown"}-${index}`} className="grid grid-cols-[minmax(0,1fr)_5rem_5rem] items-center gap-3 px-6 py-4"><div className="min-w-0"><div className="truncate text-sm font-medium text-slate-800">{apiCountryName(entry.countryCode)}</div><div className="mt-1 truncate text-xs text-muted-foreground">{entry.city || "City unavailable"}</div></div><div className="text-right"><div className="font-mono text-sm text-primary">{entry.requests}</div><div className="text-[10px] uppercase text-muted-foreground">runs</div></div><div className="text-right"><div className="font-mono text-sm text-slate-700">{entry.uniqueClients}</div><div className="text-[10px] uppercase text-muted-foreground">clients</div></div></div>)}</div>}
+              <div className="border-b border-border px-6 py-5"><div className="font-mono text-xs uppercase tracking-widest text-primary">{selectedSandboxPeriodLabel}</div><h2 className="mt-2 text-xl font-light">Approximate locations</h2><p className="mt-2 text-xs text-muted-foreground">{activityData.sandbox.locationNotice}</p></div>
+              {selectedSandboxLocations.length === 0 ? <div className="p-8 text-sm text-muted-foreground">No location data for this period.</div> : <div className="divide-y divide-border">{selectedSandboxLocations.slice(0, 12).map((entry, index) => <div key={`${entry.countryCode || "unknown"}-${entry.city || "unknown"}-${index}`} className="grid grid-cols-[minmax(0,1fr)_5rem_5rem] items-center gap-3 px-6 py-4"><div className="min-w-0"><div className="truncate text-sm font-medium text-slate-800">{apiCountryName(entry.countryCode)}</div><div className="mt-1 truncate text-xs text-muted-foreground">{entry.city || "City unavailable"}</div></div><div className="text-right"><div className="font-mono text-sm text-primary">{entry.requests}</div><div className="text-[10px] uppercase text-muted-foreground">runs</div></div><div className="text-right"><div className="font-mono text-sm text-slate-700">{entry.uniqueClients}</div><div className="text-[10px] uppercase text-muted-foreground">clients</div></div></div>)}</div>}
             </section>
           </div>
 

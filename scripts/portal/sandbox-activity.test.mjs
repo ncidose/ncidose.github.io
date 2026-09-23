@@ -70,6 +70,30 @@ test("admin totals and failures separate legacy CPU runs from GPU runs without c
   assert.equal(sandbox.recentFailures.find((row) => row.id === "gpu-failed").tool, "ncirfgpu");
 });
 
+test("admin activity returns API usage and locations for today, 7 days, and 30 days", async (t) => {
+  const { add, request } = fixture(t);
+  const timestampDaysAgo = (days) => new Date(Date.now() - days * 24 * 60 * 60 * 1000)
+    .toISOString().slice(0, 19).replace("T", " ");
+  add("today-ct", "ncict-adult-chest", { tool: "ncict", request_ip_hash: "today-client", country_code: "CA", city: "Toronto" });
+  add("week-gpu", "ncirf-gpu-size-demo", { request_ip_hash: "week-client", country_code: "BE", city: "Antwerp", created_at: timestampDaysAgo(3) });
+  add("month-nm", "ncinm-fdg-adult", { tool: "ncinm", request_ip_hash: "month-client", country_code: "JP", city: "Tokyo", created_at: timestampDaysAgo(10) });
+  add("today-gpu-limited", "ncirf-gpu-size-demo", { result: "failed", counts_toward_limit: 0, failure_reason: "rate_limited", attempt_count: 2 });
+
+  const response = await request("/api/admin/activity");
+  assert.equal(response.status, 200);
+  const { sandbox } = await response.json();
+
+  assert.equal(sandbox.toolsByPeriod.today.find((row) => row.tool === "ncict").requests, 1);
+  assert.equal(sandbox.toolsByPeriod.today.find((row) => row.tool === "ncirfgpu").rateLimited, 2);
+  assert.equal(sandbox.toolsByPeriod.last7Days.find((row) => row.tool === "ncirfgpu").requests, 1);
+  assert.equal(sandbox.toolsByPeriod.last30Days.find((row) => row.tool === "ncinm").requests, 1);
+  assert.deepEqual(sandbox.locationsByPeriod.today.map((row) => row.city), ["Toronto"]);
+  assert.deepEqual(sandbox.locationsByPeriod.last7Days.map((row) => row.city).sort(), ["Antwerp", "Toronto"]);
+  assert.deepEqual(sandbox.locationsByPeriod.last30Days.map((row) => row.city).sort(), ["Antwerp", "Tokyo", "Toronto"]);
+  assert.deepEqual(sandbox.tools, sandbox.toolsByPeriod.last30Days);
+  assert.deepEqual(sandbox.locations, sandbox.locationsByPeriod.last30Days);
+});
+
 for (const reason of ["busy", "rate_limited"]) {
   test(`${reason} attempts from one client stay separate for CPU and GPU in the same time bucket`, async (t) => {
     const { db, add, request } = fixture(t);
