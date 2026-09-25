@@ -2,11 +2,18 @@
 
 _Scientific and maintenance update record for the NCI computational phantom libraries._
 
-Latest release: **August 20, 2026**
+Latest release: **September 25, 2026**
 Latest scientific update: **August 20, 2026**
 Record begins: **2010**
 
 ## 2026
+
+### September 25, 2026 — Maintenance Update
+
+- Corrected MCNP lattice-card formatting in all arm and armless
+  multi-resolution pregnant phantoms by restoring required continuation
+  indentation and removing cell-block separators from included lattice files.
+- Restored successful input and geometry initialization in MCNPX and MCNP6.
 
 ### August 20, 2026 — Scientific Update
 
