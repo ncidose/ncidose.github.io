@@ -207,7 +207,7 @@ const Researchers = () => {
                     {[
                       "Confirm that your planned use is eligible non-commercial research.",
                       "Enter your institutional and authorized-official information to prepare the STA.",
-                      "Review and sign the PDF, then email the signed agreement for NCI review.",
+                      "Review and sign the PDF, then email the signed agreement to the NCI Technology Transfer Center at lisa.gallmon@nih.gov.",
                       "After approval, use the welcome email to sign in to the User Portal.",
                     ].map((step, index) => (
                       <li key={step} className="grid grid-cols-[28px_1fr] gap-3">

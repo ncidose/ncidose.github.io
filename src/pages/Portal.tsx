@@ -736,7 +736,7 @@ const AccessRequest = () => {
             <div className="mt-7 font-mono text-xs uppercase tracking-widest text-primary">STA PDF prepared</div>
             <h1 className="mt-3 text-3xl font-light">Your prefilled STA has been downloaded.</h1>
             <p className="mx-auto mt-5 max-w-lg text-sm leading-relaxed text-muted-foreground">
-              Review every entry in the official PDF, complete any signing-official details you left blank, obtain the required recipient signatures, and attach the signed agreement to an email to Dr. Lee.
+              Review every entry in the official PDF, complete any signing-official details you left blank, obtain the required recipient signatures, and attach the signed agreement to an email to the NCI Technology Transfer Center (lisa.gallmon@nih.gov).
             </p>
             <div className="mx-auto mt-8 max-w-lg border border-border bg-slate-50 p-5 text-left">
               <div className="font-mono text-xs uppercase tracking-wider text-slate-500">Next step</div>
@@ -745,7 +745,7 @@ const AccessRequest = () => {
               </p>
             </div>
             <div className="mt-8 flex flex-col justify-center gap-3 sm:flex-row">
-              <a href="mailto:choonsik.lee@nih.gov?subject=NCI%20Dose%20Tools%20Software%20Transfer%20Agreement" className="inline-flex items-center justify-center gap-2 bg-primary px-5 py-3 text-sm font-medium text-white"><Mail className="h-4 w-4" /> Email signed STA to Dr. Lee</a>
+              <a href="mailto:lisa.gallmon@nih.gov?subject=NCI%20Dose%20Tools%20Software%20Transfer%20Agreement" className="inline-flex items-center justify-center gap-2 bg-primary px-5 py-3 text-sm font-medium text-white"><Mail className="h-4 w-4 shrink-0" /> Email signed STA to NCI Technology Transfer Center</a>
               <Link to="/portal" className="inline-flex items-center justify-center border border-border px-5 py-3 text-sm font-medium text-slate-700 hover:border-primary hover:text-primary">
                 Return to sign in
               </Link>
@@ -770,7 +770,7 @@ const AccessRequest = () => {
             {[
               ["01", "Check eligibility", "Confirm that this is non-commercial research use."],
               ["02", "Prepare the official PDF", "Enter only the details needed to prefill the STA."],
-              ["03", "Review, sign, and email", "Complete any remaining PDF fields before signing."],
+              ["03", "Review, sign, and email", "Complete any remaining PDF fields, sign, and email the agreement to the NCI Technology Transfer Center at lisa.gallmon@nih.gov."],
               ["04", "Receive access", "NCI reviews the agreement and activates your portal account."],
             ].map(([number, title, detail]) => (
               <div key={number} className="grid grid-cols-[42px_1fr] gap-4 border border-border bg-white p-4">
