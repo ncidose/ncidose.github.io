@@ -76,16 +76,6 @@
   body {
     @apply bg-background text-foreground antialiased;
     font-family: 'Inter', sans-serif;
-    -webkit-user-select: none;
-    user-select: none;
-  }
-
-  img,
-  svg,
-  canvas {
-    -webkit-touch-callout: none;
-    -webkit-user-drag: none;
-    user-drag: none;
   }
 
   /* Typography Scale */
