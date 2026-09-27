@@ -13,6 +13,7 @@ import {
   ChevronRight,
   CircleUserRound,
   ClipboardCheck,
+  Copy,
   Download,
   ExternalLink,
   FileArchive,
@@ -99,6 +100,8 @@ const publicSiteUrl = "https://ncidose.github.io/";
 const publicAccessRequestUrl = `${publicSiteUrl}portal/request-access/`;
 const commercialLicensingEmail = createLicensingMailto();
 const portalSupportEmail = "mailto:choonsik.lee@nih.gov?subject=NCI%20Dose%20Tools%20User%20Portal%20Help";
+const staContactEmail = "lisa.gallmon@nih.gov";
+const staEmailSubject = "NCI Dose Tools Software Transfer Agreement";
 const staResearchPurposeStatements: Record<string, string> = {
   dose_research: "Non-clinical radiation dosimetry research",
   method_development: "Non-clinical research method development and validation",
@@ -718,11 +721,25 @@ const PortalLoading = () => (
 const AccessRequest = () => {
   const location = useLocation();
   const [submitted, setSubmitted] = useState(false);
+  const [emailCopyStatus, setEmailCopyStatus] = useState<"idle" | "copying" | "copied" | "error">("idle");
+  const recipientEmailInput = useRef<HTMLInputElement>(null);
   const [preparingPdf, setPreparingPdf] = useState(false);
   const [pdfError, setPdfError] = useState("");
   const [eligibility, setEligibility] = useState({ nonprofit: "", commercialReplacement: "", clinicalUse: "" });
   const isIneligible = eligibility.nonprofit === "no" || eligibility.commercialReplacement === "yes" || eligibility.clinicalUse === "yes";
   const eligibilityComplete = Object.values(eligibility).every(Boolean);
+
+  const copyRecipientEmail = async () => {
+    setEmailCopyStatus("copying");
+    try {
+      await navigator.clipboard.writeText(staContactEmail);
+      setEmailCopyStatus("copied");
+    } catch {
+      setEmailCopyStatus("error");
+      recipientEmailInput.current?.focus();
+      recipientEmailInput.current?.select();
+    }
+  };
 
   if (submitted) {
     return (
@@ -736,16 +753,32 @@ const AccessRequest = () => {
             <div className="mt-7 font-mono text-xs uppercase tracking-widest text-primary">STA PDF prepared</div>
             <h1 className="mt-3 text-3xl font-light">Your prefilled STA has been downloaded.</h1>
             <p className="mx-auto mt-5 max-w-lg text-sm leading-relaxed text-muted-foreground">
-              Review every entry in the official PDF, complete any signing-official details you left blank, obtain the required recipient signatures, and attach the signed agreement to an email to the NCI Technology Transfer Center (lisa.gallmon@nih.gov).
+              Review every entry in the official PDF, complete any signing-official details you left blank, obtain the required recipient signatures, and email the signed agreement to the NCI Technology Transfer Center.
             </p>
             <div className="mx-auto mt-8 max-w-lg border border-border bg-slate-50 p-5 text-left">
               <div className="font-mono text-xs uppercase tracking-wider text-slate-500">Next step</div>
               <p className="mt-2 text-sm leading-relaxed text-slate-700">
-                The email button opens a prepared message. For security reasons, your browser cannot attach the PDF automatically; select the signed PDF from your Downloads folder before sending.
+                Create a new message in your usual email service, use the recipient and subject below, and attach your signed PDF before sending. This website does not send the email or attach the PDF for you.
               </p>
+              <label htmlFor="sta-recipient-email" className="mt-5 block text-xs font-medium text-slate-600">Recipient email</label>
+              <div className="mt-2 flex flex-col gap-2 sm:flex-row">
+                <input id="sta-recipient-email" ref={recipientEmailInput} readOnly value={staContactEmail} onFocus={(event) => event.currentTarget.select()} aria-describedby="sta-email-copy-status" className="min-w-0 flex-1 border border-input bg-white px-3 py-3 text-sm text-slate-800 outline-none focus:border-primary" />
+                <button type="button" onClick={copyRecipientEmail} disabled={emailCopyStatus === "copying"} className="inline-flex shrink-0 items-center justify-center gap-2 bg-primary px-4 py-3 text-sm font-medium text-white disabled:opacity-60">
+                  {emailCopyStatus === "copied" ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+                  {emailCopyStatus === "copying" ? "Copying…" : emailCopyStatus === "copied" ? "Address copied" : "Copy email address"}
+                </button>
+              </div>
+              <p id="sta-email-copy-status" role="status" className="mt-2 text-xs leading-relaxed text-slate-600">
+                {emailCopyStatus === "copied" ? "Email address copied. Paste it into the To field of your email." : emailCopyStatus === "error" ? "Automatic copying is unavailable. The address is selected; copy it manually and paste it into your email." : "You can also select and copy the address manually."}
+              </p>
+              <div className="mt-4 text-xs font-medium text-slate-600">Subject</div>
+              <p className="mt-1 select-text text-sm text-slate-800">{staEmailSubject}</p>
             </div>
+            <p className="mx-auto mt-6 max-w-lg text-xs leading-relaxed text-muted-foreground">
+              “Open email app” works only if an email app is configured on your device. If nothing opens, copy the address above and write the message in your usual email service.
+            </p>
             <div className="mt-8 flex flex-col justify-center gap-3 sm:flex-row">
-              <a href="mailto:lisa.gallmon@nih.gov?subject=NCI%20Dose%20Tools%20Software%20Transfer%20Agreement" className="inline-flex items-center justify-center gap-2 bg-primary px-5 py-3 text-sm font-medium text-white"><Mail className="h-4 w-4 shrink-0" /> Email signed STA to NCI Technology Transfer Center</a>
+              <a href={`mailto:${staContactEmail}?subject=${encodeURIComponent(staEmailSubject)}`} className="inline-flex items-center justify-center gap-2 border border-primary px-5 py-3 text-sm font-medium text-primary"><Mail className="h-4 w-4 shrink-0" /> Open email app</a>
               <Link to="/portal" className="inline-flex items-center justify-center border border-border px-5 py-3 text-sm font-medium text-slate-700 hover:border-primary hover:text-primary">
                 Return to sign in
               </Link>
