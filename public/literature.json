@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-21T13:11:58.239Z",
+  "generatedAt": "2026-09-28T13:14:30.852Z",
   "source": "NCBI E-utilities PubMed and PubMed Central searches",
   "note": "Searches combine tool-specific identifiers with modality terms to reduce unrelated full-text matches.",
   "tools": [
@@ -17,17 +17,17 @@
         "pmcFullText": "https://pmc.ncbi.nlm.nih.gov/search/?term=%28%22NCICT%22%5Bbody%5D+OR+%22National+Cancer+Institute+dosimetry+system+for+Computed+Tomography%22%5Bbody%5D+OR+%22National+Cancer+Institute+dosimetry+system+for+CT%22%5Bbody%5D%29+AND+%28%22computed+tomography%22%5Bbody%5D+OR+%22CT+dosimetry%22%5Bbody%5D+OR+%22CT+scan%22%5Bbody%5D+OR+%22CT+scans%22%5Bbody%5D+OR+%22CT+imaging%22%5Bbody%5D+OR+%22CT+examination%22%5Bbody%5D+OR+%22CT+examinations%22%5Bbody%5D+OR+%22PET%2FCT%22%5Bbody%5D%29"
       },
       "counts": {
-        "pubmedTitleAbstract": 42,
+        "pubmedTitleAbstract": 43,
         "pmcFullTextRecords": 74,
         "pmcMappedPmids": 72,
         "pmcWithoutPmid": 2,
-        "combinedUniquePmids": 95,
-        "displayedArticles": 95
+        "combinedUniquePmids": 96,
+        "displayedArticles": 96
       },
       "years": [
         {
           "year": "2026",
-          "count": 16,
+          "count": 17,
           "articles": [
             {
               "pmid": "42188702",
@@ -76,6 +76,28 @@
               ],
               "pubmedUrl": "https://pubmed.ncbi.nlm.nih.gov/41706156/",
               "pmcUrl": "https://pmc.ncbi.nlm.nih.gov/articles/PMC13035884/"
+            },
+            {
+              "pmid": "42777735",
+              "pmcid": null,
+              "title": "CT image-based evaluation of phantom-derived DLP-to-effective dose conversion factors for adult abdomen-pelvis CT",
+              "journal": "Journal of radiological protection : official journal of the Society for Radiological Protection",
+              "pubdate": "2026 Sep 23",
+              "publicationDate": "2026-09-23",
+              "year": "2026",
+              "authors": [
+                "Rafet SM",
+                "Saha M",
+                "Siegelman J",
+                "Lee C"
+              ],
+              "nciTeamAuthored": true,
+              "doi": "10.1088/1361-6498/aeabab",
+              "sources": [
+                "PubMed title/abstract"
+              ],
+              "pubmedUrl": "https://pubmed.ncbi.nlm.nih.gov/42777735/",
+              "pmcUrl": null
             },
             {
               "pmid": "41988721",
@@ -2310,16 +2332,16 @@
       },
       "counts": {
         "pubmedTitleAbstract": 11,
-        "pmcFullTextRecords": 10,
-        "pmcMappedPmids": 10,
+        "pmcFullTextRecords": 11,
+        "pmcMappedPmids": 11,
         "pmcWithoutPmid": 0,
-        "combinedUniquePmids": 17,
-        "displayedArticles": 17
+        "combinedUniquePmids": 18,
+        "displayedArticles": 18
       },
       "years": [
         {
           "year": "2026",
-          "count": 5,
+          "count": 6,
           "articles": [
             {
               "pmid": "41706156",
@@ -2368,6 +2390,28 @@
               ],
               "pubmedUrl": "https://pubmed.ncbi.nlm.nih.gov/41207961/",
               "pmcUrl": null
+            },
+            {
+              "pmid": "42774609",
+              "pmcid": "PMC13594430",
+              "title": "Leadless pacemaker implantation during pregnancy: Quantitative assessment of fetal radiation exposure",
+              "journal": "Heart rhythm O2",
+              "pubdate": "2026 Sep",
+              "publicationDate": "2026-06-09",
+              "year": "2026",
+              "authors": [
+                "Abdrakhmanov AS",
+                "Avramova-Cholakova S",
+                "Marat G",
+                "Suleymen ZA"
+              ],
+              "nciTeamAuthored": false,
+              "doi": "10.1016/j.hroo.2026.04.032",
+              "sources": [
+                "PMC full text"
+              ],
+              "pubmedUrl": "https://pubmed.ncbi.nlm.nih.gov/42774609/",
+              "pmcUrl": "https://pmc.ncbi.nlm.nih.gov/articles/PMC13594430/"
             },
             {
               "pmid": "42346038",
