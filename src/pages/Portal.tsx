@@ -55,6 +55,7 @@ import { readableAnnouncementSummary } from "@/lib/announcementSummary";
 import { DiscussionMarkdown } from "@/components/DiscussionMarkdown";
 import { trackResearchAccessPdfPrepared } from "@/lib/analytics";
 import { createLicensingMailto } from "@/lib/licensing";
+import { paginateAdminUsers } from "@/lib/adminPagination";
 import { cn } from "@/lib/utils";
 import { getPortalHeaderEmail, selectPrimaryPortalIdentity } from "@/lib/portalUser";
 import { sandboxApiLabel, sandboxApiUsageRows, type SandboxApiUsage } from "@/lib/sandboxActivity";
@@ -2167,6 +2168,7 @@ const Admin = ({ demoMode }: { demoMode: boolean }) => {
   const [userListView, setUserListView] = useState<UserListView>("approved");
   const [userSearch, setUserSearch] = useState("");
   const [userSort, setUserSort] = useState<{ key: UserSortKey; direction: "asc" | "desc" }>({ key: "name", direction: "asc" });
+  const [userPage, setUserPage] = useState(1);
   const [newUserName, setNewUserName] = useState("");
   const [newUserEmail, setNewUserEmail] = useState("");
   const [newUserInstitution, setNewUserInstitution] = useState("");
@@ -2570,6 +2572,16 @@ const Admin = ({ demoMode }: { demoMode: boolean }) => {
     });
   }, [latestLoginByUserId, managedUsers, userListView, userSearch, userSort]);
 
+  const userPageData = useMemo(() => paginateAdminUsers(filteredUsers, userPage), [filteredUsers, userPage]);
+
+  useEffect(() => {
+    setUserPage(1);
+  }, [userListView, userSearch, userSort]);
+
+  useEffect(() => {
+    if (userPage !== userPageData.page) setUserPage(userPageData.page);
+  }, [userPage, userPageData.page]);
+
   const changeUserSort = (key: UserSortKey) => {
     setUserSort((current) => current.key === key
       ? { key, direction: current.direction === "asc" ? "desc" : "asc" }
@@ -2729,6 +2741,23 @@ const Admin = ({ demoMode }: { demoMode: boolean }) => {
         <SelectableStatusCard icon={Mail} label="Unmatched sign-ins" value={loadingUsers ? "—" : String(unmatchedLoginAttempts.reduce((total, entry) => total + entry.requestCount, 0))} note="Code requests in 30 days" selected={userListView === "unmatched"} onSelect={() => setUserListView("unmatched")} ariaLabel="Show unmatched sign-in requests" />
       </div>}
 
+      {adminSection === "users" && <section className="border border-border bg-white p-6 sm:p-8">
+        <div className="flex items-start gap-4">
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center border border-primary text-primary"><UserRoundCheck className="h-5 w-5" /></div>
+          <div><div className="font-mono text-xs uppercase tracking-widest text-primary">New STA approval</div><h2 className="mt-2 text-xl font-light">Add an approved user</h2><p className="mt-2 text-sm text-muted-foreground">Use the email address included in the NCI Technology Transfer approval message. The user or an administrator can later link one alternate email.</p></div>
+        </div>
+        <div className="mt-6 grid gap-3 md:grid-cols-2 xl:grid-cols-5">
+          <Input value={newUserName} onChange={(event) => setNewUserName(event.target.value)} placeholder="Full name" className="rounded-none" />
+          <Input type="email" value={newUserEmail} onChange={(event) => setNewUserEmail(event.target.value)} placeholder="Approved email" className="rounded-none" />
+          <Input value={newUserInstitution} onChange={(event) => setNewUserInstitution(event.target.value)} placeholder="Institution (optional)" className="rounded-none" />
+          <Input value={newUserCountry} onChange={(event) => setNewUserCountry(event.target.value)} placeholder="Country (optional)" className="rounded-none" />
+          <Input type="date" value={newUserApprovedAt} onChange={(event) => setNewUserApprovedAt(event.target.value)} className="rounded-none" />
+        </div>
+        <div className="mt-4 flex justify-end">
+          <Button type="button" disabled={creatingUser || !newUserName.trim() || !newUserEmail.includes("@")} onClick={() => void createUser()} className="rounded-none">{creatingUser && <Loader2 className="h-4 w-4 animate-spin" />} Add approved user</Button>
+        </div>
+      </section>}
+
       {adminSection === "users" && userListView === "unmatched" && <section className="border border-amber-200 bg-amber-50/40">
         <div className="border-b border-amber-200 px-6 py-5">
           <div className="font-mono text-xs uppercase tracking-widest text-amber-700">Sign-in support</div>
@@ -2771,7 +2800,7 @@ const Admin = ({ demoMode }: { demoMode: boolean }) => {
           <div className="p-10 text-center text-sm text-muted-foreground">No matching users.</div>
         ) : (
           <div className="divide-y divide-border">
-            {filteredUsers.map((managedUser) => {
+            {userPageData.items.map((managedUser) => {
               const primaryEmail = managedUser.identities.find((identity) => identity.primary)?.email || managedUser.identities[0]?.email || "No email";
               const additionalEmail = managedUser.identities.find((identity) => !identity.primary);
               const lastLoginAt = latestLoginByUserId.get(managedUser.id);
@@ -2806,26 +2835,15 @@ const Admin = ({ demoMode }: { demoMode: boolean }) => {
             })}
           </div>
         )}
+        {!loadingUsers && filteredUsers.length > 0 && <div className="flex flex-col gap-3 border-t border-border bg-slate-50 px-6 py-4 text-xs text-muted-foreground sm:flex-row sm:items-center sm:justify-between">
+          <div>Showing {userPageData.start + 1}–{userPageData.end} of {filteredUsers.length} users</div>
+          <nav aria-label="User list pagination" className="flex items-center gap-3">
+            <Button type="button" variant="outline" size="sm" aria-label="Previous user page" disabled={userPageData.page === 1} onClick={() => setUserPage((current) => Math.max(1, current - 1))} className="rounded-none bg-white">Previous</Button>
+            <span className="min-w-20 text-center font-mono text-slate-600">Page {userPageData.page} of {userPageData.pageCount}</span>
+            <Button type="button" variant="outline" size="sm" aria-label="Next user page" disabled={userPageData.page === userPageData.pageCount} onClick={() => setUserPage((current) => Math.min(userPageData.pageCount, current + 1))} className="rounded-none bg-white">Next</Button>
+          </nav>
+        </div>}
       </section>}
-
-      {adminSection === "users" && userListView === "approved" && <section className="border border-border bg-white p-6 sm:p-8">
-        <div className="flex items-start gap-4">
-          <div className="flex h-10 w-10 shrink-0 items-center justify-center border border-primary text-primary"><UserRoundCheck className="h-5 w-5" /></div>
-          <div><div className="font-mono text-xs uppercase tracking-widest text-primary">New STA approval</div><h2 className="mt-2 text-xl font-light">Add an approved user</h2><p className="mt-2 text-sm text-muted-foreground">Use the email address included in the NCI Technology Transfer approval message. The user or an administrator can later link one alternate email.</p></div>
-        </div>
-        <div className="mt-6 grid gap-3 md:grid-cols-2 xl:grid-cols-5">
-          <Input value={newUserName} onChange={(event) => setNewUserName(event.target.value)} placeholder="Full name" className="rounded-none" />
-          <Input type="email" value={newUserEmail} onChange={(event) => setNewUserEmail(event.target.value)} placeholder="Approved email" className="rounded-none" />
-          <Input value={newUserInstitution} onChange={(event) => setNewUserInstitution(event.target.value)} placeholder="Institution (optional)" className="rounded-none" />
-          <Input value={newUserCountry} onChange={(event) => setNewUserCountry(event.target.value)} placeholder="Country (optional)" className="rounded-none" />
-          <Input type="date" value={newUserApprovedAt} onChange={(event) => setNewUserApprovedAt(event.target.value)} className="rounded-none" />
-        </div>
-        <div className="mt-4 flex justify-end">
-          <Button type="button" disabled={creatingUser || !newUserName.trim() || !newUserEmail.includes("@")} onClick={() => void createUser()} className="rounded-none">{creatingUser && <Loader2 className="h-4 w-4 animate-spin" />} Add approved user</Button>
-        </div>
-      </section>}
-
-      {adminSection === "users" && userListView === "approved" && <section className="border border-border bg-white p-6"><div className="flex items-center justify-between"><div><div className="font-mono text-xs uppercase tracking-widest text-primary">New approvals</div><h2 className="mt-2 text-xl font-light">Simple activation workflow</h2></div><Users className="h-5 w-5 text-primary" /></div><div className="mt-6 grid gap-3 sm:grid-cols-2">{["Receive the executed STA approval email from NCI Technology Transfer", "Add the approved email in the form above", "Send the User Portal link to the recipient", "The user or an administrator may link one secondary email"].map((item, index) => <div key={item} className="flex items-center gap-3 border border-border p-3"><div className="flex h-6 w-6 shrink-0 items-center justify-center bg-primary/10 font-mono text-xs text-primary">{index + 1}</div><span className="text-sm text-slate-700">{item}</span></div>)}</div></section>}
 
       {(adminSection === "sandboxActivity" || adminSection === "portalActivity") && loadingActivity && (
         <div className="flex items-center justify-center gap-3 border border-border bg-white p-12 text-sm text-muted-foreground"><Loader2 className="h-5 w-5 animate-spin text-primary" /> Loading activity…</div>

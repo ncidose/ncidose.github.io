@@ -1,6 +1,7 @@
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { ADMIN_USER_PAGE_SIZE, paginateAdminUsers } from "@/lib/adminPagination";
 import { getPortalHeaderEmail, selectPrimaryPortalIdentity } from "@/lib/portalUser";
 import { AnnouncementBody, Downloads, Portal, PortalSignIn } from "@/pages/Portal";
 
@@ -44,6 +45,15 @@ describe("portal migration experience", () => {
     expect(screen.getByRole("link", { name: url })).toHaveAttribute("href", url);
     expect(screen.getByRole("link", { name: url })).toHaveAttribute("target", "_blank");
     expect(screen.getByRole("link", { name: url })).toHaveAttribute("rel", "noopener noreferrer");
+  });
+
+  it("paginates the admin user directory in groups of 50", () => {
+    const users = Array.from({ length: 101 }, (_, index) => `user-${index + 1}`);
+
+    expect(ADMIN_USER_PAGE_SIZE).toBe(50);
+    expect(paginateAdminUsers(users, 1)).toMatchObject({ page: 1, pageCount: 3, start: 0, end: 50, items: users.slice(0, 50) });
+    expect(paginateAdminUsers(users, 2)).toMatchObject({ page: 2, pageCount: 3, start: 50, end: 100, items: users.slice(50, 100) });
+    expect(paginateAdminUsers(users, 99)).toMatchObject({ page: 3, pageCount: 3, start: 100, end: 101, items: users.slice(100) });
   });
 
   it("returns to the selected tool root when its card is clicked from a subfolder", async () => {
@@ -360,10 +370,15 @@ describe("portal migration experience", () => {
     expect(primaryPortalNavLabels[0]).toBe("Admin");
     expect(screen.getByRole("heading", { name: /api sandbox usage/i })).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: /user management/i }));
-    expect(screen.getByRole("heading", { name: /add an approved user/i })).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: /approved user directory/i })).toBeInTheDocument();
+    const addUserHeading = screen.getByRole("heading", { name: /add an approved user/i });
+    const directoryHeading = screen.getByRole("heading", { name: /approved user directory/i });
+    expect(addUserHeading.compareDocumentPosition(directoryHeading) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(screen.queryByRole("heading", { name: /simple activation workflow/i })).not.toBeInTheDocument();
     expect(screen.queryByRole("heading", { name: /unmatched sign-in requests/i })).not.toBeInTheDocument();
     expect(screen.getByText("approved.user@gmail.com")).toBeInTheDocument();
+    expect(screen.getByText("Showing 1–1 of 1 users")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /previous user page/i })).toBeDisabled();
+    expect(screen.getByRole("button", { name: /next user page/i })).toBeDisabled();
     expect(screen.getByRole("button", { name: /show all approved users/i })).toHaveAttribute("aria-pressed", "true");
 
     fireEvent.click(screen.getByRole("button", { name: /show active users/i }));
@@ -377,7 +392,7 @@ describe("portal migration experience", () => {
     fireEvent.click(screen.getByRole("button", { name: /show unmatched sign-in requests/i }));
     expect(screen.getByRole("heading", { name: /unmatched sign-in requests/i })).toBeInTheDocument();
     expect(screen.queryByRole("heading", { name: /approved user directory/i })).not.toBeInTheDocument();
-    expect(screen.queryByRole("heading", { name: /add an approved user/i })).not.toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /add an approved user/i })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /show unmatched sign-in requests/i })).toHaveAttribute("aria-pressed", "true");
 
     fireEvent.click(screen.getByRole("button", { name: /announcements/i }));
