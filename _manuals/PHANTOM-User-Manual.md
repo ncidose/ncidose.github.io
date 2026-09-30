@@ -1,8 +1,9 @@
 # PHANTOM — NCI Computational Human Phantom Libraries
 
-Current documented release: **August 20, 2026**
-Current release type: **Scientific Update**
+Current documented release: **September 30, 2026**
+Current release type: **Maintenance Update**
 Latest scientific update: **August 20, 2026**
+Latest maintenance update: **September 30, 2026**
 
 ## Introduction
 
@@ -91,6 +92,12 @@ folders contain paired native grids: a complete coarse mother grid and native
 finebox grids for the fetus region. Cephalic fineboxes are named explicitly;
 both multires variants also include presentation-specific breech fineboxes for
 10, 15, 20, and 25 weeks.
+
+For the pregnant library, `arms` means that the complete maternal upper
+extremities are represented, including the humeri, radii, ulnae, wrists, hands,
+associated soft tissues, and skeletal subregions. The maternal mother grid is
+shared by the cephalic and breech multires cases for the same gestational age;
+the presentation-specific anatomy is supplied by the corresponding finebox.
 
 The ICRP reference library uses:
 

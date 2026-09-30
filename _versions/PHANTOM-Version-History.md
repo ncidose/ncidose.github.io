@@ -2,11 +2,25 @@
 
 _Scientific and maintenance update record for the NCI computational phantom libraries._
 
-Latest release: **September 25, 2026**
+Latest release: **September 30, 2026**
 Latest scientific update: **August 20, 2026**
+Latest maintenance update: **September 30, 2026**
 Record begins: **2010**
 
 ## 2026
+
+### September 30, 2026 — Maintenance Update
+
+- Restored the complete maternal upper extremities in all arms-present,
+  multi-resolution pregnant mother lattices from the original arms-present RAW
+  surfaces, including the humeri, radii, ulnae, wrists, hands, associated soft
+  tissues, and skeletal subregions.
+- Confirmed that the corresponding arm surfaces in the 10-, 15-, 20-, and
+  25-week breech source phantoms are complete and match the cephalic arm
+  surfaces for the same gestational ages.
+- Updated the associated organ metadata and regenerated and round-trip validated
+  all cephalic and breech MCNP lattice files while preserving the existing fetal
+  fine-box geometry and coordinate frame.
 
 ### September 25, 2026 — Maintenance Update
 
