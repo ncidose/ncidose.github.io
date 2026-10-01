@@ -115,6 +115,11 @@ describe("public vendor API demo", () => {
   });
 
   it("allows bounded clinical-style NCINM text for fuzzy matching", () => {
+    const defaults = vendorDemoRequestForInput({
+      presetId: "ncinm-fdg-adult",
+      parameters: {},
+    });
+    expect(defaults?.payload).toMatchObject({ phantom_library: 4 });
     const valid = vendorDemoRequestForInput({
       presetId: "ncinm-fdg-adult",
       parameters: { phantomLibrary: 1, sex: "male", age: 42, radiopharmaceutical: "  Tc99m MDP bone scan  ", administeredActivityMbq: 740 },

@@ -21,7 +21,7 @@ export const vendorDemoPresets = Object.freeze({
     tool: "ncinm",
     endpoint: "https://ncinm-api.ncidosetools.com/param",
     timeoutMs: 30_000,
-    payload: { phantom_library: 2, sex: "female", age: 58, radiopharmaceutical: "F-18 FDG", administered_activity_mbq: 200 },
+    payload: { phantom_library: 4, sex: "female", age: 58, radiopharmaceutical: "F-18 FDG", administered_activity_mbq: 200 },
   },
   "ncirf-size-demo": {
     id: "ncirf-size-demo",
@@ -337,7 +337,7 @@ export const vendorDemoRequestForInput = (input = {}) => {
 
   if (preset.tool === "ncinm") {
     const normalized = {
-      phantomLibrary: parameters.phantomLibrary ?? 2,
+      phantomLibrary: parameters.phantomLibrary ?? 4,
       sex: parameters.sex ?? "female",
       age: parameters.age ?? 58,
       radiopharmaceutical: typeof parameters.radiopharmaceutical === "string" ? parameters.radiopharmaceutical.trim() : "F-18 FDG",

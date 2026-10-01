@@ -104,14 +104,14 @@ export const vendorApiDemoPresets: VendorApiDemoPreset[] = [
     modality: "NCINM",
     endpoint: "https://ncinm-api.ncidosetools.com/param",
     request: {
-      phantom_library: 2,
+      phantom_library: 4,
       sex: "female",
       age: 58,
       radiopharmaceutical: "F-18 FDG",
       administered_activity_mbq: 200,
     },
     defaultParameters: {
-      phantomLibrary: 2,
+      phantomLibrary: 4,
       sex: "female",
       age: 58,
       radiopharmaceutical: "F-18 FDG",

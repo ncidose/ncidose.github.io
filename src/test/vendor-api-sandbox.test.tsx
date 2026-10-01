@@ -37,7 +37,7 @@ describe("vendor API sandbox", () => {
             ok: true,
             demo: { tool: "ncinm", presetId: "ncinm-fdg-adult", upstreamStatus: 200, durationMs: 42 },
             usage: { used: 3, limit: 30, remaining: 27, windowMinutes: 60 },
-            request: { phantom_library: 2 },
+            request: { phantom_library: 4 },
             response: { ok: true, dose_mGy: { effective_dose_mSv: 3.251234567, brain: 0.0047328 } },
           }
         : { ok: true, usage: { used: 2, limit: 30, remaining: 28, windowMinutes: 60 }, service: { status: "available" } },
@@ -58,7 +58,7 @@ describe("vendor API sandbox", () => {
     expect(JSON.parse(String(options.body))).toEqual({
       presetId: "ncinm-fdg-adult",
       parameters: {
-        phantomLibrary: 2,
+        phantomLibrary: 4,
         sex: "male",
         age: 58,
         radiopharmaceutical: "Tc99m MDP bone scan",
@@ -166,7 +166,7 @@ describe("vendor API sandbox", () => {
     expect(screen.getByLabelText("Phantom library")).toBeInTheDocument();
     expect(screen.getByRole("option", { name: "ICRP-voxel" })).toBeInTheDocument();
     expect(screen.getByRole("option", { name: "ICRP-mesh" })).toBeInTheDocument();
-    fireEvent.change(screen.getByLabelText("Phantom library"), { target: { value: "4" } });
+    expect(screen.getByLabelText("Phantom library")).toHaveValue("4");
     expect(screen.getByRole("tabpanel").textContent).toContain('"phantom_library": 4');
     expect(screen.getByLabelText("Sex")).toBeInTheDocument();
     expect(screen.getByText("Age")).toBeInTheDocument();
