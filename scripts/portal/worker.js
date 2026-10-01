@@ -1332,11 +1332,17 @@ const linkifyAnnouncementText = (value) => {
   const text = String(value || "");
   let html = "";
   let cursor = 0;
-  for (const match of text.matchAll(/\bhttps?:\/\/[^\s<>"']+/gi)) {
+  for (const match of text.matchAll(/\[([^\]\n]+)\]\((https?:\/\/[^\s<>"')]+)\)|\bhttps?:\/\/[^\s<>"']+/gi)) {
     const start = match.index || 0;
+    html += escapeHtml(text.slice(cursor, start));
+    if (match[1] && match[2]) {
+      const escapedUrl = escapeHtml(match[2]);
+      html += `<a href="${escapedUrl}" target="_blank" rel="noopener noreferrer" style="color:${portalEmailBrandBlue};text-decoration:underline">${escapeHtml(match[1])}</a>`;
+      cursor = start + match[0].length;
+      continue;
+    }
     const { url, trailing } = splitTrailingUrlPunctuation(match[0]);
     const escapedUrl = escapeHtml(url);
-    html += escapeHtml(text.slice(cursor, start));
     html += `<a href="${escapedUrl}" target="_blank" rel="noopener noreferrer" style="color:${portalEmailBrandBlue};text-decoration:underline">${escapedUrl}</a>${escapeHtml(trailing)}`;
     cursor = start + match[0].length;
   }

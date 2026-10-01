@@ -668,6 +668,21 @@ describe("announcement email template", () => {
     expect(html).toContain("&lt;script&gt;alert(1)&lt;/script&gt;");
   });
 
+  it("renders Markdown announcement links as labeled email hyperlinks", () => {
+    const downloadUrl = "https://portal.ncidosetools.com/#/portal/downloads?tool=NCINM";
+    const html = announcementEmailHtml({
+      title: "NCINM4 release",
+      body: `[Download NCINM4](${downloadUrl})\n\n[Read the NCINM4 API manual](https://ncidose.github.io/manuals/ncinm-api)`,
+      category: "Release",
+    });
+
+    expect(html).toContain(`href="${downloadUrl}"`);
+    expect(html).toContain(">Download NCINM4</a>");
+    expect(html).toContain(">Read the NCINM4 API manual</a>");
+    expect(html).not.toContain("[Download NCINM4](<a");
+    expect(html).not.toContain(`>${downloadUrl}</a>`);
+  });
+
   it("renders a transactional welcome without an unsubscribe link", () => {
     const html = welcomeEmailHtml("Test Researcher", "researcher@example.org");
 
