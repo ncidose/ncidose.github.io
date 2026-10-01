@@ -41,12 +41,12 @@ export const manuals: ManualDefinition[] = [
   },
   {
     id: "ncinm",
-    title: "NCINM 3 User Manual",
+    title: "NCINM 4 User Manual",
     product: "NCINM",
     category: "software",
     eyebrow: "Nuclear Medicine",
     description:
-      "Reference documentation for radionuclide and radiopharmaceutical organ-dose calculations with NCINM 3.",
+      "Reference documentation for radionuclide and radiopharmaceutical organ-dose calculations with NCINM 4.",
     markdown: ncinmMarkdown,
   },
   {

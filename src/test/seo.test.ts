@@ -16,6 +16,7 @@ describe("public-site SEO", () => {
     expect(canonicalUrl("/")).toBe("https://ncidose.github.io/");
     expect(canonicalUrl("/manuals/ncict")).toBe("https://ncidose.github.io/manuals/ncict/");
     expect(findSeoRoute("/manuals/ncict/")?.title).toContain("NCICT 4 User Manual");
+    expect(findSeoRoute("/manuals/ncinm/")?.title).toContain("NCINM 4 User Manual");
   });
 
   it("recognizes public portal screens without indexing them as public content", () => {

@@ -15,6 +15,7 @@ describe("public manuals", () => {
 
     expect(screen.getByRole("heading", { name: "Manuals & API Documentation" })).toBeInTheDocument();
     expect(screen.getByText("NCICT 4 User Manual")).toBeInTheDocument();
+    expect(screen.getByText("NCINM 4 User Manual")).toBeInTheDocument();
     expect(screen.getByText("NCIRF API Manual")).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Release History" })).toBeInTheDocument();
     expect(screen.getByText("NCICT Release History")).toBeInTheDocument();
