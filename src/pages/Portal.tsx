@@ -1451,7 +1451,7 @@ const apiFailureLabel = (reason: string | null, upstreamStatus: number | null, t
   if (reason === "rate_limited") return "Rate limit";
   if (reason === "busy") return "Server busy";
   if (reason === "timeout") return "Timeout";
-  if (reason === "invalid_radiopharmaceutical") return "Radiopharmaceutical not found (HTTP 400)";
+  if (reason === "invalid_radiopharmaceutical") return "Biokinetic model not found (HTTP 400)";
   if (reason === "newborn_biokinetics_unavailable") return "Newborn biokinetic data unavailable (HTTP 400)";
   if (reason === "invalid_parameters") return `Input rejected${upstreamStatus ? ` (HTTP ${upstreamStatus})` : ""}`;
   if (reason === "upstream_maintenance" || (upstreamStatus !== null && [503, 521, 522, 523, 524].includes(upstreamStatus))) {

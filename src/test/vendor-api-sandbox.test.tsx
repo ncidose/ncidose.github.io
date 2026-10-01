@@ -105,9 +105,9 @@ describe("vendor API sandbox", () => {
     fireEvent.change(screen.getByLabelText("Radiopharmaceutical name"), { target: { value: "choonsik i-131" } });
     fireEvent.click(await screen.findByRole("button", { name: /Run NCINM demo/i }));
 
-    expect(await screen.findByRole("heading", { name: "Radiopharmaceutical not found" })).toBeInTheDocument();
-    expect(screen.getByText(/could not be matched to the current biokinetic data library/i)).toBeInTheDocument();
-    expect(screen.getByText(/F-18 FDG/i)).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "Biokinetic model not found" })).toBeInTheDocument();
+    expect(screen.getByText(/133 biokinetic models currently available in NCINM/i)).toBeInTheDocument();
+    expect(screen.getByText(/ICRP Publication 128/i)).toBeInTheDocument();
     expect(screen.queryByText(/calculation server did not complete/i)).not.toBeInTheDocument();
   });
 
