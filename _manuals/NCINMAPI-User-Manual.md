@@ -1,25 +1,26 @@
 # NCINM API
 
-Current documented release: **September 9, 2026 (3.20260909)**
-Current release type: **Maintenance Update**
-Latest scientific update: **May 10, 2026**
+Current documented release: **September 30, 2026 (4.20260930)**
+Current release type: **Scientific Update**
+Latest scientific update: **September 30, 2026**
 
-NCINMAPI provides REST-style access to the NCINM3 radiopharmaceutical dose
+NCINMAPI provides REST-style access to the NCINM4 radiopharmaceutical dose
 calculation workflow. A client sends one JSON object to `/param`; the server
 matches the requested phantom and radiopharmaceutical, calculates organ doses,
 and returns JSON output.
 
-The API currently supports the NCI and ICRP phantom-library radiopharmaceutical
-workflow. Fetus phantom calculations are available in the NCINM3 GUI through
-the Radionuclide tab with user-entered maternal source-region data; they are not
-included in the radiopharmaceutical API because pregnancy-specific
-radiopharmaceutical biokinetic models are not currently defined.
+The API supports NCI, ICRP voxel, and ICRP mesh radiopharmaceutical workflows.
+Fetus calculations are available in the NCINM4 GUI through the Radionuclide tab
+with user-entered maternal source-region data; they are not included in the
+radiopharmaceutical API because pregnancy-specific radiopharmaceutical
+biokinetic models are not currently defined.
 
-The September 9, 2026 release corrects source-organ volume weighting for the
-ICRP phantom library, prevents shared calculation state from mixing concurrent
-API requests, and returns an explicit error when S-value data cannot be loaded.
-It also includes the residence-time, tissue-weighting, and S-value corrections
-described in the [NCINM release history](/versions/ncinm).
+The hosted NCINM4 API was deployed on October 1, 2026. The September 30, 2026
+release adds the ICRP mesh phantom library and updates the API to the same
+133-model radiopharmaceutical library used by the GUI.
+Predefined newborn biokinetic data are unavailable, so newborn
+radiopharmaceutical requests return an explicit error. See the
+[NCINM release history](/versions/ncinm) for a concise summary.
 
 Cloud endpoint:
 
@@ -103,7 +104,7 @@ print(response.json())
 Ready-to-run local examples are provided in:
 
 ```text
-_ncinm3api_test.http
+_ncinm4api_test.http
 ```
 
 ---
@@ -118,7 +119,7 @@ numeric output uses dot decimals regardless of server or client locale.
 
 Parameter | Required | Definition
 --|--|--
-`phantom_library` | yes | Phantom library. Use `1` for NCI phantoms and `2` for ICRP phantoms. Fetus phantom calculations are not currently supported by the radiopharmaceutical API.
+`phantom_library` | yes | Phantom library. Use `1` for NCI, `2` for ICRP voxel, or `4` for ICRP mesh phantoms. Library `3` (fetus) is not supported by the radiopharmaceutical API.
 `sex` | yes | Patient sex. Use `1`, `f`, or `female` for female; use `2`, `m`, or `male` for male.
 `age` | yes | Patient age in years. Any non-negative numeric age is accepted and matched to the nearest available age phantom.
 `radiopharmaceutical` | yes | Exact library name or clinical-style text such as `F-18 FDG` or `Tc-99m MDP`.
@@ -138,11 +139,11 @@ Supported aliases:
 
 ## Phantom Matching
 
-The API maps patient age to the nearest available NCINM3 age group:
+The API maps patient age to the nearest available NCINM4 age group:
 
 Input age | Matched phantom age
 --|--
-`0 <= age < 0.5` | 0 year
+`0 <= age < 0.5` | Unavailable for radiopharmaceutical calculations; returns HTTP `400`
 `0.5 <= age < 3` | 1 year
 `3 <= age < 7.5` | 5 years
 `7.5 <= age < 12.5` | 10 years
@@ -185,11 +186,11 @@ entry so vendors can audit automatic matches.
 
 ---
 
-## Example 1: Clinical-Style Radiopharmaceutical Name
+## Example 1: ICRP Mesh Calculation
 
 ```json
 {
-  "phantom_library": 2,
+  "phantom_library": 4,
   "sex": "female",
   "age": 58,
   "radiopharmaceutical": "F-18 FDG",
@@ -239,13 +240,17 @@ Top-level key | Definition
 `radiopharmaceutical_match` | Original text, matched library name, method, score, and optional warning.
 `dose_mGy` | Organ absorbed doses in mGy. `effective_dose_mSv` is reported in mSv.
 
+The API currently returns central dose estimates only. Monte Carlo uncertainty
+percentages for ICRP mesh calculations are available in the NCINM4 GUI but are
+not included in the API response.
+
 Example response structure:
 
 ```json
 {
   "ok": true,
   "input": {
-    "phantom_library": 2,
+    "phantom_library": 4,
     "sex": 1,
     "age": 58.0,
     "matched_phantom_age": "Adult",
@@ -298,6 +303,14 @@ shallow_marrow, effective_dose_mSv
 ```
 
 All organ dose keys are in mGy except `effective_dose_mSv`, which is in mSv.
+For `phantom_library = 4`, `urinary_bladder_w` contains the ICRP mesh
+urinary-bladder basal-cell target result; the key is retained for response
+compatibility.
+
+The API uses the same remainder calculation as the GUI, including normalized
+tissue-volume weights and the oesophageal-wall source for mesh remainder
+activity. The bronchial remainder approximation and its unquantified dose
+impact also apply to API results; see [Remainder in the GUI manual](/manuals/ncinm#remainder).
 
 ---
 
@@ -320,6 +333,7 @@ Common validation errors include:
 - missing or invalid `phantom_library`
 - missing or invalid `sex`
 - negative `age`
+- newborn age matched to 0 years, for which predefined biokinetic data are unavailable
 - missing or unmatched radiopharmaceutical
 - `administered_activity_mbq` less than or equal to zero
 

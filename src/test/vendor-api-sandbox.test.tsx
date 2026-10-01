@@ -164,6 +164,10 @@ describe("vendor API sandbox", () => {
     expect(screen.queryByText(/Match phantom and patient settings/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/Advanced phantom & patient inputs/i)).not.toBeInTheDocument();
     expect(screen.getByLabelText("Phantom library")).toBeInTheDocument();
+    expect(screen.getByRole("option", { name: "ICRP-voxel" })).toBeInTheDocument();
+    expect(screen.getByRole("option", { name: "ICRP-mesh" })).toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText("Phantom library"), { target: { value: "4" } });
+    expect(screen.getByRole("tabpanel").textContent).toContain('"phantom_library": 4');
     expect(screen.getByLabelText("Sex")).toBeInTheDocument();
     expect(screen.getByText("Age")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /NCINM API manual/i })).toHaveAttribute("href", "/manuals/ncinm-api");

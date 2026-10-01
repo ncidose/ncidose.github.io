@@ -344,7 +344,7 @@ export const vendorDemoRequestForInput = (input = {}) => {
       administeredActivityMbq: parameters.administeredActivityMbq ?? 200,
     };
     if (
-      ![1, 2].includes(normalized.phantomLibrary)
+      ![1, 2, 4].includes(normalized.phantomLibrary)
       || !["female", "male"].includes(normalized.sex)
       || !finiteNumber(normalized.age, 0, 90)
       || normalized.radiopharmaceutical.length < 1

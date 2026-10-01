@@ -17,10 +17,9 @@ Record begins: **2019**
 - Updated to 133 reviewed biokinetic models. Newborn data, previously extrapolated from infant data, are now marked unavailable to clarify data limitations. Newborn calculations with user-entered source data remain available.
 - Extended Batch Manager to support the ICRP mesh library.
 
-#### API — deployment pending
+#### API
 
-The following NCINM4 API changes are prepared locally. The hosted API remains
-on version 3.20260909 until its separate deployment.
+The NCINM4 API was deployed to the hosted service on October 1, 2026.
 
 - Added `phantom_library = 4` for ICRP mesh radiopharmaceutical dose calculations while retaining `1` for NCI and `2` for ICRP voxel phantoms.
 - Updated the API to use the same 133-model radiopharmaceutical library as the GUI.

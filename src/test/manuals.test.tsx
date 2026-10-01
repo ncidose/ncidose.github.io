@@ -121,6 +121,22 @@ describe("public manuals", () => {
     expect(screen.getAllByText("matched.spectrum").length).toBeGreaterThan(0);
   });
 
+  it("documents the deployed NCINM4 API and ICRP mesh workflow", () => {
+    render(
+      <MemoryRouter initialEntries={["/manuals/ncinm-api"]}>
+        <Routes>
+          <Route path="/manuals/:manualId" element={<Manuals />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    expect(screen.getByText("Documented release September 30, 2026 (4.20260930)")).toBeInTheDocument();
+    expect(screen.getByText(/The hosted NCINM4 API was deployed on October 1, 2026/i)).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Example 1: ICRP Mesh Calculation" })).toBeInTheDocument();
+    expect(screen.getAllByText("phantom_library").length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/ICRP mesh/i).length).toBeGreaterThan(0);
+  });
+
   it("separates the September NCIRF scientific changes into GUI and API", () => {
     render(
       <MemoryRouter initialEntries={["/versions/ncirf"]}>
@@ -156,6 +172,9 @@ describe("public manuals", () => {
       name: "Calculation safeguards", level: 4,
     })).toBeInTheDocument();
     expect(screen.getByText("0.075 h")).toBeInTheDocument();
+    expect(screen.getAllByRole("heading", { name: "API", level: 4 }).length).toBeGreaterThan(0);
+    expect(screen.getByText(/NCINM4 API was deployed to the hosted service on October 1, 2026/i)).toBeInTheDocument();
+    expect(screen.queryByText(/deployment pending/i)).not.toBeInTheDocument();
   });
 
   it.each([

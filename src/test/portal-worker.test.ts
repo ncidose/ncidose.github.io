@@ -126,6 +126,12 @@ describe("public vendor API demo", () => {
       radiopharmaceutical: "Tc99m MDP bone scan",
       administered_activity_mbq: 740,
     });
+    const mesh = vendorDemoRequestForInput({
+      presetId: "ncinm-fdg-adult",
+      parameters: { phantomLibrary: 4 },
+    });
+    expect(mesh?.payload).toMatchObject({ phantom_library: 4 });
+    expect(vendorDemoRequestForInput({ presetId: "ncinm-fdg-adult", parameters: { phantomLibrary: 3 } })).toBeNull();
     expect(vendorDemoRequestForInput({ presetId: "ncinm-fdg-adult", parameters: { radiopharmaceutical: "" } })).toBeNull();
     expect(vendorDemoRequestForInput({ presetId: "ncinm-fdg-adult", parameters: { radiopharmaceutical: "F-18\nFDG" } })).toBeNull();
     expect(vendorDemoRequestForInput({ presetId: "ncinm-fdg-adult", parameters: { radiopharmaceutical: "x".repeat(121) } })).toBeNull();
