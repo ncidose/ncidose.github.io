@@ -71,8 +71,16 @@ const demoErrors: Record<string, string> = {
   demo_server_maintenance: "The calculation server is temporarily unavailable, likely because of maintenance or a restart. Service status will refresh automatically.",
   demo_upstream_error: "The calculation server did not complete this example. Please try again later.",
   invalid_demo_parameters: "One or more demonstration inputs are outside the allowed range.",
+  ncinm_newborn_biokinetics_unavailable: "Built-in radiopharmaceutical biokinetic data are not available for newborns. Select an age of at least 0.5 years and try again.",
+  ncinm_radiopharmaceutical_not_found: "The entered radiopharmaceutical could not be matched to the current biokinetic data library. Enter a supported radiopharmaceutical name (for example, F-18 FDG) and try again.",
   invalid_origin: "This demonstration can be run only from the NCI Dose Tools website.",
   too_many_demo_requests: "The demonstration request limit has been reached. Please try again later.",
+};
+
+const demoErrorTitles: Record<string, string> = {
+  invalid_demo_parameters: "Check the demo inputs",
+  ncinm_newborn_biokinetics_unavailable: "Biokinetic data unavailable",
+  ncinm_radiopharmaceutical_not_found: "Radiopharmaceutical not found",
 };
 
 const formattedJson = (value: unknown) => JSON.stringify(value, null, 2);
@@ -581,6 +589,7 @@ export const VendorApiSandbox = ({ initialTool }: { initialTool?: string | null 
   const [status, setStatus] = useState<"idle" | "running" | "success" | "error">("idle");
   const [result, setResult] = useState<DemoResponse | null>(null);
   const [error, setError] = useState("");
+  const [errorCode, setErrorCode] = useState("");
   const [activeNcirfBackend, setActiveNcirfBackend] = useState<NcirfDemoBackend>("cpu");
   const [queueProgress, setQueueProgress] = useState<DemoQueueProgress | null>(null);
   const [usageByPreset, setUsageByPreset] = useState<Record<string, DemoUsage>>({});
@@ -658,6 +667,7 @@ export const VendorApiSandbox = ({ initialTool }: { initialTool?: string | null 
     setStatus("idle");
     setResult(null);
     setError("");
+    setErrorCode("");
     setQueueProgress(null);
   };
 
@@ -669,6 +679,7 @@ export const VendorApiSandbox = ({ initialTool }: { initialTool?: string | null 
     setStatus("idle");
     setResult(null);
     setError("");
+    setErrorCode("");
     setQueueProgress(null);
   };
 
@@ -684,6 +695,7 @@ export const VendorApiSandbox = ({ initialTool }: { initialTool?: string | null 
     setStatus("running");
     setResult(null);
     setError("");
+    setErrorCode("");
     setQueueProgress(null);
     trackVendorSandboxEvent("vendor_sandbox_run", selected.tool, targetPresetId);
 
@@ -715,6 +727,7 @@ export const VendorApiSandbox = ({ initialTool }: { initialTool?: string | null 
         if (payload.error === "demo_server_maintenance") {
           setServiceAvailabilityByPreset((current) => ({ ...current, [targetPresetId]: "unavailable" }));
         }
+        setErrorCode(payload.error || "");
         setError(`${message}${retry}`);
         setStatus("error");
         trackVendorSandboxEvent("vendor_sandbox_error", selected.tool, targetPresetId, httpStatus);
@@ -732,6 +745,7 @@ export const VendorApiSandbox = ({ initialTool }: { initialTool?: string | null 
     } catch (caught) {
       if (requestSequence.current !== sequence) return;
       const timedOut = caught instanceof DOMException && caught.name === "AbortError";
+      setErrorCode("");
       setError(timedOut
         ? "The live calculation took too long to complete. Please try again later."
         : "The live demo could not reach the calculation service.");
@@ -933,7 +947,7 @@ export const VendorApiSandbox = ({ initialTool }: { initialTool?: string | null 
                     <div className="flex items-start gap-3">
                       <AlertCircle className="mt-0.5 h-5 w-5 flex-none text-red-700" />
                       <div>
-                        <h3 className="font-medium text-red-950">Demo request not completed</h3>
+                        <h3 className="font-medium text-red-950">{demoErrorTitles[errorCode] || "Demo request not completed"}</h3>
                         <p className="mt-2 text-sm leading-6 text-red-800">{error}</p>
                       </div>
                     </div>

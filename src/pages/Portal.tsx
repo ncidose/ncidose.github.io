@@ -1447,14 +1447,18 @@ const apiCountryName = (countryCode: string | null) => {
   }
 };
 
-const apiFailureLabel = (reason: string | null, upstreamStatus: number | null) => {
+const apiFailureLabel = (reason: string | null, upstreamStatus: number | null, tool?: string) => {
   if (reason === "rate_limited") return "Rate limit";
   if (reason === "busy") return "Server busy";
   if (reason === "timeout") return "Timeout";
+  if (reason === "invalid_radiopharmaceutical") return "Radiopharmaceutical not found (HTTP 400)";
+  if (reason === "newborn_biokinetics_unavailable") return "Newborn biokinetic data unavailable (HTTP 400)";
+  if (reason === "invalid_parameters") return `Input rejected${upstreamStatus ? ` (HTTP ${upstreamStatus})` : ""}`;
   if (reason === "upstream_maintenance" || (upstreamStatus !== null && [503, 521, 522, 523, 524].includes(upstreamStatus))) {
     return `Server maintenance/restart${upstreamStatus ? ` (HTTP ${upstreamStatus})` : ""}`;
   }
   if (reason === "upstream_unavailable") return "API unavailable";
+  if (tool === "ncinm" && upstreamStatus === 400) return "NCINM input rejected (HTTP 400)";
   if (upstreamStatus) return `Upstream HTTP ${upstreamStatus}`;
   return "Upstream error";
 };
@@ -2890,7 +2894,7 @@ const Admin = ({ demoMode }: { demoMode: boolean }) => {
 
           <section className="border border-border bg-white">
             <div className="border-b border-border px-6 py-5"><div className="font-mono text-xs uppercase tracking-widest text-primary">Operational review</div><h2 className="mt-2 text-xl font-light">Recent sandbox failures</h2></div>
-            {activityData.sandbox.recentFailures.length === 0 ? <div className="p-8 text-sm text-muted-foreground">No sandbox failures recorded in the last 30 days.</div> : <div className="divide-y divide-border">{activityData.sandbox.recentFailures.map((entry) => <div key={entry.id} className="grid gap-2 px-6 py-4 sm:grid-cols-[6rem_minmax(0,1fr)_8rem_12rem] sm:items-center"><span className="whitespace-nowrap font-mono text-xs text-primary">{sandboxApiLabel(entry.tool)}</span><div><div className="text-sm text-slate-800">{apiFailureLabel(entry.reason, entry.upstreamStatus)} <span className="text-xs text-muted-foreground">· {entry.attemptCount} {entry.attemptCount === 1 ? "attempt" : "attempts"}</span></div><div className="mt-1 text-xs text-muted-foreground">{apiCountryName(entry.countryCode)}{entry.city ? ` · ${entry.city}` : ""}</div></div><div className="font-mono text-xs text-muted-foreground">{apiDuration(entry.durationMs)}</div><div className="text-xs text-muted-foreground">{activityDate(entry.occurredAt)}</div></div>)}</div>}
+            {activityData.sandbox.recentFailures.length === 0 ? <div className="p-8 text-sm text-muted-foreground">No sandbox failures recorded in the last 30 days.</div> : <div className="divide-y divide-border">{activityData.sandbox.recentFailures.map((entry) => <div key={entry.id} className="grid gap-2 px-6 py-4 sm:grid-cols-[6rem_minmax(0,1fr)_8rem_12rem] sm:items-center"><span className="whitespace-nowrap font-mono text-xs text-primary">{sandboxApiLabel(entry.tool)}</span><div><div className="text-sm text-slate-800">{apiFailureLabel(entry.reason, entry.upstreamStatus, entry.tool)} <span className="text-xs text-muted-foreground">· {entry.attemptCount} {entry.attemptCount === 1 ? "attempt" : "attempts"}</span></div><div className="mt-1 text-xs text-muted-foreground">{apiCountryName(entry.countryCode)}{entry.city ? ` · ${entry.city}` : ""}</div></div><div className="font-mono text-xs text-muted-foreground">{apiDuration(entry.durationMs)}</div><div className="text-xs text-muted-foreground">{activityDate(entry.occurredAt)}</div></div>)}</div>}
           </section>
         </>
       )}

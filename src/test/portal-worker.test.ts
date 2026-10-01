@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import portalWorker, { adminPortalActivityFilter, adminPortalActivityQueries, adminPortalExcludedEmails, adminRecentActivityQuery, adminSandboxActivityQueries, adminSandboxExcludedCities, adminSandboxReportingFilter, adminUsersQuery, announcementEmailHtml, canPublishQuestion, canViewDiscussion, discussionAuthorForUser, folderArchiveKeys, generateLoginCode, isFolderDownloadPrefix, linkedEmailWelcomeHtml, loginCodeEmailHtml, normalizeAdminUserDetails, normalizePortalEmail, normalizeQuestionVisibility, portalSessionCookieHeader, qaAttachmentValidationError, secondaryEmailAddedHtml, shouldNotifyDiscussionReplyRecipient, shouldNotifyNewDiscussionRecipient, vendorDemoLimits, vendorDemoLocationForRequest, vendorDemoPresetForInput, vendorDemoPresets, vendorDemoRequestForInput, welcomeEmailHtml } from "../../scripts/portal/worker.js";
+import portalWorker, { adminPortalActivityFilter, adminPortalActivityQueries, adminPortalExcludedEmails, adminRecentActivityQuery, adminSandboxActivityQueries, adminSandboxExcludedCities, adminSandboxReportingFilter, adminUsersQuery, announcementEmailHtml, canPublishQuestion, canViewDiscussion, discussionAuthorForUser, folderArchiveKeys, generateLoginCode, isFolderDownloadPrefix, linkedEmailWelcomeHtml, loginCodeEmailHtml, normalizeAdminUserDetails, normalizePortalEmail, normalizeQuestionVisibility, portalSessionCookieHeader, qaAttachmentValidationError, secondaryEmailAddedHtml, shouldNotifyDiscussionReplyRecipient, shouldNotifyNewDiscussionRecipient, vendorDemoErrorForUpstream, vendorDemoLimits, vendorDemoLocationForRequest, vendorDemoPresetForInput, vendorDemoPresets, vendorDemoRequestForInput, welcomeEmailHtml } from "../../scripts/portal/worker.js";
 
 describe("admin activity query", () => {
   it("uses an indexed primary-identity join instead of a per-event correlated lookup", () => {
@@ -140,6 +140,29 @@ describe("public vendor API demo", () => {
     expect(vendorDemoRequestForInput({ presetId: "ncinm-fdg-adult", parameters: { radiopharmaceutical: "" } })).toBeNull();
     expect(vendorDemoRequestForInput({ presetId: "ncinm-fdg-adult", parameters: { radiopharmaceutical: "F-18\nFDG" } })).toBeNull();
     expect(vendorDemoRequestForInput({ presetId: "ncinm-fdg-adult", parameters: { radiopharmaceutical: "x".repeat(121) } })).toBeNull();
+  });
+
+  it("classifies unmatched NCINM radiopharmaceuticals as actionable input errors", () => {
+    const preset = vendorDemoPresets["ncinm-fdg-adult"];
+    expect(vendorDemoErrorForUpstream(preset, 400, {
+      error: "Invalid radiopharmaceutical: No close radiopharmaceutical match was found.",
+    })).toEqual({
+      error: "ncinm_radiopharmaceutical_not_found",
+      httpStatus: 400,
+      failureReason: "invalid_radiopharmaceutical",
+    });
+    expect(vendorDemoErrorForUpstream(preset, 400, {
+      error: "Biokinetic data are unavailable for newborns.",
+    })).toEqual({
+      error: "ncinm_newborn_biokinetics_unavailable",
+      httpStatus: 400,
+      failureReason: "newborn_biokinetics_unavailable",
+    });
+    expect(vendorDemoErrorForUpstream(preset, 500, { error: "internal detail" })).toEqual({
+      error: "demo_upstream_error",
+      httpStatus: 502,
+      failureReason: "upstream_error",
+    });
   });
 
   it("keeps the public NCIRF example computationally bounded", () => {
@@ -410,6 +433,47 @@ describe("public vendor API demo", () => {
     expect(statements.some((sql) => sql.includes("counts_toward_limit=1") && sql.includes("request_ip_hash=?"))).toBe(true);
     expect(statements.some((sql) => sql.includes("counts_toward_limit, failure_reason, attempt_count") && sql.includes("ON CONFLICT(id) DO UPDATE"))).toBe(true);
     expect(upstreamFetch).not.toHaveBeenCalled();
+  });
+
+  it("returns an actionable error when the NCINM fuzzy match fails", async () => {
+    const completedRequests: unknown[][] = [];
+    const db = {
+      prepare: vi.fn((sql: string) => {
+        const statement = {
+          bind: vi.fn((...values: unknown[]) => {
+            if (sql.includes("UPDATE vendor_demo_requests SET result=")) completedRequests.push(values);
+            return statement;
+          }),
+          first: vi.fn(async () => ({ total: 0 })),
+          run: vi.fn(async () => ({ success: true })),
+        };
+        return statement;
+      }),
+    };
+    vi.stubGlobal("fetch", vi.fn(async () => Response.json({
+      ok: false,
+      status: 400,
+      error: "Invalid radiopharmaceutical: No close radiopharmaceutical match was found.",
+    }, { status: 400 })));
+
+    const response = await portalWorker.fetch(new Request("https://portal.ncidosetools.com/api/public/vendor-demo", {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        origin: "https://ncidose.github.io",
+        "cf-connecting-ip": "192.0.2.4",
+      },
+      body: JSON.stringify({ presetId: "ncinm-fdg-adult", parameters: { radiopharmaceutical: "choonsik i-131" } }),
+    }), {
+      ALLOWED_ORIGINS: "https://ncidose.github.io",
+      AUTH_SECRET: "unit-test-auth-secret",
+      NCIDOSE_VENDOR_DEMO_API_KEY: "unit-test-demo-key",
+      DB: db,
+    }, { waitUntil: vi.fn() });
+
+    expect(response.status).toBe(400);
+    expect(await response.json()).toMatchObject({ error: "ncinm_radiopharmaceutical_not_found" });
+    expect(completedRequests).toContainEqual(["failed", 400, expect.any(Number), "invalid_radiopharmaceutical", expect.any(String)]);
   });
 
   it("identifies restart-like upstream statuses as temporary maintenance", async () => {

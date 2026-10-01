@@ -244,6 +244,22 @@ export const adminSandboxActivityQueries = Object.freeze({
 export const vendorDemoPresetForInput = (input = {}) =>
   typeof input.presetId === "string" ? vendorDemoPresets[input.presetId] || null : null;
 const vendorDemoMaintenanceStatuses = new Set([503, 521, 522, 523, 524]);
+export const vendorDemoErrorForUpstream = (preset, upstreamStatus, upstreamBody) => {
+  const upstreamMessage = typeof upstreamBody?.error === "string" ? upstreamBody.error.trim() : "";
+  if (upstreamStatus === 400) {
+    if (preset?.tool === "ncinm" && /^Invalid radiopharmaceutical\b/i.test(upstreamMessage)) {
+      return { error: "ncinm_radiopharmaceutical_not_found", httpStatus: 400, failureReason: "invalid_radiopharmaceutical" };
+    }
+    if (preset?.tool === "ncinm" && /Biokinetic data are unavailable for newborns/i.test(upstreamMessage)) {
+      return { error: "ncinm_newborn_biokinetics_unavailable", httpStatus: 400, failureReason: "newborn_biokinetics_unavailable" };
+    }
+    return { error: "invalid_demo_parameters", httpStatus: 400, failureReason: "invalid_parameters" };
+  }
+  if (vendorDemoMaintenanceStatuses.has(upstreamStatus)) {
+    return { error: "demo_server_maintenance", httpStatus: 503, failureReason: "upstream_maintenance" };
+  }
+  return { error: "demo_upstream_error", httpStatus: 502, failureReason: "upstream_error" };
+};
 const vendorDemoProtocolRanges = Object.freeze({
   head: [1001, 1003],
   neck: [1002, 1005],
@@ -672,12 +688,12 @@ function streamQueuedVendorDemo(preset, payload, parameters, apiKey, reservation
           await completeVendorDemoRequest(env, reservation.id, "failed", upstreamStatus, durationMs, "busy");
           send({ event: "result", httpStatus: 429, error: "demo_busy", retryAfter: 30, usage: reservation.usage });
         } else if (upstreamStatus < 200 || upstreamStatus >= 300 || queuedResult.upstreamBody === null) {
-          const maintenanceLikely = vendorDemoMaintenanceStatuses.has(upstreamStatus);
-          await completeVendorDemoRequest(env, reservation.id, "failed", upstreamStatus, durationMs, maintenanceLikely ? "upstream_maintenance" : "upstream_error");
+          const publicError = vendorDemoErrorForUpstream(preset, upstreamStatus, queuedResult.upstreamBody);
+          await completeVendorDemoRequest(env, reservation.id, "failed", upstreamStatus, durationMs, publicError.failureReason);
           send({
             event: "result",
-            httpStatus: maintenanceLikely ? 503 : 502,
-            error: maintenanceLikely ? "demo_server_maintenance" : "demo_upstream_error",
+            httpStatus: publicError.httpStatus,
+            error: publicError.error,
             usage: reservation.usage,
           });
         } else {
@@ -778,12 +794,9 @@ async function runVendorDemo(request, env, context, cors) {
       return json({ error: "demo_busy", retryAfter: 30, usage: reservation.usage }, 429, { ...cors, "retry-after": "30" });
     }
     if (upstreamStatus < 200 || upstreamStatus >= 300 || upstreamBody === null) {
-      const maintenanceLikely = vendorDemoMaintenanceStatuses.has(upstreamStatus);
-      await completeVendorDemoRequest(env, reservation.id, "failed", upstreamStatus, durationMs, maintenanceLikely ? "upstream_maintenance" : "upstream_error");
-      if (maintenanceLikely) {
-        return json({ error: "demo_server_maintenance", usage: reservation.usage }, 503, cors);
-      }
-      return json({ error: "demo_upstream_error", usage: reservation.usage }, 502, cors);
+      const publicError = vendorDemoErrorForUpstream(preset, upstreamStatus, upstreamBody);
+      await completeVendorDemoRequest(env, reservation.id, "failed", upstreamStatus, durationMs, publicError.failureReason);
+      return json({ error: publicError.error, usage: reservation.usage }, publicError.httpStatus, cors);
     }
     await completeVendorDemoRequest(env, reservation.id, "succeeded", upstreamStatus, durationMs);
     context.waitUntil(env.DB.prepare("DELETE FROM vendor_demo_requests WHERE created_at < datetime('now', '-30 days')").run());

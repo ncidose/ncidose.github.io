@@ -90,6 +90,27 @@ describe("vendor API sandbox", () => {
     );
   });
 
+  it("explains when fuzzy matching cannot find an NCINM radiopharmaceutical", async () => {
+    const fetchMock = vi.fn(async (_url: RequestInfo | URL, options?: RequestInit) => new Response(JSON.stringify(
+      options?.method === "POST"
+        ? { error: "ncinm_radiopharmaceutical_not_found", usage: { used: 1, limit: 30, remaining: 29, windowMinutes: 60 } }
+        : { ok: true, usage: { used: 0, limit: 30, remaining: 30, windowMinutes: 60 }, service: { status: "available" } },
+    ), {
+      status: options?.method === "POST" ? 400 : 200,
+      headers: { "content-type": "application/json" },
+    }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(<VendorApiSandbox initialTool="ncinm" />);
+    fireEvent.change(screen.getByLabelText("Radiopharmaceutical name"), { target: { value: "choonsik i-131" } });
+    fireEvent.click(await screen.findByRole("button", { name: /Run NCINM demo/i }));
+
+    expect(await screen.findByRole("heading", { name: "Radiopharmaceutical not found" })).toBeInTheDocument();
+    expect(screen.getByText(/could not be matched to the current biokinetic data library/i)).toBeInTheDocument();
+    expect(screen.getByText(/F-18 FDG/i)).toBeInTheDocument();
+    expect(screen.queryByText(/calculation server did not complete/i)).not.toBeInTheDocument();
+  });
+
   it("explains when the calculation server is likely restarting or under maintenance", async () => {
     const fetchMock = vi.fn(async (_url: RequestInfo | URL, options?: RequestInit) => new Response(JSON.stringify(
       options?.method === "POST"
