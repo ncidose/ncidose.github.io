@@ -58,9 +58,13 @@ describe("homepage visitor paths", () => {
       expect(link).toHaveTextContent(update.summary);
       expect(link.querySelector("time")).toHaveAttribute("datetime", update.isoDate);
       expect(link.querySelector("time")).toHaveTextContent(update.date);
+      expect(link.querySelector("time")).toHaveClass("text-primary");
       expect(link).toHaveAttribute("data-analytics-event", "documentation_click");
       expect(link).toHaveAttribute("data-analytics-tool", update.id);
     });
+    expect(within(section).getByText("NCICT4")).toBeInTheDocument();
+    expect(within(section).getByText("NCIRF4")).toBeInTheDocument();
+    expect(within(section).getByText("NCINM4")).toBeInTheDocument();
     expect(within(section).getByRole("link", { name: "All version histories" }))
       .toHaveAttribute("href", "/manuals#release-history");
   });

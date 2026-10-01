@@ -5,6 +5,12 @@ const months = [
   "July", "August", "September", "October", "November", "December",
 ];
 
+const versionedProductLabels = {
+  ncict: "NCICT4",
+  ncirf: "NCIRF4",
+  ncinm: "NCINM4",
+};
+
 const releaseDate = (heading) => {
   const match = heading.match(/^([A-Z][a-z]+) (\d{1,2}), (\d{4})(?:\s|$)/);
   if (!match) return null;
@@ -52,7 +58,7 @@ export const getLatestUpdates = (histories) => histories.flatMap((history) => {
   return [{
     ...entries[0],
     id: history.id,
-    product: history.product,
+    product: versionedProductLabels[history.id] || history.product,
     href: `/versions/${history.id}`,
   }];
 }).sort((a, b) => b.isoDate.localeCompare(a.isoDate) || a.product.localeCompare(b.product));

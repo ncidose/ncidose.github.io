@@ -61,6 +61,12 @@ describe("homepage release highlights", () => {
   it("provides a current, nonempty highlight for each real product history", () => {
     const updates = getLatestUpdates(releaseHistories);
     expect(updates).toHaveLength(releaseHistories.length);
+    expect(Object.fromEntries(updates.map((update) => [update.id, update.product]))).toMatchObject({
+      ncict: "NCICT4",
+      ncirf: "NCIRF4",
+      ncinm: "NCINM4",
+      phantom: "PHANTOM",
+    });
     for (const update of updates) {
       expect(update.isoDate).toMatch(/^\d{4}-\d{2}-\d{2}$/);
       expect(update.summary.length).toBeGreaterThan(10);

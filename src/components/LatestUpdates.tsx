@@ -38,7 +38,7 @@ export const LatestUpdates = () => (
                 data-analytics-audience="general"
                 data-analytics-action="open_release_history"
               >
-                <time dateTime={update.isoDate} className="text-xs font-mono text-sky-700">{update.date}</time>
+                <time dateTime={update.isoDate} className="font-mono text-xs font-medium text-primary">{update.date}</time>
                 <h3 className="mt-2 text-lg font-medium">{update.product}</h3>
                 <p className="mb-4 mt-2 text-sm leading-relaxed text-muted-foreground">{update.summary}</p>
                 <span className="mt-auto flex items-center gap-1 text-sm text-sky-700">
