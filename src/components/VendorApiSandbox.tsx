@@ -72,7 +72,7 @@ const demoErrors: Record<string, string> = {
   demo_upstream_error: "The calculation server did not complete this example. Please try again later.",
   invalid_demo_parameters: "One or more demonstration inputs are outside the allowed range.",
   ncinm_newborn_biokinetics_unavailable: "Built-in radiopharmaceutical biokinetic data are not available for newborns. Select an age of at least 0.5 years and try again.",
-  ncinm_radiopharmaceutical_not_found: "The entered radiopharmaceutical could not be matched to one of the 133 biokinetic models currently available in NCINM, based on ICRP Publication 128. Dose calculation is available only for radiopharmaceuticals represented in this library.",
+  ncinm_radiopharmaceutical_not_found: "Biokinetic data for the entered radiopharmaceutical are not available in the current NCINM biokinetic data library, which contains 133 models based on ICRP Publication 128. Dose calculation is available only for radiopharmaceuticals included in this library.",
   invalid_origin: "This demonstration can be run only from the NCI Dose Tools website.",
   too_many_demo_requests: "The demonstration request limit has been reached. Please try again later.",
 };
@@ -80,7 +80,7 @@ const demoErrors: Record<string, string> = {
 const demoErrorTitles: Record<string, string> = {
   invalid_demo_parameters: "Check the demo inputs",
   ncinm_newborn_biokinetics_unavailable: "Biokinetic data unavailable",
-  ncinm_radiopharmaceutical_not_found: "Biokinetic model not found",
+  ncinm_radiopharmaceutical_not_found: "Biokinetic data unavailable",
 };
 
 const formattedJson = (value: unknown) => JSON.stringify(value, null, 2);
