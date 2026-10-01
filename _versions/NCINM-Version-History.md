@@ -2,11 +2,30 @@
 
 _Scientific and maintenance update record for the National Cancer Institute dosimetry system for Nuclear Medicine._
 
-Latest release: **September 9, 2026**
-Latest scientific update: **May 10, 2026**
+Latest release: **September 30, 2026**
+Latest scientific update: **September 30, 2026**
 Record begins: **2019**
 
 ## 2026
+
+### September 30, 2026 — Scientific Update
+
+#### GUI
+
+- Added male and female ICRP mesh phantoms for newborns and children (ICRP Publication 156) and adults (ICRP Publication 145), with photon and electron specific absorbed fractions calculated anew using Geant4 Monte Carlo.
+- Added mesh-based S values for 1,070 radionuclides and Monte Carlo uncertainties for organ and effective doses. Explicit target layers improve anatomical accuracy in electron dose calculations for alimentary stem cells, oral mucosa, and oesophageal and urinary-bladder basal cells.
+- Updated to 133 reviewed biokinetic models. Newborn data, previously extrapolated from infant data, are now marked unavailable to clarify data limitations. Newborn calculations with user-entered source data remain available.
+- Extended Batch Manager to support the ICRP mesh library.
+
+#### API — deployment pending
+
+The following NCINM4 API changes are prepared locally. The hosted API remains
+on version 3.20260909 until its separate deployment.
+
+- Added `phantom_library = 4` for ICRP mesh radiopharmaceutical dose calculations while retaining `1` for NCI and `2` for ICRP voxel phantoms.
+- Updated the API to use the same 133-model radiopharmaceutical library as the GUI.
+- Added an explicit error for newborn radiopharmaceutical requests because predefined newborn biokinetic data are not available.
+- The API returns organ absorbed dose and effective dose. Mesh Monte Carlo uncertainty is currently available in the GUI only.
 
 ### September 9, 2026 — Maintenance Update
 
