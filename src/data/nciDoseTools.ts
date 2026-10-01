@@ -1,5 +1,5 @@
 const ncictImage = "/manuals/images/ncict4-main-window.png";
-const ncinmImage = "/manuals/images/ncinm3-main-window.png";
+const ncinmImage = "/manuals/images/ncinm4-mesh-interface.png";
 const ncirfImage = "/manuals/images/ncirf4-main-window.png";
 
 export { portalLinks } from "./portalLinks";
@@ -87,7 +87,7 @@ export const tools = [
       "Monte Carlo-based library of SAFs combined with ICRP radionuclide energy spectra",
     image: ncinmImage,
     imageAlt:
-      "NCINM graphical interface showing radionuclide selection, fetal phantom preview, and target organ dose table",
+      "NCINM4 graphical interface showing the ICRP mesh phantom, source-region data, and target-organ dose results",
     summary:
       "Uses 12 reference-size and 8 pregnant computational phantoms.",
     comparison: {

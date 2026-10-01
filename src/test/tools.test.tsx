@@ -44,6 +44,11 @@ describe("product-first tool pages", () => {
       "href",
       "/vendors?tool=ncinm#api-sandbox",
     );
+    expect(
+      screen.getByRole("img", {
+        name: "NCINM4 graphical interface showing the ICRP mesh phantom, source-region data, and target-organ dose results",
+      }),
+    ).toHaveAttribute("src", "/manuals/images/ncinm4-mesh-interface.png");
   });
 
   it("uses a licensing discussion CTA for the shared PHANTOM library", () => {
