@@ -39,7 +39,7 @@ const navItems: NavItem[] = [
     href: "/researchers",
   },
   {
-    label: "Vendor Sandbox",
+    label: "For Vendors",
     href: "/vendors",
   },
   { label: "Discussions", href: "/discussions" },

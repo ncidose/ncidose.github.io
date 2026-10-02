@@ -1,3 +1,6 @@
+import { LicensingContact } from "@/components/LicensingContact";
+import { UpdateSubscription } from "@/components/UpdateSubscription";
+import { AdminSubscribers } from "@/components/AdminSubscribers";
 import { type FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import { Link, Navigate, useLocation, useNavigate } from "react-router-dom";
 import ReactMarkdown from "react-markdown";
@@ -40,6 +43,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
 import {
   demoAdminUser,
@@ -79,6 +83,8 @@ type PortalUser = {
   role: "user" | "admin";
   discussionRole: "community" | "team";
   discussionHandle?: string;
+  communityEmailNotifications: boolean;
+  announcementEmailNotifications: boolean;
   staStatus: "Approved";
   staApprovedOn: string;
   identities: PortalIdentity[];
@@ -168,6 +174,8 @@ const portalUserFromApi = (apiUser: Record<string, unknown>): PortalUser => {
     role: apiUser.role === "admin" ? "admin" : "user",
     discussionRole: apiUser.role === "admin" || apiUser.discussion_role === "team" ? "team" : "community",
     discussionHandle: String(apiUser.discussion_handle || ""),
+    communityEmailNotifications: apiUser.community_email_notifications !== 0 && apiUser.community_email_notifications !== false,
+    announcementEmailNotifications: apiUser.announcement_email_notifications !== 0 && apiUser.announcement_email_notifications !== false,
     staStatus: "Approved",
     staApprovedOn: String(apiUser.approved_at || "Existing approval"),
     identities: Array.isArray(apiUser.identities) ? apiUser.identities as PortalIdentity[] : [],
@@ -186,7 +194,7 @@ export const Portal = ({ publicLanding = false }: { publicLanding?: boolean }) =
   const location = useLocation();
   const navigate = useNavigate();
   const standalonePortal = standalonePortalBuild;
-  const demoMode = !standalonePortal && (import.meta.env.DEV || import.meta.env.VITE_PORTAL_DEMO_MODE === "true");
+  const demoMode = import.meta.env.VITE_PORTAL_DEMO_MODE === "true" || (!standalonePortal && import.meta.env.DEV);
   const [user, setUser] = useState<PortalUser | null>(() => demoMode ? getStoredUser() : null);
   const [authState, setAuthState] = useState<"loading" | "ready" | "signed-out" | "denied">(demoMode ? "ready" : "loading");
   const [deniedEmail, setDeniedEmail] = useState("");
@@ -330,14 +338,16 @@ export const Portal = ({ publicLanding = false }: { publicLanding?: boolean }) =
                   {section === "downloads" && "Software downloads"}
                   {section === "announcements" && "Announcements"}
                   {section === "questions" && "Discussions"}
-                  {section === "account" && "Account and access"}
+                  {section === "account" && "Account"}
                   {section === "admin" && "Portal administration"}
                 </h1>
               </div>
-              <div className="inline-flex items-center gap-2 border border-primary/20 bg-primary/5 px-3 py-2 font-mono text-xs text-primary">
-                <ShieldCheck className="h-4 w-4" />
-                {demoMode ? "Preview mode" : "Access verified"}
-              </div>
+              {section !== "account" && (
+                <div className="inline-flex items-center gap-2 border border-primary/20 bg-primary/5 px-3 py-2 font-mono text-xs text-primary">
+                  <ShieldCheck className="h-4 w-4" />
+                  {demoMode ? "Preview mode" : "Access verified"}
+                </div>
+              )}
             </div>
 
             {section === "overview" && <Overview user={user} demoMode={demoMode} />}
@@ -394,6 +404,8 @@ const NewUserAccessOptions = ({ internalStaLink = false }: { internalStaLink?: b
       >
         <span><span className="block text-sm font-medium">Commercial user</span><span className="mt-0.5 block text-xs">Email Dr. Kevin Chang</span></span><Mail className="h-4 w-4 shrink-0" />
       </a>
+      <details className="border border-border p-4 text-sm"><summary className="cursor-pointer text-primary">Commercial licensing contact and email options</summary><div className="mt-4"><LicensingContact location="portal_new_user" /></div></details>
+      <UpdateSubscription source="vendor" collapsible />
     </div>
   );
 };
@@ -572,6 +584,7 @@ export const PortalSignIn = ({
               >
                 Commercial user: email Dr. Kevin Chang <Mail className="h-4 w-4" />
               </a>
+              <UpdateSubscription source="vendor" collapsible />
               <Button
                 variant="outline"
                 className="h-12 w-full rounded-none"
@@ -784,6 +797,7 @@ const AccessRequest = () => {
                 Return to sign in
               </Link>
             </div>
+            <div className="mt-8 text-left"><UpdateSubscription source="sta" collapsible /></div>
           </div>
         </main>
       </div>
@@ -813,6 +827,7 @@ const AccessRequest = () => {
               </div>
             ))}
           </div>
+          <div className="mt-6"><UpdateSubscription source="sta" collapsible /></div>
         </section>
 
         <form
@@ -900,9 +915,9 @@ const AccessRequest = () => {
           {eligibilityComplete && isIneligible && (
             <section className="mt-7 border border-amber-300 bg-amber-50 p-5 sm:p-6">
               <div className="font-mono text-xs uppercase tracking-widest text-amber-800">A different access path fits this use</div>
-              <h3 className="mt-2 text-xl font-light text-slate-900">Try the live Vendor Sandbox instead.</h3>
+              <h3 className="mt-2 text-xl font-light text-slate-900">Explore commercial licensing or try the APIs.</h3>
               <p className="mt-3 text-sm leading-relaxed text-slate-700">
-                The non-commercial research STA form stops here. You can still evaluate the NCICT, NCINM, and NCIRF calculation APIs with bounded live trials—no agreement is required.
+                This use is outside the research STA pathway. Contact NCI to discuss whether an appropriate agreement is available, or explore the public sandbox for technical testing. The sandbox does not authorize production or clinical use.
               </p>
               <Link
                 to="/vendors#api-sandbox"
@@ -913,8 +928,9 @@ const AccessRequest = () => {
                 data-analytics-audience="vendor"
                 data-analytics-action="open_live_demo"
               >
-                Open Vendor Sandbox <ChevronRight className="h-4 w-4" />
+                Open API Sandbox <ChevronRight className="h-4 w-4" />
               </Link>
+              <Link to="/vendors#commercial-access" className="mt-3 flex w-fit items-center gap-2 font-medium text-primary underline underline-offset-4">Discuss Commercial Licensing <ChevronRight className="h-4 w-4" /></Link>
             </section>
           )}
 
@@ -1396,6 +1412,8 @@ type LiveAnnouncement = {
   summary: string;
   body: string;
   category: "Release" | "Maintenance" | "Access";
+  scientificUpdate?: boolean;
+  subscriberEmailQueued?: boolean;
   audience: "approved_users" | "public";
   status: "draft" | "published";
   originalPublishedAt: string | null;
@@ -1715,10 +1733,35 @@ const Account = ({
   const [profileInstitution, setProfileInstitution] = useState(user.institution);
   const [profileCountry, setProfileCountry] = useState(user.country || "");
   const [savingProfile, setSavingProfile] = useState(false);
+  const [savingNotification, setSavingNotification] = useState<"communityEmailNotifications" | "announcementEmailNotifications" | null>(null);
   const [savingEmail, setSavingEmail] = useState(false);
   const [removingEmailId, setRemovingEmailId] = useState<string | null>(null);
   const [changingPrimaryEmailId, setChangingPrimaryEmailId] = useState<string | null>(null);
   const additionalIdentity = user.identities.find((identity) => !identity.primary);
+  const currentUser = useRef(user);
+  currentUser.current = user;
+
+  useEffect(() => {
+    if (demoMode) return;
+    const controller = new AbortController();
+    fetch("/api/account/notifications", { credentials: "include", signal: controller.signal })
+      .then(async (response) => {
+        if (!response.ok) throw new Error("notification_preferences_unavailable");
+        return response.json();
+      })
+      .then((body) => {
+        const notifications = body.notifications || {};
+        setUser({
+          ...currentUser.current,
+          communityEmailNotifications: notifications.communityEmailNotifications !== false,
+          announcementEmailNotifications: notifications.announcementEmailNotifications !== false,
+        });
+      })
+      .catch((error: Error) => {
+        if (error.name !== "AbortError") return;
+      });
+    return () => controller.abort();
+  }, [demoMode, setUser, user.id]);
 
   const saveProfile = async () => {
     if (demoMode) {
@@ -1742,6 +1785,46 @@ const Account = ({
       toast({ title: "Unable to update profile", description: error instanceof Error ? error.message : undefined, variant: "destructive" });
     } finally {
       setSavingProfile(false);
+    }
+  };
+
+  const saveEmailNotification = async (
+    preference: "communityEmailNotifications" | "announcementEmailNotifications",
+    enabled: boolean,
+  ) => {
+    const previous = user[preference];
+    setUser({ ...user, [preference]: enabled });
+    const communityPreference = preference === "communityEmailNotifications";
+    if (demoMode) {
+      toast({ title: `${communityPreference ? "Community" : "Announcement"} emails ${enabled ? "enabled" : "turned off"}` });
+      return;
+    }
+    setSavingNotification(preference);
+    try {
+      const response = await fetch("/api/account/notifications", {
+        method: "PATCH",
+        credentials: "include",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ [preference]: enabled }),
+      });
+      const body = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(body.error === "announcement_preference_sync_failed" ? "The announcement email provider could not be updated." : "The email preference could not be saved.");
+      setUser({
+        ...user,
+        communityEmailNotifications: body.notifications.communityEmailNotifications,
+        announcementEmailNotifications: body.notifications.announcementEmailNotifications,
+      });
+      toast({
+        title: `${communityPreference ? "Community" : "Announcement"} emails ${enabled ? "enabled" : "turned off"}`,
+        description: communityPreference
+          ? (enabled ? "You will receive new public discussions and NCI Dose Team replies." : "Public discussions remain available in the Portal.")
+          : (enabled ? "You will receive administrator announcements by email." : "Announcements remain available in the Portal."),
+      });
+    } catch (error) {
+      setUser({ ...user, [preference]: previous });
+      toast({ title: "Unable to update email preference", description: error instanceof Error ? error.message : undefined, variant: "destructive" });
+    } finally {
+      setSavingNotification(null);
     }
   };
 
@@ -1834,58 +1917,74 @@ const Account = ({
   };
 
   return (
-    <div className="grid gap-6 xl:grid-cols-[1fr_0.8fr]">
-      <section className="border border-border bg-white p-6 sm:p-8">
-        <div className="flex items-start gap-4"><div className="flex h-12 w-12 items-center justify-center border border-primary text-primary"><UserRoundCheck className="h-6 w-6" /></div><div><h2 className="text-xl font-light">Approved access</h2><p className="mt-1 text-sm text-muted-foreground">Your existing approval has been carried into the portal.</p></div></div>
-        <dl className="mt-8 grid gap-5 border-t border-border pt-6 sm:grid-cols-2">
-          <div><dt className="font-mono text-xs uppercase tracking-wider text-muted-foreground">Status</dt><dd className="mt-2 inline-flex items-center gap-2 text-sm font-medium text-emerald-700"><Check className="h-4 w-4" /> {user.staStatus}</dd></div>
-          <div><dt className="font-mono text-xs uppercase tracking-wider text-muted-foreground">Approved</dt><dd className="mt-2 text-sm text-slate-800">{user.staApprovedOn}</dd></div>
+    <div className="grid gap-6 xl:grid-cols-2">
+      <section className="border border-border bg-white p-6 sm:p-8 xl:col-span-2">
+        <div className="flex items-center gap-4"><div className="flex h-10 w-10 items-center justify-center border border-primary text-primary"><UserRoundCheck className="h-5 w-5" /></div><h2 className="text-lg font-medium">Account details</h2></div>
+        <dl className="mt-6 grid gap-6 border-t border-border pt-5 lg:grid-cols-[0.7fr_1fr_1.6fr]">
+          <div>
+            <dt className="font-mono text-xs uppercase tracking-wider text-muted-foreground">Access</dt>
+            <dd className="mt-2 inline-flex items-center gap-2 text-sm font-medium text-emerald-700"><Check className="h-4 w-4" /> {user.staStatus}</dd>
+            {user.staApprovedOn !== "Existing approval" && <dd className="mt-1 text-xs text-muted-foreground">{user.staApprovedOn}</dd>}
+          </div>
           <div><dt className="font-mono text-xs uppercase tracking-wider text-muted-foreground">Institution</dt><dd className="mt-2 text-sm text-slate-800">{user.institution || "Not provided"}</dd></div>
-          <div><dt className="font-mono text-xs uppercase tracking-wider text-muted-foreground">Primary email</dt><dd className="mt-2 text-sm text-slate-800">{user.primaryEmail}</dd></div>
+          <div>
+            <dt className="font-mono text-xs uppercase tracking-wider text-muted-foreground">Sign-in email</dt>
+            <dd className="mt-2 space-y-3">
+              {user.identities.map((identity) => (
+                <div key={identity.id} className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
+                  <div className="min-w-0">
+                    <div className="break-all text-sm font-medium text-slate-800">{identity.email}</div>
+                    <div className="mt-1 text-xs text-muted-foreground">{identity.primary ? "Primary" : "Secondary"} · {identity.verified ? "Verified" : "Pending verification"}</div>
+                  </div>
+                  {!identity.primary && (
+                    <div className="flex flex-wrap gap-x-4 gap-y-2 text-xs">
+                      {identity.verified && (
+                        <button type="button" disabled={changingPrimaryEmailId === identity.id} onClick={() => void makePrimaryEmail(identity)} className="font-medium text-primary hover:underline disabled:opacity-50">
+                          {changingPrimaryEmailId === identity.id ? "Updating…" : "Make primary"}
+                        </button>
+                      )}
+                      <button type="button" disabled={removingEmailId === identity.id || changingPrimaryEmailId === identity.id} onClick={() => void removeEmail(identity)} className="text-slate-500 hover:text-destructive disabled:opacity-50">
+                        {removingEmailId === identity.id ? "Removing…" : "Remove"}
+                      </button>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </dd>
+          </div>
         </dl>
       </section>
 
-      <section className="border border-border bg-white p-6 sm:p-8">
-        <div className="font-mono text-xs uppercase tracking-widest text-primary">Login methods</div>
-        <div className="mt-5 space-y-3">
-          {user.identities.map((identity) => (
-            <div key={identity.id} className="border border-border p-4">
-              <div className="flex items-start justify-between gap-3">
-                <div>
-                  <div className="text-sm font-medium text-slate-800">{identity.email}</div>
-                  <div className="mt-1 text-xs text-muted-foreground">{identity.primary ? "Primary email" : "Secondary email"} · {identity.verified ? "Verified" : "Verification required"}</div>
-                </div>
-                <span className={cn("px-2 py-1 font-mono text-xs", identity.primary ? "bg-primary/10 text-primary" : identity.verified ? "bg-emerald-50 text-emerald-700" : "bg-amber-50 text-amber-800")}>{identity.primary ? "Primary" : identity.verified ? "Verified" : "Pending"}</span>
-              </div>
-              {!identity.primary && (
-                <div className="mt-3 flex flex-wrap gap-x-4 gap-y-2 text-xs">
-                  {identity.verified && (
-                    <button type="button" disabled={changingPrimaryEmailId === identity.id} onClick={() => void makePrimaryEmail(identity)} className="font-medium text-primary hover:underline disabled:opacity-50">
-                      {changingPrimaryEmailId === identity.id ? "Updating…" : "Make primary"}
-                    </button>
-                  )}
-                  <button type="button" disabled={removingEmailId === identity.id || changingPrimaryEmailId === identity.id} onClick={() => void removeEmail(identity)} className="text-slate-500 hover:text-destructive disabled:opacity-50">
-                    {removingEmailId === identity.id ? "Removing…" : "Remove secondary email"}
-                  </button>
-                </div>
-              )}
-            </div>
-          ))}
+      <section className="border border-sky-200 bg-sky-50/40 p-6 sm:p-8 xl:col-span-2">
+        <div className="flex items-start gap-4">
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center border border-primary bg-white text-primary"><Bell className="h-5 w-5" /></div>
+          <div><h2 className="text-lg font-medium">Email notifications</h2><p className="mt-1 text-sm text-muted-foreground">Choose what reaches your inbox.</p></div>
         </div>
+        <div className="mt-6 grid gap-4 lg:grid-cols-2">
+          <div className="flex flex-col justify-between gap-5 border border-sky-200 bg-white p-5 sm:flex-row sm:items-center">
+            <div><h3 className="text-sm font-semibold text-slate-900">Community discussions</h3><p id="community-email-description" className="mt-1 text-sm text-muted-foreground">New public posts and Team replies.</p></div>
+            <div className="flex shrink-0 items-center justify-between gap-3 sm:justify-start"><span className="text-sm font-medium text-slate-800">{user.communityEmailNotifications ? "On" : "Off"}</span><Switch aria-label="Community discussion email notifications" aria-describedby="community-email-description" checked={user.communityEmailNotifications} disabled={savingNotification !== null} onCheckedChange={(checked) => void saveEmailNotification("communityEmailNotifications", checked)} /></div>
+          </div>
+          <div className="flex flex-col justify-between gap-5 border border-sky-200 bg-white p-5 sm:flex-row sm:items-center">
+            <div><h3 className="text-sm font-semibold text-slate-900">Admin announcements</h3><p id="announcement-email-description" className="mt-1 text-sm text-muted-foreground">Release, maintenance, and access updates.</p></div>
+            <div className="flex shrink-0 items-center justify-between gap-3 sm:justify-start"><span className="text-sm font-medium text-slate-800">{user.announcementEmailNotifications ? "On" : "Off"}</span><Switch aria-label="Admin announcement email notifications" aria-describedby="announcement-email-description" checked={user.announcementEmailNotifications} disabled={savingNotification !== null} onCheckedChange={(checked) => void saveEmailNotification("announcementEmailNotifications", checked)} /></div>
+          </div>
+        </div>
+        <p className="mt-4 text-xs text-slate-500">Updates stay in the Portal. Sign-in and security emails always stay on.</p>
       </section>
 
-      <section className="border border-border bg-white p-6 sm:p-8 xl:col-span-2">
-        <div className="flex items-start gap-4"><div className="flex h-10 w-10 items-center justify-center border border-primary text-primary"><CircleUserRound className="h-5 w-5" /></div><div><h2 className="text-lg font-medium">Profile information</h2><p className="mt-1 text-sm text-muted-foreground">Optional. These details help the portal administrator maintain the approved-user directory.</p></div></div>
-        <div className="mt-6 grid gap-3 md:grid-cols-3">
+      <section className="border border-border bg-white p-6 sm:p-8">
+        <div className="flex items-start gap-4"><div className="flex h-10 w-10 items-center justify-center border border-primary text-primary"><CircleUserRound className="h-5 w-5" /></div><div><h2 className="text-lg font-medium">Profile</h2><p className="mt-1 text-sm text-muted-foreground">Optional account details.</p></div></div>
+        <div className="mt-6 grid gap-3 sm:grid-cols-[1fr_0.65fr]">
           <Input value={profileName} onChange={(event) => setProfileName(event.target.value)} placeholder="Full name" disabled={savingProfile} className="rounded-none" />
-          <Input value={profileInstitution} onChange={(event) => setProfileInstitution(event.target.value)} placeholder="Institution" disabled={savingProfile} className="rounded-none" />
-          <Input value={profileCountry} onChange={(event) => setProfileCountry(event.target.value)} placeholder="Country" disabled={savingProfile} className="rounded-none" />
+          <Input value={profileInstitution} onChange={(event) => setProfileInstitution(event.target.value)} placeholder="Institution" disabled={savingProfile} className="rounded-none sm:col-span-2 sm:row-start-2" />
+          <Input value={profileCountry} onChange={(event) => setProfileCountry(event.target.value)} placeholder="Country" disabled={savingProfile} className="rounded-none sm:col-start-2 sm:row-start-1" />
         </div>
         <div className="mt-4 flex justify-end"><Button type="button" variant="outline" disabled={savingProfile} onClick={() => void saveProfile()} className="rounded-none">{savingProfile && <Loader2 className="h-4 w-4 animate-spin" />} Save profile</Button></div>
       </section>
 
-      <section className="border border-border bg-white p-6 sm:p-8 xl:col-span-2">
-        <div className="flex items-start gap-4"><div className="flex h-10 w-10 items-center justify-center border border-primary text-primary"><Mail className="h-5 w-5" /></div><div><h2 className="text-lg font-medium">Add a secondary email</h2><p className="mt-1 text-sm text-muted-foreground">Optional: link one additional work or personal email without changing your STA approval or download history.</p></div></div>
+      <section className="border border-border bg-white p-6 sm:p-8">
+        <div className="flex items-start gap-4"><div className="flex h-10 w-10 items-center justify-center border border-primary text-primary"><Mail className="h-5 w-5" /></div><div><h2 className="text-lg font-medium">Secondary email</h2><p className="mt-1 text-sm text-muted-foreground">Use another email to sign in.</p></div></div>
         <div className="mt-6 max-w-xl">
           {!additionalIdentity ? (
             <div className="flex flex-col gap-2 sm:flex-row"><Input type="email" value={newEmail} onChange={(event) => setNewEmail(event.target.value)} placeholder="secondary@email.com" disabled={savingEmail} className="rounded-none" /><Button variant="outline" disabled={!newEmail.includes("@") || savingEmail} onClick={() => void addEmail()} className="shrink-0 rounded-none">{savingEmail ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />} Add email</Button></div>
@@ -1928,8 +2027,8 @@ type UnmatchedLoginAttempt = {
 };
 
 type SandboxLocation = { countryCode: string | null; city: string | null; requests: number; uniqueClients: number };
-type SandboxActivityPeriod = "today" | "last7Days" | "last30Days";
-const sandboxActivityPeriodLabels: Record<SandboxActivityPeriod, string> = {
+type ActivityPeriod = "today" | "last7Days" | "last30Days";
+const activityPeriodLabels: Record<ActivityPeriod, string> = {
   today: "Today",
   last7Days: "Last 7 days",
   last30Days: "Last 30 days",
@@ -1940,12 +2039,19 @@ type AdminActivityData = {
     downloadsToday: number;
     downloads7Days: number;
     downloads30Days: number;
+    downloadUsersToday: number;
+    downloadUsers7Days: number;
     downloadUsers30Days: number;
+    loginsToday: number;
+    logins7Days: number;
     logins30Days: number;
   };
   tools: Array<{ tool: string; downloads: number }>;
+  toolsByPeriod: Record<ActivityPeriod, Array<{ tool: string; downloads: number }>>;
   files: Array<{ file: string; downloads: number }>;
+  filesByPeriod: Record<ActivityPeriod, Array<{ file: string; downloads: number }>>;
   recent: Array<{ id: string; userId: string | null; eventType: "login" | "download"; file: string | null; occurredAt: string; name: string | null; email: string | null }>;
+  recentByPeriod: Record<ActivityPeriod, Array<{ id: string; userId: string | null; eventType: "login" | "download"; file: string | null; occurredAt: string; name: string | null; email: string | null }>>;
   sandbox: {
     summary: {
       requestsToday: number;
@@ -1963,9 +2069,9 @@ type AdminActivityData = {
       p95DurationMs30Days: number | null;
     };
     tools: SandboxApiUsage[];
-    toolsByPeriod?: Record<SandboxActivityPeriod, SandboxApiUsage[]>;
+    toolsByPeriod?: Record<ActivityPeriod, SandboxApiUsage[]>;
     locations: SandboxLocation[];
-    locationsByPeriod?: Record<SandboxActivityPeriod, SandboxLocation[]>;
+    locationsByPeriod?: Record<ActivityPeriod, SandboxLocation[]>;
     recentFailures: Array<{ id: string; tool: string; upstreamStatus: number | null; durationMs: number | null; reason: string | null; attemptCount: number; countryCode: string | null; city: string | null; occurredAt: string }>;
     locationNotice: string;
   };
@@ -1983,10 +2089,13 @@ type UserSortKey = "name" | "email" | "joined" | "lastLogin";
 type UserListView = "approved" | "active" | "suspended" | "unmatched";
 
 const emptyAdminActivity: AdminActivityData = {
-  summary: { downloadsToday: 0, downloads7Days: 0, downloads30Days: 0, downloadUsers30Days: 0, logins30Days: 0 },
+  summary: { downloadsToday: 0, downloads7Days: 0, downloads30Days: 0, downloadUsersToday: 0, downloadUsers7Days: 0, downloadUsers30Days: 0, loginsToday: 0, logins7Days: 0, logins30Days: 0 },
   tools: [],
+  toolsByPeriod: { today: [], last7Days: [], last30Days: [] },
   files: [],
+  filesByPeriod: { today: [], last7Days: [], last30Days: [] },
   recent: [],
+  recentByPeriod: { today: [], last7Days: [], last30Days: [] },
   sandbox: {
     summary: {
       requestsToday: 0,
@@ -2155,7 +2264,7 @@ const AdminQuestions = ({ demoMode }: { demoMode: boolean }) => {
 
 const Admin = ({ demoMode }: { demoMode: boolean }) => {
   const { toast } = useToast();
-  const [adminSection, setAdminSection] = useState<"users" | "announcements" | "questions" | "sandboxActivity" | "portalActivity">("sandboxActivity");
+  const [adminSection, setAdminSection] = useState<"users" | "announcements" | "subscribers" | "questions" | "sandboxActivity" | "portalActivity">("sandboxActivity");
   const [announcementTitle, setAnnouncementTitle] = useState("");
   const [announcementBody, setAnnouncementBody] = useState("");
   const [announcementCategory, setAnnouncementCategory] = useState<"Release" | "Maintenance" | "Access">("Release");
@@ -2189,12 +2298,15 @@ const Admin = ({ demoMode }: { demoMode: boolean }) => {
   const [deletingUserId, setDeletingUserId] = useState<string | null>(null);
   const [activityData, setActivityData] = useState<AdminActivityData>(() => adminActivityCache?.data || emptyAdminActivity);
   const [loadingActivity, setLoadingActivity] = useState(false);
-  const [sandboxActivityPeriod, setSandboxActivityPeriod] = useState<SandboxActivityPeriod>("last30Days");
+  const [sandboxActivityPeriod, setSandboxActivityPeriod] = useState<ActivityPeriod>("last30Days");
+  const [portalActivityPeriod, setPortalActivityPeriod] = useState<ActivityPeriod>("last30Days");
   const [emailAudience, setEmailAudience] = useState<EmailAudienceStatus | null>(null);
   const [loadingEmailAudience, setLoadingEmailAudience] = useState(!demoMode);
   const [syncingEmailAudience, setSyncingEmailAudience] = useState(false);
   const [sendingTestEmail, setSendingTestEmail] = useState(false);
   const [sendAnnouncementEmail, setSendAnnouncementEmail] = useState(false);
+  const [scientificUpdate, setScientificUpdate] = useState(false);
+  const [sendSubscriberEmail, setSendSubscriberEmail] = useState(false);
 
   const loadAdminUsers = async (force = false) => {
     if (demoMode) {
@@ -2331,7 +2443,7 @@ const Admin = ({ demoMode }: { demoMode: boolean }) => {
         method: "POST",
         credentials: "include",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ title: announcementTitle, body: announcementBody, category: announcementCategory }),
+        body: JSON.stringify({ title: announcementTitle, body: announcementBody, category: announcementCategory, scientificUpdate }),
       });
       const body = await response.json();
       if (!response.ok) throw new Error(body.detail || "The test email could not be sent.");
@@ -2648,6 +2760,8 @@ const Admin = ({ demoMode }: { demoMode: boolean }) => {
     setOriginalPublishedAt("");
     setSourceUrl("");
     setAnnouncementCategory("Release");
+    setScientificUpdate(false);
+    setSendSubscriberEmail(false);
     setEditingAnnouncementId(null);
     setSendAnnouncementEmail(false);
   };
@@ -2657,6 +2771,8 @@ const Admin = ({ demoMode }: { demoMode: boolean }) => {
     setAnnouncementTitle(announcement.title);
     setAnnouncementBody(announcement.body);
     setAnnouncementCategory(announcement.category);
+    setScientificUpdate(Boolean(announcement.scientificUpdate));
+    setSendSubscriberEmail(false);
     setOriginalPublishedAt(announcement.originalPublishedAt?.slice(0, 10) || "");
     setSourceUrl(announcement.sourceUrl || "");
     setSendAnnouncementEmail(false);
@@ -2673,9 +2789,10 @@ const Admin = ({ demoMode }: { demoMode: boolean }) => {
       return;
     }
     const shouldSendEmail = status === "published" && sendAnnouncementEmail;
-    if (shouldSendEmail) {
+    const shouldSendSubscriberEmail = status === "published" && scientificUpdate && sendSubscriberEmail;
+    if (shouldSendEmail || shouldSendSubscriberEmail) {
       const recipientCount = emailAudience?.approvedCount ?? "all active";
-      const confirmed = window.confirm(`Publish this announcement and email ${recipientCount} approved users?\n\nThis email cannot be recalled, and later edits will not resend it.`);
+      const confirmed = window.confirm(`Publish this announcement and email ${[shouldSendEmail ? `${recipientCount} approved users` : "", shouldSendSubscriberEmail ? "confirmed scientific update subscribers" : ""].filter(Boolean).join(" and ")}?\n\nThis email cannot be recalled, and later edits will not resend it.`);
       if (!confirmed) return;
     }
     setSavingAnnouncement(status);
@@ -2692,6 +2809,8 @@ const Admin = ({ demoMode }: { demoMode: boolean }) => {
           sourceUrl: sourceUrl || null,
           status,
           sendEmail: shouldSendEmail,
+          scientificUpdate,
+          sendSubscriberEmail: shouldSendSubscriberEmail,
         }),
       });
       const responseBody = await response.json();
@@ -2706,10 +2825,11 @@ const Admin = ({ demoMode }: { demoMode: boolean }) => {
       const wasEditing = Boolean(editingAnnouncementId);
       clearAnnouncementForm();
       const delivery = responseBody.emailDelivery;
+      const subscriberDelivery = responseBody.subscriberDelivery;
       toast({
         title: delivery?.status === "sent" ? "Announcement published and email submitted" : status === "published" ? (wasEditing ? "Published announcement updated" : "Announcement published") : (wasEditing ? "Draft updated" : "Draft saved"),
-        description: delivery?.status === "failed" ? `The post was published, but email delivery failed: ${delivery.error || "Unknown Resend error"}` : delivery?.status === "sent" ? `Resend accepted the broadcast for ${delivery.recipientCount} approved users.` : "The announcement is stored in the portal.",
-        variant: delivery?.status === "failed" ? "destructive" : undefined,
+        description: subscriberDelivery?.status === "failed" ? subscriberDelivery.error : subscriberDelivery?.status === "queued" ? `Scientific update queued for ${subscriberDelivery.recipientCount} subscribers.${delivery?.status === "failed" ? " Approved-user email failed; check the announcement delivery status." : ""}` : delivery?.status === "failed" ? `The post was published, but email delivery failed: ${delivery.error || "Unknown Resend error"}` : delivery?.status === "sent" ? `Resend accepted the broadcast for ${delivery.recipientCount} approved users.` : "The announcement is stored in the portal.",
+        variant: delivery?.status === "failed" || subscriberDelivery?.status === "failed" ? "destructive" : undefined,
       });
     } catch (error) {
       toast({ title: "Unable to save announcement", description: error instanceof Error ? error.message : undefined, variant: "destructive" });
@@ -2719,12 +2839,30 @@ const Admin = ({ demoMode }: { demoMode: boolean }) => {
   };
 
   const editingAnnouncement = adminAnnouncements.find((announcement) => announcement.id === editingAnnouncementId) || null;
-  const emailOptionDisabled = Boolean(originalPublishedAt || sourceUrl || editingAnnouncement?.emailDelivery);
+  const emailOptionDisabled = Boolean(originalPublishedAt || sourceUrl || editingAnnouncement?.emailDelivery || editingAnnouncement?.subscriberEmailQueued);
+  const subscriberEmailDisabled = Boolean(originalPublishedAt || sourceUrl || editingAnnouncement?.subscriberEmailQueued);
   const selectedSandboxTools = activityData.sandbox.toolsByPeriod?.[sandboxActivityPeriod]
     ?? (sandboxActivityPeriod === "last30Days" ? activityData.sandbox.tools : []);
   const selectedSandboxLocations = activityData.sandbox.locationsByPeriod?.[sandboxActivityPeriod]
     ?? (sandboxActivityPeriod === "last30Days" ? activityData.sandbox.locations : []);
-  const selectedSandboxPeriodLabel = sandboxActivityPeriodLabels[sandboxActivityPeriod];
+  const selectedSandboxPeriodLabel = activityPeriodLabels[sandboxActivityPeriod];
+  const selectedPortalPeriodLabel = activityPeriodLabels[portalActivityPeriod];
+  const selectedPortalTools = activityData.toolsByPeriod?.[portalActivityPeriod]
+    ?? (portalActivityPeriod === "last30Days" ? activityData.tools : []);
+  const selectedPortalFiles = activityData.filesByPeriod?.[portalActivityPeriod]
+    ?? (portalActivityPeriod === "last30Days" ? activityData.files : []);
+  const selectedPortalRecent = activityData.recentByPeriod?.[portalActivityPeriod]
+    ?? (portalActivityPeriod === "last30Days" ? activityData.recent : []);
+  const selectedPortalDownloadUsers = {
+    today: activityData.summary.downloadUsersToday,
+    last7Days: activityData.summary.downloadUsers7Days,
+    last30Days: activityData.summary.downloadUsers30Days,
+  }[portalActivityPeriod];
+  const selectedPortalLogins = {
+    today: activityData.summary.loginsToday,
+    last7Days: activityData.summary.logins7Days,
+    last30Days: activityData.summary.logins30Days,
+  }[portalActivityPeriod];
 
   return (
     <div className="space-y-8">
@@ -2733,8 +2871,11 @@ const Admin = ({ demoMode }: { demoMode: boolean }) => {
         <button type="button" onClick={() => setAdminSection("portalActivity")} className={cn("flex flex-1 items-center justify-center gap-2 whitespace-nowrap px-4 py-3 text-sm transition-colors sm:flex-none", adminSection === "portalActivity" ? "bg-primary text-primary-foreground" : "text-slate-600 hover:bg-slate-50 hover:text-primary")}><UserRoundCheck className="h-4 w-4" /> User Portal Activity</button>
         <button type="button" onClick={() => setAdminSection("questions")} className={cn("flex flex-1 items-center justify-center gap-2 whitespace-nowrap px-4 py-3 text-sm transition-colors sm:flex-none", adminSection === "questions" ? "bg-primary text-primary-foreground" : "text-slate-600 hover:bg-slate-50 hover:text-primary")}><MessageCircleQuestion className="h-4 w-4" /> Discussions</button>
         <button type="button" onClick={() => setAdminSection("announcements")} className={cn("flex flex-1 items-center justify-center gap-2 whitespace-nowrap px-4 py-3 text-sm transition-colors sm:flex-none", adminSection === "announcements" ? "bg-primary text-primary-foreground" : "text-slate-600 hover:bg-slate-50 hover:text-primary")}><Megaphone className="h-4 w-4" /> Announcements</button>
+        <button type="button" onClick={() => setAdminSection("subscribers")} className={cn("flex flex-1 items-center justify-center gap-2 whitespace-nowrap px-4 py-3 text-sm transition-colors sm:flex-none", adminSection === "subscribers" ? "bg-primary text-primary-foreground" : "text-slate-600 hover:bg-slate-50 hover:text-primary")}><Mail className="h-4 w-4" /> Subscribers</button>
         <button type="button" onClick={() => setAdminSection("users")} className={cn("flex flex-1 items-center justify-center gap-2 whitespace-nowrap px-4 py-3 text-sm transition-colors sm:flex-none", adminSection === "users" ? "bg-primary text-primary-foreground" : "text-slate-600 hover:bg-slate-50 hover:text-primary")}><Users className="h-4 w-4" /> User Management</button>
       </nav>
+
+      {adminSection === "subscribers" && <AdminSubscribers demoMode={demoMode} />}
 
       {adminSection === "questions" && <AdminQuestions demoMode={demoMode} />}
 
@@ -2908,27 +3049,27 @@ const Admin = ({ demoMode }: { demoMode: boolean }) => {
           <div><div className="font-mono text-xs uppercase tracking-widest text-primary">Approved user portal</div><h2 className="mt-2 text-xl font-light">Sign-ins and downloads</h2></div>
 
           <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
-            <StatusCard icon={Download} label="Today" value={String(activityData.summary.downloadsToday)} note="Downloads in 24 hours" />
-            <StatusCard icon={Download} label="Last 7 days" value={String(activityData.summary.downloads7Days)} note="File downloads" />
-            <StatusCard icon={Download} label="Last 30 days" value={String(activityData.summary.downloads30Days)} note="File downloads" />
-            <StatusCard icon={Users} label="Downloading users" value={String(activityData.summary.downloadUsers30Days)} note="Unique users in 30 days" />
-            <StatusCard icon={ShieldCheck} label="Portal sign-ins" value={String(activityData.summary.logins30Days)} note="Sign-ins in 30 days" />
+            <SelectableStatusCard icon={Download} label="Today" value={String(activityData.summary.downloadsToday)} note="Downloads in 24 hours" selected={portalActivityPeriod === "today"} onSelect={() => setPortalActivityPeriod("today")} ariaLabel="Show Today portal activity" />
+            <SelectableStatusCard icon={Download} label="Last 7 days" value={String(activityData.summary.downloads7Days)} note="File downloads" selected={portalActivityPeriod === "last7Days"} onSelect={() => setPortalActivityPeriod("last7Days")} ariaLabel="Show Last 7 days portal activity" />
+            <SelectableStatusCard icon={Download} label="Last 30 days" value={String(activityData.summary.downloads30Days)} note="File downloads" selected={portalActivityPeriod === "last30Days"} onSelect={() => setPortalActivityPeriod("last30Days")} ariaLabel="Show Last 30 days portal activity" />
+            <StatusCard icon={Users} label="Downloading users" value={String(selectedPortalDownloadUsers)} note={`Unique users · ${selectedPortalPeriodLabel}`} />
+            <StatusCard icon={ShieldCheck} label="Portal sign-ins" value={String(selectedPortalLogins)} note={`Sign-ins · ${selectedPortalPeriodLabel}`} />
           </div>
 
           <div className="grid gap-6 xl:grid-cols-2">
             <section className="border border-border bg-white">
-              <div className="border-b border-border px-6 py-5"><div className="font-mono text-xs uppercase tracking-widest text-primary">Last 30 days</div><h2 className="mt-2 text-xl font-light">Downloads by tool</h2></div>
-              {activityData.tools.length === 0 ? <div className="p-8 text-sm text-muted-foreground">No downloads recorded.</div> : <div className="divide-y divide-border">{activityData.tools.map((entry) => <div key={entry.tool} className="flex items-center justify-between px-6 py-4"><span className="text-sm font-medium text-slate-800">{entry.tool}</span><span className="font-mono text-sm text-primary">{entry.downloads}</span></div>)}</div>}
+              <div className="border-b border-border px-6 py-5"><div className="font-mono text-xs uppercase tracking-widest text-primary">{selectedPortalPeriodLabel}</div><h2 className="mt-2 text-xl font-light">Downloads by tool</h2></div>
+              {selectedPortalTools.length === 0 ? <div className="p-8 text-sm text-muted-foreground">No downloads recorded for this period.</div> : <div className="divide-y divide-border">{selectedPortalTools.map((entry) => <div key={entry.tool} className="flex items-center justify-between px-6 py-4"><span className="text-sm font-medium text-slate-800">{entry.tool}</span><span className="font-mono text-sm text-primary">{entry.downloads}</span></div>)}</div>}
             </section>
             <section className="border border-border bg-white">
-              <div className="border-b border-border px-6 py-5"><div className="font-mono text-xs uppercase tracking-widest text-primary">Last 30 days</div><h2 className="mt-2 text-xl font-light">Most downloaded files</h2></div>
-              {activityData.files.length === 0 ? <div className="p-8 text-sm text-muted-foreground">No downloads recorded.</div> : <div className="divide-y divide-border">{activityData.files.slice(0, 10).map((entry) => <div key={entry.file} className="flex items-start justify-between gap-4 px-6 py-4"><span className="min-w-0 break-words text-sm text-slate-700">{entry.file}</span><span className="shrink-0 font-mono text-sm text-primary">{entry.downloads}</span></div>)}</div>}
+              <div className="border-b border-border px-6 py-5"><div className="font-mono text-xs uppercase tracking-widest text-primary">{selectedPortalPeriodLabel}</div><h2 className="mt-2 text-xl font-light">Most downloaded files</h2></div>
+              {selectedPortalFiles.length === 0 ? <div className="p-8 text-sm text-muted-foreground">No downloads recorded for this period.</div> : <div className="divide-y divide-border">{selectedPortalFiles.slice(0, 10).map((entry) => <div key={entry.file} className="flex items-start justify-between gap-4 px-6 py-4"><span className="min-w-0 break-words text-sm text-slate-700">{entry.file}</span><span className="shrink-0 font-mono text-sm text-primary">{entry.downloads}</span></div>)}</div>}
             </section>
           </div>
 
           <section className="border border-border bg-white">
-            <div className="border-b border-border px-6 py-5"><div className="font-mono text-xs uppercase tracking-widest text-primary">Audit history</div><h2 className="mt-2 text-xl font-light">Recent logins and downloads</h2></div>
-            {activityData.recent.length === 0 ? <div className="p-8 text-sm text-muted-foreground">No activity recorded.</div> : <div className="divide-y divide-border">{activityData.recent.map((entry) => <div key={entry.id} className="grid gap-2 px-6 py-4 md:grid-cols-[150px_minmax(0,1fr)_minmax(0,1.2fr)] md:items-center"><div><span className={cn("inline-flex px-2 py-1 font-mono text-[11px] uppercase", entry.eventType === "download" ? "bg-primary/10 text-primary" : "bg-slate-100 text-slate-600")}>{entry.eventType}</span></div><div className="min-w-0"><div className="truncate text-sm text-slate-800">{entry.name || entry.email || "Unknown user"}</div>{entry.name && <div className="mt-1 truncate text-xs text-muted-foreground">{entry.email}</div>}</div><div className="min-w-0 text-xs text-muted-foreground"><div className="truncate">{entry.file || "Portal sign-in"}</div><div className="mt-1">{activityDate(entry.occurredAt)}</div></div></div>)}</div>}
+            <div className="border-b border-border px-6 py-5"><div className="font-mono text-xs uppercase tracking-widest text-primary">{selectedPortalPeriodLabel}</div><h2 className="mt-2 text-xl font-light">Recent logins and downloads</h2></div>
+            {selectedPortalRecent.length === 0 ? <div className="p-8 text-sm text-muted-foreground">No activity recorded for this period.</div> : <div className="divide-y divide-border">{selectedPortalRecent.map((entry) => <div key={entry.id} className="grid gap-2 px-6 py-4 md:grid-cols-[150px_minmax(0,1fr)_minmax(0,1.2fr)] md:items-center"><div><span className={cn("inline-flex px-2 py-1 font-mono text-[11px] uppercase", entry.eventType === "download" ? "bg-primary/10 text-primary" : "bg-slate-100 text-slate-600")}>{entry.eventType}</span></div><div className="min-w-0"><div className="truncate text-sm text-slate-800">{entry.name || entry.email || "Unknown user"}</div>{entry.name && <div className="mt-1 truncate text-xs text-muted-foreground">{entry.email}</div>}</div><div className="min-w-0 text-xs text-muted-foreground"><div className="truncate">{entry.file || "Portal sign-in"}</div><div className="mt-1">{activityDate(entry.occurredAt)}</div></div></div>)}</div>}
           </section>
         </>
       )}
@@ -2956,10 +3097,15 @@ const Admin = ({ demoMode }: { demoMode: boolean }) => {
       {adminSection === "announcements" && <section id="announcement-editor" className="scroll-mt-24 border border-border bg-white p-6 sm:p-8">
           <div className="flex items-center justify-between"><div><div className="font-mono text-xs uppercase tracking-widest text-primary">Announcements</div><h2 className="mt-2 text-xl font-light">{editingAnnouncementId ? "Edit announcement" : "Publish an update"}</h2></div><Megaphone className="h-5 w-5 text-primary" /></div>
           {editingAnnouncementId && <div className="mt-3 inline-flex bg-amber-50 px-2 py-1 font-mono text-xs text-amber-800">Editing existing announcement</div>}
-          <p className="mt-3 text-xs leading-relaxed text-muted-foreground">Write an update for approved NCI Dose Tools users. You can publish it in the portal only or publish and send it by email.</p>
+          <p className="mt-3 text-xs leading-relaxed text-muted-foreground">Write an update for NCI Dose Tools. Choose Scientific Update to also notify confirmed public subscribers about scientific changes.</p>
           <div className="mt-6 space-y-3">
             <Input value={announcementTitle} onChange={(event) => setAnnouncementTitle(event.target.value)} placeholder="Announcement title" className="rounded-none" />
-            <label className="block max-w-sm"><span className="font-mono text-xs uppercase tracking-wider text-muted-foreground">Category</span><select value={announcementCategory} onChange={(event) => setAnnouncementCategory(event.target.value as typeof announcementCategory)} className="mt-2 h-10 w-full rounded-none border border-input bg-white px-3 text-sm"><option>Release</option><option>Maintenance</option><option>Access</option></select></label>
+            <label className="block max-w-sm"><span className="font-mono text-xs uppercase tracking-wider text-muted-foreground">Category</span><select value={scientificUpdate ? "Scientific" : announcementCategory} onChange={(event) => {
+              const scientific = event.target.value === "Scientific";
+              setScientificUpdate(scientific);
+              setAnnouncementCategory(scientific ? "Release" : event.target.value as typeof announcementCategory);
+              setSendSubscriberEmail(scientific && !subscriberEmailDisabled);
+            }} className="mt-2 h-10 w-full rounded-none border border-input bg-white px-3 text-sm"><option>Release</option><option value="Scientific">Scientific Update</option><option>Maintenance</option><option>Access</option></select></label>
             <textarea value={announcementBody} onChange={(event) => setAnnouncementBody(event.target.value)} className="min-h-44 w-full border border-input bg-background p-3 text-sm outline-none focus:border-primary" placeholder="Write the announcement…" />
             <label className={cn("flex items-start gap-3 border p-4", emailOptionDisabled ? "border-slate-200 bg-slate-50 text-slate-400" : "border-sky-200 bg-sky-50 text-slate-700")}>
               <input type="checkbox" checked={sendAnnouncementEmail} disabled={emailOptionDisabled} onChange={(event) => setSendAnnouncementEmail(event.target.checked)} className="mt-1 h-4 w-4 accent-sky-600" />
@@ -2969,11 +3115,15 @@ const Admin = ({ demoMode }: { demoMode: boolean }) => {
                 {emailOptionDisabled && <span className="mt-1 block text-xs">Email is unavailable for older imported posts and announcements that were already emailed.</span>}
               </span>
             </label>
+            {scientificUpdate && <label className={cn("flex items-start gap-3 border p-4", subscriberEmailDisabled ? "border-slate-200 bg-slate-50 text-slate-400" : "border-sky-200 bg-sky-50 text-slate-700")}>
+              <input type="checkbox" checked={sendSubscriberEmail} disabled={subscriberEmailDisabled} onChange={(event) => setSendSubscriberEmail(event.target.checked)} className="mt-1 h-4 w-4 accent-sky-600" />
+              <span><span className="block text-sm font-medium">Email scientific update subscribers when publishing</span><span className="mt-1 block text-xs leading-relaxed">Send this public scientific update to confirmed subscribers. Maintenance and access announcements are excluded. Emails already included in this announcement's approved-user broadcast are skipped.</span>{subscriberEmailDisabled && <span className="mt-1 block text-xs">Subscriber email is unavailable for imported posts and updates already queued for subscribers.</span>}</span>
+            </label>}
             <div className="flex flex-wrap justify-end gap-2">
               {editingAnnouncementId && <Button type="button" variant="ghost" disabled={savingAnnouncement !== null} onClick={clearAnnouncementForm} className="rounded-none">Cancel edit</Button>}
               <Button type="button" variant="outline" disabled={savingAnnouncement !== null || sendingTestEmail || !announcementTitle.trim() || !announcementBody.trim()} onClick={() => void sendTestEmail()} className="rounded-none">{sendingTestEmail ? <Loader2 className="h-4 w-4 animate-spin" /> : <Mail className="h-4 w-4" />} Send preview to me</Button>
               <Button type="button" variant="outline" disabled={savingAnnouncement !== null} onClick={() => void saveAnnouncement("draft")} className="rounded-none">{savingAnnouncement === "draft" && <Loader2 className="h-4 w-4 animate-spin" />} {editingAnnouncementId ? "Save as draft" : "Save draft"}</Button>
-              <Button type="button" disabled={savingAnnouncement !== null} onClick={() => void saveAnnouncement("published")} className="rounded-none">{savingAnnouncement === "published" && <Loader2 className="h-4 w-4 animate-spin" />} {sendAnnouncementEmail ? "Publish and email users" : editingAnnouncementId ? "Update and publish" : "Publish"}</Button>
+              <Button type="button" disabled={savingAnnouncement !== null} onClick={() => void saveAnnouncement("published")} className="rounded-none">{savingAnnouncement === "published" && <Loader2 className="h-4 w-4 animate-spin" />} {sendAnnouncementEmail || sendSubscriberEmail ? "Publish and email users" : editingAnnouncementId ? "Update and publish" : "Publish"}</Button>
             </div>
           </div>
       </section>}
@@ -2985,7 +3135,7 @@ const Admin = ({ demoMode }: { demoMode: boolean }) => {
             : <div className="divide-y divide-border">
               {adminAnnouncements.map((announcement) => (
                 <div key={announcement.id} className="grid gap-4 px-6 py-5 md:grid-cols-[170px_minmax(0,1fr)_auto] md:items-center">
-                  <div><div className="font-mono text-xs text-muted-foreground">{announcementDate(announcement.originalPublishedAt || announcement.publishedAt)}</div><div className="mt-2 flex flex-wrap gap-1"><span className={cn("inline-flex px-2 py-1 font-mono text-[11px] uppercase", announcement.status === "published" ? "bg-emerald-50 text-emerald-700" : "bg-amber-50 text-amber-800")}>{announcement.status}</span>{announcement.emailDelivery && <span className={cn("inline-flex px-2 py-1 font-mono text-[11px] uppercase", announcement.emailDelivery.status === "sent" ? "bg-sky-50 text-sky-700" : announcement.emailDelivery.status === "failed" ? "bg-red-50 text-red-700" : "bg-slate-100 text-slate-600")}>email {announcement.emailDelivery.status}</span>}</div></div>
+                  <div><div className="font-mono text-xs text-muted-foreground">{announcementDate(announcement.originalPublishedAt || announcement.publishedAt)}</div><div className="mt-2 flex flex-wrap gap-1"><span className={cn("inline-flex px-2 py-1 font-mono text-[11px] uppercase", announcement.status === "published" ? "bg-emerald-50 text-emerald-700" : "bg-amber-50 text-amber-800")}>{announcement.status}</span>{announcement.subscriberEmailQueued && <span className="inline-flex bg-sky-50 px-2 py-1 font-mono text-[11px] uppercase text-sky-700">subscriber email</span>}{announcement.emailDelivery && <span className={cn("inline-flex px-2 py-1 font-mono text-[11px] uppercase", announcement.emailDelivery.status === "sent" ? "bg-sky-50 text-sky-700" : announcement.emailDelivery.status === "failed" ? "bg-red-50 text-red-700" : "bg-slate-100 text-slate-600")}>email {announcement.emailDelivery.status}</span>}</div></div>
                   <div className="min-w-0"><div className="text-sm font-medium text-slate-800">{announcement.title}</div><p className="mt-1 line-clamp-2 text-xs leading-relaxed text-muted-foreground">{readableAnnouncementSummary(announcement.summary, announcement.body)}</p></div>
                   <Button type="button" variant="outline" onClick={() => editAnnouncement(announcement)} className="rounded-none">Edit</Button>
                 </div>

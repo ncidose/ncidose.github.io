@@ -1,3 +1,4 @@
+import { handlePublicSubscriptions, handleAdminSubscribers, queueScientificUpdate, drainSubscriberMail, scientificEmailHtml } from "./subscriptions.js";
 import { summarizeAnnouncement } from "../../src/lib/announcementSummary.js";
 import { ncirfBuiltInSpectrumForValues } from "../../src/data/ncirfBuiltInSpectra.js";
 const allowedPrefixes = ["NCICT/", "NCINM/", "NCIRF/", "PHANTOM/", "DCC/"];
@@ -73,7 +74,8 @@ export const adminRecentActivityQuery = `
     SELECT * FROM (
       SELECT id, user_id, event_type, object_key, occurred_at
       FROM access_events
-      WHERE event_type='login' AND ${adminPortalActivityFilter}
+      WHERE event_type='login' AND occurred_at >= datetime('now', '-30 days')
+        AND ${adminPortalActivityFilter}
       ORDER BY occurred_at DESC
       LIMIT 100
     )
@@ -81,13 +83,16 @@ export const adminRecentActivityQuery = `
     SELECT * FROM (
       SELECT id, user_id, event_type, object_key, occurred_at
       FROM access_events
-      WHERE event_type='download' AND ${adminPortalActivityFilter}
+      WHERE event_type='download' AND occurred_at >= datetime('now', '-30 days')
+        AND ${adminPortalActivityFilter}
       ORDER BY occurred_at DESC
       LIMIT 100
     )
   )
   SELECT events.id, events.user_id, events.event_type, events.object_key, events.occurred_at,
-    users.display_name, identities.normalized_email AS email
+    users.display_name, identities.normalized_email AS email,
+    CASE WHEN events.occurred_at >= datetime('now', '-1 day') THEN 1 ELSE 0 END AS within_today,
+    CASE WHEN events.occurred_at >= datetime('now', '-7 days') THEN 1 ELSE 0 END AS within_7_days
   FROM recent_events events
   LEFT JOIN users ON users.id=events.user_id
   LEFT JOIN user_identities identities
@@ -101,28 +106,36 @@ export const adminPortalActivityQueries = Object.freeze({
       SUM(CASE WHEN event_type='download' AND occurred_at >= datetime('now', '-1 day') THEN 1 ELSE 0 END) AS downloads_today,
       SUM(CASE WHEN event_type='download' AND occurred_at >= datetime('now', '-7 days') THEN 1 ELSE 0 END) AS downloads_7_days,
       SUM(CASE WHEN event_type='download' AND occurred_at >= datetime('now', '-30 days') THEN 1 ELSE 0 END) AS downloads_30_days,
+      COUNT(DISTINCT CASE WHEN event_type='download' AND occurred_at >= datetime('now', '-1 day') THEN user_id END) AS download_users_today,
+      COUNT(DISTINCT CASE WHEN event_type='download' AND occurred_at >= datetime('now', '-7 days') THEN user_id END) AS download_users_7_days,
       COUNT(DISTINCT CASE WHEN event_type='download' AND occurred_at >= datetime('now', '-30 days') THEN user_id END) AS download_users_30_days,
+      SUM(CASE WHEN event_type='login' AND occurred_at >= datetime('now', '-1 day') THEN 1 ELSE 0 END) AS logins_today,
+      SUM(CASE WHEN event_type='login' AND occurred_at >= datetime('now', '-7 days') THEN 1 ELSE 0 END) AS logins_7_days,
       SUM(CASE WHEN event_type='login' AND occurred_at >= datetime('now', '-30 days') THEN 1 ELSE 0 END) AS logins_30_days
     FROM access_events
     WHERE ${adminPortalActivityFilter}
   `,
   tools: `
     SELECT CASE WHEN instr(object_key, '/') > 0 THEN substr(object_key, 1, instr(object_key, '/') - 1) ELSE object_key END AS tool,
-      COUNT(*) AS downloads
+      SUM(CASE WHEN occurred_at >= datetime('now', '-1 day') THEN 1 ELSE 0 END) AS downloads_today,
+      SUM(CASE WHEN occurred_at >= datetime('now', '-7 days') THEN 1 ELSE 0 END) AS downloads_7_days,
+      COUNT(*) AS downloads_30_days
     FROM access_events
     WHERE event_type='download' AND occurred_at >= datetime('now', '-30 days') AND object_key IS NOT NULL
       AND ${adminPortalActivityFilter}
     GROUP BY tool
-    ORDER BY downloads DESC, tool ASC
+    ORDER BY downloads_30_days DESC, tool ASC
   `,
   files: `
-    SELECT object_key AS file, COUNT(*) AS downloads
+    SELECT object_key AS file,
+      SUM(CASE WHEN occurred_at >= datetime('now', '-1 day') THEN 1 ELSE 0 END) AS downloads_today,
+      SUM(CASE WHEN occurred_at >= datetime('now', '-7 days') THEN 1 ELSE 0 END) AS downloads_7_days,
+      COUNT(*) AS downloads_30_days
     FROM access_events
     WHERE event_type='download' AND occurred_at >= datetime('now', '-30 days') AND object_key IS NOT NULL
       AND ${adminPortalActivityFilter}
     GROUP BY object_key
-    ORDER BY downloads DESC, object_key ASC
-    LIMIT 20
+    ORDER BY downloads_30_days DESC, object_key ASC
   `,
   recent: adminRecentActivityQuery,
 });
@@ -953,6 +966,7 @@ async function userForEmail(email, env) {
   return env.DB.prepare(`
     SELECT users.id, users.display_name, users.institution, users.country, users.role, users.sta_status,
       users.access_status, users.approved_at, users.discussion_role, users.discussion_handle,
+      users.community_email_notifications, users.announcement_email_notifications,
       identities.normalized_email AS signed_in_email
     FROM user_identities identities
     JOIN users ON users.id = identities.user_id
@@ -1034,6 +1048,9 @@ const discussionHandle = (value, fallback = "member") => {
   return fallbackHandle || "member";
 };
 export const isDiscussionTeamUser = (user) => user?.role === "admin" || user?.discussion_role === "team";
+export const communityDiscussionEmailsEnabled = (user) => Boolean(
+  user && user.community_email_notifications !== 0 && user.community_email_notifications !== false
+);
 export const discussionAuthorForUser = (user) => {
   const type = isDiscussionTeamUser(user) ? "team" : "community";
   return {
@@ -1058,7 +1075,7 @@ export const shouldNotifyNewDiscussionRecipient = (visibility, authorUserId, rec
   && (
     normalizeQuestionVisibility(visibility) === "team_only"
       ? isDiscussionTeamUser(recipient)
-      : recipient.role === "admin"
+      : communityDiscussionEmailsEnabled(recipient)
   )
 );
 export const shouldNotifyDiscussionReplyRecipient = (question, replyingUser, recipient, parentAuthorId = null) => Boolean(
@@ -1067,15 +1084,21 @@ export const shouldNotifyDiscussionReplyRecipient = (question, replyingUser, rec
   && recipient
   && recipient.id !== replyingUser.id
   && (
-    recipient.id === question.submitted_by_user_id
-    || recipient.id === parentAuthorId
-    || (
-      isDiscussionTeamUser(recipient)
-      && (
-        normalizeQuestionVisibility(question.visibility) === "team_only"
-        || !isDiscussionTeamUser(replyingUser)
+    normalizeQuestionVisibility(question.visibility) === "team_only"
+      ? (
+        recipient.id === question.submitted_by_user_id
+        || recipient.id === parentAuthorId
+        || isDiscussionTeamUser(recipient)
       )
-    )
+      : (
+        communityDiscussionEmailsEnabled(recipient)
+        && (
+          isDiscussionTeamUser(replyingUser)
+          || recipient.id === question.submitted_by_user_id
+          || recipient.id === parentAuthorId
+          || isDiscussionTeamUser(recipient)
+        )
+      )
   )
 );
 const questionTools = new Set(["NCICT", "NCIRF", "NCINM", "PHANTOM", "General"]);
@@ -1191,6 +1214,8 @@ const announcementFromRow = (row) => ({
   summary: row.summary,
   body: row.body,
   category: row.category,
+  scientificUpdate: Boolean(row.scientific_update),
+  subscriberEmailQueued: Boolean(row.subscriber_email_queued),
   audience: row.audience,
   status: row.status,
   originalPublishedAt: row.original_published_at,
@@ -1239,17 +1264,22 @@ async function resendRequest(env, path, options = {}) {
   throw new Error("Resend request could not be completed.");
 }
 
-async function approvedPrimaryEmails(env) {
+async function approvedPrimaryContacts(env) {
   const result = await env.DB.prepare(`
-    SELECT identities.normalized_email AS email
+    SELECT identities.normalized_email AS email, users.announcement_email_notifications
     FROM users
     JOIN user_identities identities
       ON identities.user_id=users.id AND identities.is_primary=1
     WHERE users.access_status='active'
     ORDER BY identities.normalized_email COLLATE NOCASE
   `).all();
-  return result.results.map((entry) => entry.email).filter(Boolean);
+  return result.results.filter((entry) => entry.email).map((entry) => ({
+    email: entry.email,
+    announcementEmailNotifications: Boolean(entry.announcement_email_notifications),
+  }));
 }
+
+const approvedPrimaryEmails = async (env) => (await approvedPrimaryContacts(env)).map((entry) => entry.email);
 
 async function resendSegmentContacts(env) {
   const contacts = [];
@@ -1267,15 +1297,41 @@ async function resendSegmentContacts(env) {
   return contacts;
 }
 
-async function addResendContactToAudience(env, email) {
+async function setResendAnnouncementSubscription(env, email, enabled) {
+  try {
+    await resendRequest(env, `/contacts/${encodeURIComponent(email)}`, {
+      method: "PATCH",
+      body: JSON.stringify({ unsubscribed: !enabled }),
+    });
+  } catch (error) {
+    if (error.status !== 404) throw error;
+    await resendRequest(env, "/contacts", {
+      method: "POST",
+      body: JSON.stringify({ email, unsubscribed: !enabled, segments: [{ id: env.RESEND_SEGMENT_ID }] }),
+    });
+  }
+}
+
+async function resendAnnouncementSubscription(env, email) {
+  try {
+    const contact = await resendRequest(env, `/contacts/${encodeURIComponent(email)}`);
+    return !contact.unsubscribed;
+  } catch (error) {
+    if (error.status === 404) return null;
+    throw error;
+  }
+}
+
+async function addResendContactToAudience(env, email, announcementEnabled = null) {
   try {
     await resendRequest(env, "/contacts", {
       method: "POST",
-      body: JSON.stringify({ email, unsubscribed: false, segments: [{ id: env.RESEND_SEGMENT_ID }] }),
+      body: JSON.stringify({ email, unsubscribed: announcementEnabled === false, segments: [{ id: env.RESEND_SEGMENT_ID }] }),
     });
   } catch (error) {
     if (error.status !== 409) throw error;
     await resendRequest(env, `/contacts/${encodeURIComponent(email)}/segments/${encodeURIComponent(env.RESEND_SEGMENT_ID)}`, { method: "POST" });
+    if (announcementEnabled !== null) await setResendAnnouncementSubscription(env, email, announcementEnabled);
   }
 }
 
@@ -1286,19 +1342,26 @@ const removeResendContactFromAudience = (env, email) => resendRequest(
 );
 
 async function syncResendAudience(env, maximumChanges = 20) {
-  const approvedEmails = await approvedPrimaryEmails(env);
+  const approvedContacts = await approvedPrimaryContacts(env);
+  const approvedEmails = approvedContacts.map((entry) => entry.email);
   const contacts = await resendSegmentContacts(env);
   const approved = new Set(approvedEmails);
   const current = new Set(contacts.map((entry) => String(entry.email || "").toLowerCase()).filter(Boolean));
+  const contactByEmail = new Map(contacts.map((entry) => [String(entry.email || "").toLowerCase(), entry]));
+  const subscribedEmails = approvedContacts.filter((contact) => {
+    const existing = contactByEmail.get(contact.email);
+    return existing ? !existing.unsubscribed : contact.announcementEmailNotifications;
+  }).map((contact) => contact.email);
+  const subscribedCount = subscribedEmails.length;
   const changes = [
-    ...approvedEmails.filter((email) => !current.has(email)).map((email) => ({ action: "add", email })),
+    ...approvedContacts.filter((contact) => !current.has(contact.email)).map((contact) => ({ action: "add", email: contact.email, announcementEmailNotifications: contact.announcementEmailNotifications })),
     ...[...current].filter((email) => !approved.has(email)).map((email) => ({ action: "remove", email })),
   ];
   const results = { added: 0, removed: 0, errors: [], remaining: Math.max(0, changes.length - maximumChanges) };
   for (const change of changes.slice(0, maximumChanges)) {
     try {
       if (change.action === "add") {
-        await addResendContactToAudience(env, change.email);
+        await addResendContactToAudience(env, change.email, change.announcementEmailNotifications);
         results.added += 1;
       } else {
         await removeResendContactFromAudience(env, change.email);
@@ -1312,6 +1375,8 @@ async function syncResendAudience(env, maximumChanges = 20) {
   return {
     configured: true,
     approvedCount: approved.size,
+    subscribedCount,
+    subscribedEmails,
     segmentCount: current.size + results.added - results.removed,
     unchanged: approvedEmails.filter((email) => current.has(email)).length,
     ...results,
@@ -1365,11 +1430,13 @@ const linkifyAnnouncementText = (value) => {
 export const announcementEmailHtml = (announcement, options = {}) => {
   const preview = options.preview === true;
   const includeUnsubscribe = options.includeUnsubscribe !== false;
+  const includeCommunityPreferences = options.includeCommunityPreferences === true;
   const headerLabel = options.headerLabel || "User Portal Update";
   const paragraphs = announcement.body.split(/\n{2,}/).map((paragraph) => `<p style="margin:0 0 18px;line-height:1.65">${linkifyAnnouncementText(paragraph).replaceAll("\n", "<br>")}</p>`).join("");
   const previewBanner = preview ? `<tr><td style="background:#e8f3fa;border-bottom:1px solid #c8ddea;padding:10px 36px;color:#285a78;font-size:12px;font-weight:700;letter-spacing:.08em;text-align:center;text-transform:uppercase">Preview · Sent only to the portal administrator</td></tr>` : "";
-  const unsubscribe = includeUnsubscribe ? `<br><a href="{{{RESEND_UNSUBSCRIBE_URL}}}" style="color:#44647c;text-decoration:underline">Unsubscribe from announcement emails</a>` : "";
-  return `<!doctype html><html><head><meta name="viewport" content="width=device-width,initial-scale=1"><title>${escapeHtml(announcement.title)}</title></head><body style="margin:0;padding:0;background:#edf3f7;color:#172b3a;font-family:Arial,Helvetica,sans-serif"><div style="display:none;max-height:0;overflow:hidden;opacity:0">${escapeHtml(announcement.body.slice(0, 140))}</div><table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background:#edf3f7"><tr><td align="center" style="padding:32px 14px"><table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="max-width:680px;background:#ffffff;border:1px solid #c9d7e2"><tr><td style="background:#123f63;border-bottom:5px solid ${portalEmailBrandBlue};padding:25px 36px"><a href="https://ncidose.github.io/" style="color:#ffffff;font-size:24px;font-weight:400;letter-spacing:.01em;text-decoration:none">NCI Dose Tools</a><div style="margin-top:7px;color:#c9e5f4;font-size:11px;letter-spacing:.16em;text-transform:uppercase">${escapeHtml(headerLabel)}</div></td></tr>${previewBanner}<tr><td style="padding:38px 36px 20px"><span style="display:inline-block;background:#e9f5fb;border:1px solid ${portalEmailBrandBlue};color:#126b9a;font-size:11px;font-weight:700;letter-spacing:.12em;padding:7px 10px;text-transform:uppercase">${escapeHtml(announcement.category)}</span><h1 style="color:#143047;font-size:30px;font-weight:400;line-height:1.25;margin:18px 0 27px">${escapeHtml(announcement.title)}</h1><div style="color:#2c4050;font-size:16px;line-height:1.65">${paragraphs}</div><table role="presentation" cellspacing="0" cellpadding="0" border="0" style="margin:30px 0 12px"><tr><td style="background:${portalEmailBrandBlue}"><a href="https://portal.ncidosetools.com" style="display:inline-block;color:#ffffff;font-size:15px;font-weight:700;padding:14px 22px;text-decoration:none">Open NCI Dose Tools User Portal</a></td></tr></table></td></tr><tr><td style="padding:8px 36px 34px"><div style="border-top:1px solid #d8e2ea;padding-top:22px;color:#2b4355;font-size:14px;line-height:1.6">Sincerely,<br><strong>NCI Dose Team</strong><br><a href="https://ncidose.github.io/" style="color:#2b4355;text-decoration:underline">NCI Dose Tools portal</a><br><span style="color:#627688">National Cancer Institute</span></div></td></tr><tr><td style="background:#f4f7f9;border-top:1px solid #d8e2ea;padding:20px 36px;color:#607486;font-size:11px;line-height:1.6">This message was sent to an email linked to an approved NCI Dose Tools User Portal account.${unsubscribe}</td></tr></table></td></tr></table></body></html>`;
+  const unsubscribe = includeUnsubscribe ? `<br><a href="https://portal.ncidosetools.com/#/portal/account" style="color:#44647c;text-decoration:underline">Manage email notifications in Account</a> · <a href="{{{RESEND_UNSUBSCRIBE_URL}}}" style="color:#44647c;text-decoration:underline">Unsubscribe from announcement emails</a>` : "";
+  const communityPreferences = includeCommunityPreferences ? `<br>Do not want community discussion emails? <a href="https://portal.ncidosetools.com/#/portal/account" style="color:#44647c;text-decoration:underline">Turn them off in Account</a>.` : "";
+  return `<!doctype html><html><head><meta name="viewport" content="width=device-width,initial-scale=1"><title>${escapeHtml(announcement.title)}</title></head><body style="margin:0;padding:0;background:#edf3f7;color:#172b3a;font-family:Arial,Helvetica,sans-serif"><div style="display:none;max-height:0;overflow:hidden;opacity:0">${escapeHtml(announcement.body.slice(0, 140))}</div><table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background:#edf3f7"><tr><td align="center" style="padding:32px 14px"><table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="max-width:680px;background:#ffffff;border:1px solid #c9d7e2"><tr><td style="background:#123f63;border-bottom:5px solid ${portalEmailBrandBlue};padding:25px 36px"><a href="https://ncidose.github.io/" style="color:#ffffff;font-size:24px;font-weight:400;letter-spacing:.01em;text-decoration:none">NCI Dose Tools</a><div style="margin-top:7px;color:#c9e5f4;font-size:11px;letter-spacing:.16em;text-transform:uppercase">${escapeHtml(headerLabel)}</div></td></tr>${previewBanner}<tr><td style="padding:38px 36px 20px"><span style="display:inline-block;background:#e9f5fb;border:1px solid ${portalEmailBrandBlue};color:#126b9a;font-size:11px;font-weight:700;letter-spacing:.12em;padding:7px 10px;text-transform:uppercase">${escapeHtml(announcement.category)}</span><h1 style="color:#143047;font-size:30px;font-weight:400;line-height:1.25;margin:18px 0 27px">${escapeHtml(announcement.title)}</h1><div style="color:#2c4050;font-size:16px;line-height:1.65">${paragraphs}</div><table role="presentation" cellspacing="0" cellpadding="0" border="0" style="margin:30px 0 12px"><tr><td style="background:${portalEmailBrandBlue}"><a href="https://portal.ncidosetools.com" style="display:inline-block;color:#ffffff;font-size:15px;font-weight:700;padding:14px 22px;text-decoration:none">Open NCI Dose Tools User Portal</a></td></tr></table></td></tr><tr><td style="padding:8px 36px 34px"><div style="border-top:1px solid #d8e2ea;padding-top:22px;color:#2b4355;font-size:14px;line-height:1.6">Sincerely,<br><strong>NCI Dose Team</strong><br><a href="https://ncidose.github.io/" style="color:#2b4355;text-decoration:underline">NCI Dose Tools portal</a><br><span style="color:#627688">National Cancer Institute</span></div></td></tr><tr><td style="background:#f4f7f9;border-top:1px solid #d8e2ea;padding:20px 36px;color:#607486;font-size:11px;line-height:1.6">This message was sent to an email linked to an approved NCI Dose Tools User Portal account.${unsubscribe}${communityPreferences}</td></tr></table></td></tr></table></body></html>`;
 };
 
 export const welcomeEmailHtml = (displayName, email) => announcementEmailHtml({
@@ -1404,32 +1471,85 @@ async function sendPortalAccountEmail(env, { to, subject, html, text }) {
   return { status: "sent", sentTo: to, providerEmailId: result.id || null };
 }
 
-async function sendDiscussionReplyNotifications(env, context, { question, replyingUser, author, parentAuthorId = null }) {
+async function sendPortalAccountEmailBatch(env, messages) {
+  for (let start = 0; start < messages.length; start += 100) {
+    const batch = messages.slice(start, start + 100).map((message) => ({
+      from: env.RESEND_FROM,
+      to: [message.to],
+      subject: message.subject,
+      html: message.html,
+      text: message.text,
+    }));
+    await resendRequest(env, "/emails/batch", { method: "POST", body: JSON.stringify(batch) });
+  }
+}
+
+const communityEmailPreferenceText = "Do not want community discussion emails? Turn them off in Account: https://portal.ncidosetools.com/#/portal/account";
+
+const discussionNotificationUrl = (questionId) => `https://portal.ncidosetools.com/#/portal/questions?discussion=${questionId}`;
+
+export const newDiscussionNotificationEmail = ({ id, requestType, tool, visibility, title, body, authorName, includeContent = false }) => {
+  const teamOnly = normalizeQuestionVisibility(visibility) === "team_only";
+  const requestLabel = qaRequestTypeLabel(requestType);
+  const notificationUrl = discussionNotificationUrl(id);
+  const visibilityLabel = teamOnly ? "NCI Dose Team only" : "Public discussion";
+  const summary = `A new ${requestLabel.toLowerCase()} was posted:\n\n${title}`;
+  const content = includeContent
+    ? `${summary}\n\nSubmitted by: ${authorName}\n\nQuestion\n${body}`
+    : summary;
+  const completeContent = `${content}\n\nVisibility: ${visibilityLabel}\n\nOpen the discussion:\n${notificationUrl}`;
+  return {
+    subject: `New NCI Dose Tools ${requestLabel.toLowerCase()}: ${title}`,
+    html: announcementEmailHtml({
+      title: includeContent ? title : `A new ${requestLabel.toLowerCase()} was posted`,
+      category: requestType === "feature_request" ? "Feature request" : tool,
+      body: completeContent,
+    }, { includeUnsubscribe: false, includeCommunityPreferences: !teamOnly, headerLabel: "Community Discussions" }),
+    text: `${completeContent}\n\nNCI Dose Team\nNational Cancer Institute${teamOnly ? "" : `\n\n${communityEmailPreferenceText}`}`,
+  };
+};
+
+export const discussionReplyNotificationEmail = ({ question, authorName, replyBody, includeContent = false }) => {
+  const teamOnly = normalizeQuestionVisibility(question.visibility) === "team_only";
+  const visibilityLabel = teamOnly ? "Private NCI Dose Team discussion" : "Community discussion";
+  const notificationUrl = discussionNotificationUrl(question.id);
+  const summary = `${authorName} replied to “${question.title}.”`;
+  const content = includeContent
+    ? `${summary}\n\nNew reply\n${replyBody}\n\nOriginal question\n${question.body}`
+    : summary;
+  const completeContent = `${content}\n\n${visibilityLabel}.\n\nOpen the full conversation:\n${notificationUrl}`;
+  return {
+    subject: `New reply: ${question.title}`,
+    html: announcementEmailHtml({
+      title: includeContent ? `New reply: ${question.title}` : "A discussion has a new reply",
+      category: qaRequestTypeLabel(question.request_type),
+      body: completeContent,
+    }, { includeUnsubscribe: false, includeCommunityPreferences: !teamOnly, headerLabel: "Community Discussions" }),
+    text: `${completeContent}\n\nNCI Dose Team\nNational Cancer Institute${teamOnly ? "" : `\n\n${communityEmailPreferenceText}`}`,
+  };
+};
+
+async function sendDiscussionReplyNotifications(env, context, { question, replyingUser, author, replyBody, parentAuthorId = null }) {
   if (!env.RESEND_API_KEY || !env.RESEND_FROM) return;
   const candidates = await env.DB.prepare(`
-    SELECT DISTINCT users.id, users.role, users.discussion_role,
+    SELECT DISTINCT users.id, users.role, users.discussion_role, users.community_email_notifications,
       identities.normalized_email AS email
     FROM users
     JOIN user_identities identities ON identities.user_id=users.id AND identities.is_primary=1
     WHERE users.access_status='active' AND users.id<>?
-      AND (
-        users.id=? OR users.id=?
-        OR users.role='admin' OR users.discussion_role='team'
-      )
-  `).bind(replyingUser.id, question.submitted_by_user_id || "", parentAuthorId || "").all();
-  const visibilityLabel = normalizeQuestionVisibility(question.visibility) === "team_only"
-    ? "Private NCI Dose Team discussion"
-    : "Community discussion";
-  for (const recipient of candidates.results.filter((candidate) => (
+  `).bind(replyingUser.id).all();
+  const messages = candidates.results.filter((candidate) => (
     shouldNotifyDiscussionReplyRecipient(question, replyingUser, candidate, parentAuthorId)
-  ))) {
-    context.waitUntil(sendPortalAccountEmail(env, {
+  )).map((recipient) => ({
       to: recipient.email,
-      subject: `New reply: ${question.title}`,
-      html: announcementEmailHtml({ title: "A discussion has a new reply", category: qaRequestTypeLabel(question.request_type), body: `${author.name} replied to “${question.title}.”\n\n${visibilityLabel}. Open the discussion in the approved User Portal to read the full conversation and respond.` }, { includeUnsubscribe: false, headerLabel: "Community Discussions" }),
-      text: `${author.name} replied to “${question.title}.”\n\n${visibilityLabel}.\n\nOpen the full conversation: https://portal.ncidosetools.com/#/portal/questions?discussion=${question.id}\n\nNCI Dose Team\nNational Cancer Institute`,
-    }).catch(() => undefined));
-  }
+      ...discussionReplyNotificationEmail({
+        question,
+        authorName: author.name,
+        replyBody,
+        includeContent: isDiscussionTeamUser(recipient),
+      }),
+  }));
+  if (messages.length) context.waitUntil(sendPortalAccountEmailBatch(env, messages).catch(() => undefined));
 }
 
 const welcomeEmailText = (displayName, email) => `Hello ${displayName || "NCI Dose Tools user"},\n\nYour approved access to the NCI Dose Tools User Portal is ready.\n\nSign in using this exact email address: ${email}. A one-time verification code will be sent to that address. Other email addresses will not receive a code unless they are already linked to this account.\n\nOpen User Portal: https://portal.ncidosetools.com\n\nSincerely,\nNCI Dose Team\nNCI Dose Tools portal: https://ncidose.github.io/\nNational Cancer Institute`;
@@ -1572,14 +1692,14 @@ async function logoutPortalSession(request, env, cors) {
   return new Response(null, { status: 204, headers });
 }
 
-async function sendAnnouncementBroadcast(env, announcement, requestedByUserId, recipientCount) {
+async function sendAnnouncementBroadcast(env, announcement, requestedByUserId, recipientCount, recipientEmails = []) {
   const existing = await env.DB.prepare("SELECT status FROM announcement_email_deliveries WHERE announcement_id=?").bind(announcement.id).first();
   if (existing) return { status: existing.status, duplicate: true };
   const deliveryId = crypto.randomUUID();
   await env.DB.prepare(`
-    INSERT INTO announcement_email_deliveries (id, announcement_id, status, recipient_count, requested_by_user_id)
-    VALUES (?, ?, 'queued', ?, ?)
-  `).bind(deliveryId, announcement.id, recipientCount, requestedByUserId).run();
+    INSERT INTO announcement_email_deliveries (id, announcement_id, status, recipient_count, requested_by_user_id, recipient_emails_json)
+    VALUES (?, ?, 'queued', ?, ?, ?)
+  `).bind(deliveryId, announcement.id, recipientCount, requestedByUserId, JSON.stringify(recipientEmails)).run();
   try {
     const broadcast = await resendRequest(env, "/broadcasts", {
       method: "POST",
@@ -1589,7 +1709,7 @@ async function sendAnnouncementBroadcast(env, announcement, requestedByUserId, r
         subject: announcement.title,
         name: `NCI Dose Tools - ${announcement.title}`.slice(0, 120),
         html: announcementEmailHtml(announcement),
-        text: `NCI Dose Tools: https://ncidose.github.io/\n\n${announcement.title}\n\n${announcement.body}\n\nOpen User Portal: https://portal.ncidosetools.com\n\nSincerely,\nNCI Dose Team\nNCI Dose Tools portal: https://ncidose.github.io/\nNational Cancer Institute\n\nUnsubscribe: {{{RESEND_UNSUBSCRIBE_URL}}}`,
+        text: `NCI Dose Tools: https://ncidose.github.io/\n\n${announcement.title}\n\n${announcement.body}\n\nOpen User Portal: https://portal.ncidosetools.com\n\nSincerely,\nNCI Dose Team\nNCI Dose Tools portal: https://ncidose.github.io/\nNational Cancer Institute\n\nManage email notifications: https://portal.ncidosetools.com/#/portal/account\nUnsubscribe from announcement emails: {{{RESEND_UNSUBSCRIBE_URL}}}`,
         send: true,
       }),
     });
@@ -1674,10 +1794,18 @@ async function storeQaAttachment(request, env, { question, answerId = null, user
 }
 
 export default {
+  async scheduled(_event, env, context) {
+    context.waitUntil((async () => {
+      await drainSubscriberMail(env);
+      await env.DB.prepare("DELETE FROM subscription_requests WHERE created_at<datetime('now','-2 days')").run();
+    })());
+  },
   async fetch(request, env, context) {
     const url = new URL(request.url);
     const cors = corsHeaders(request, env);
     if (request.method === "OPTIONS") return new Response(null, { status: 204, headers: cors });
+    const subscriptionResponse = await handlePublicSubscriptions(request, env, context, cors);
+    if (subscriptionResponse) return subscriptionResponse;
     if (request.method === "GET" && url.pathname === "/health") return json({ ok: true, service: "ncidose-portal-api" }, 200, cors);
     if (request.method === "GET" && url.pathname === "/api/public/vendor-demo") {
       const tool = url.searchParams.get("tool");
@@ -1739,6 +1867,9 @@ export default {
       const user = await userForEmail(email, env);
       if (!user || user.access_status !== "active") return json({ error: "portal_access_denied", email }, 403, cors);
 
+      const subscribersResponse = await handleAdminSubscribers(request, env, user, cors);
+      if (subscribersResponse) return subscribersResponse;
+
       if (request.method === "GET" && url.pathname === "/api/me") {
         await env.DB.prepare("UPDATE user_identities SET email_verified=1, updated_at=CURRENT_TIMESTAMP WHERE normalized_email=?").bind(email).run();
         const identities = await identitiesForUser(user.id, env);
@@ -1794,25 +1925,21 @@ export default {
         ]);
         if (env.RESEND_API_KEY && env.RESEND_FROM) {
           const notificationCandidates = await env.DB.prepare(`
-            SELECT users.id, users.role, users.discussion_role,
+            SELECT users.id, users.role, users.discussion_role, users.community_email_notifications,
               identities.normalized_email AS email
             FROM users JOIN user_identities identities ON identities.user_id=users.id AND identities.is_primary=1
             WHERE users.access_status='active'
-              AND (users.role='admin' OR users.discussion_role='team')
           `).all();
-          const notificationUrl = visibility === "team_only"
-            ? `https://portal.ncidosetools.com/#/portal/questions?discussion=${id}`
-            : "https://portal.ncidosetools.com/#/portal/admin";
-          for (const recipient of notificationCandidates.results.filter((candidate) => (
+          const messages = notificationCandidates.results.filter((candidate) => (
             shouldNotifyNewDiscussionRecipient(visibility, user.id, candidate)
-          ))) {
-            context.waitUntil(sendPortalAccountEmail(env, {
+          )).map((recipient) => ({
               to: recipient.email,
-              subject: `New NCI Dose Tools ${qaRequestTypeLabel(requestType).toLowerCase()}: ${title}`,
-              html: announcementEmailHtml({ title: `A new ${qaRequestTypeLabel(requestType).toLowerCase()} was posted`, category: requestType === "feature_request" ? "Feature request" : tool, body: `${title}\n\nVisibility: ${visibility === "team_only" ? "NCI Dose Team only" : "Public discussion"}\n\nOpen it in the approved User Portal to read and respond.` }, { includeUnsubscribe: false, headerLabel: "Community Discussions" }),
-              text: `A new ${qaRequestTypeLabel(requestType).toLowerCase()} was posted:\n\n${title}\n\nVisibility: ${visibility === "team_only" ? "NCI Dose Team only" : "Public discussion"}\n\nOpen the discussion:\n${notificationUrl}`,
-            }).catch(() => undefined));
-          }
+              ...newDiscussionNotificationEmail({
+                id, requestType, tool, visibility, title, body, authorName: author.name,
+                includeContent: isDiscussionTeamUser(recipient),
+              }),
+          }));
+          if (messages.length) context.waitUntil(sendPortalAccountEmailBatch(env, messages).catch(() => undefined));
         }
         const created = (await loadQuestions(env, { viewer: user })).find((question) => question.id === id);
         return json({ question: created }, 201, cors);
@@ -1859,7 +1986,7 @@ export default {
           env.DB.prepare("INSERT INTO access_events (id, user_id, event_type, metadata_json) VALUES (?, ?, 'discussion_reply_added', ?)")
             .bind(crypto.randomUUID(), user.id, JSON.stringify({ questionId: question.id, answerId, parentAnswerId })),
         ]);
-        await sendDiscussionReplyNotifications(env, context, { question, replyingUser: user, author, parentAuthorId });
+        await sendDiscussionReplyNotifications(env, context, { question, replyingUser: user, author, replyBody: body, parentAuthorId });
         const updated = (await loadQuestions(env, { viewer: user })).find((entry) => entry.id === question.id);
         return json({ question: updated, answer: updated?.answers.find((answer) => answer.id === answerId) }, 201, cors);
       }
@@ -1926,6 +2053,70 @@ export default {
         return json({ profile: { name: displayName, institution, country } }, 200, cors);
       }
 
+      if (request.method === "GET" && url.pathname === "/api/account/notifications") {
+        let announcementEmailNotifications = Boolean(user.announcement_email_notifications);
+        if (env.RESEND_API_KEY && env.RESEND_SEGMENT_ID && env.RESEND_FROM) {
+          const identities = await identitiesForUser(user.id, env);
+          const primaryEmail = identities.find((identity) => identity.primary)?.email;
+          if (primaryEmail) {
+            try {
+              const providerPreference = await resendAnnouncementSubscription(env, primaryEmail);
+              if (providerPreference !== null && providerPreference !== announcementEmailNotifications) {
+                announcementEmailNotifications = providerPreference;
+                await env.DB.prepare("UPDATE users SET announcement_email_notifications=?, updated_at=CURRENT_TIMESTAMP WHERE id=?").bind(providerPreference ? 1 : 0, user.id).run();
+              }
+            } catch {
+              // Keep the stored preference when Resend is temporarily unavailable.
+            }
+          }
+        }
+        return json({ notifications: {
+          communityEmailNotifications: Boolean(user.community_email_notifications),
+          announcementEmailNotifications,
+        } }, 200, cors);
+      }
+
+      if (request.method === "PATCH" && url.pathname === "/api/account/notifications") {
+        const originError = requireSameOrigin(request, url, cors);
+        if (originError) return originError;
+        const input = await request.json();
+        const hasCommunityPreference = Object.prototype.hasOwnProperty.call(input, "communityEmailNotifications");
+        const hasAnnouncementPreference = Object.prototype.hasOwnProperty.call(input, "announcementEmailNotifications");
+        if ((!hasCommunityPreference && !hasAnnouncementPreference)
+          || (hasCommunityPreference && typeof input.communityEmailNotifications !== "boolean")
+          || (hasAnnouncementPreference && typeof input.announcementEmailNotifications !== "boolean")) {
+          return json({ error: "valid_notification_preference_required" }, 400, cors);
+        }
+        const communityEmailNotifications = hasCommunityPreference
+          ? input.communityEmailNotifications
+          : Boolean(user.community_email_notifications);
+        const announcementEmailNotifications = hasAnnouncementPreference
+          ? input.announcementEmailNotifications
+          : Boolean(user.announcement_email_notifications);
+        if (hasAnnouncementPreference && (!env.RESEND_API_KEY || !env.RESEND_SEGMENT_ID || !env.RESEND_FROM)) {
+          return json({ error: "announcement_email_unavailable" }, 503, cors);
+        }
+        if (hasAnnouncementPreference) {
+          const identities = await identitiesForUser(user.id, env);
+          const primaryEmail = identities.find((identity) => identity.primary)?.email;
+          if (primaryEmail) {
+            try {
+              await setResendAnnouncementSubscription(env, primaryEmail, announcementEmailNotifications);
+            } catch (error) {
+              return json({ error: "announcement_preference_sync_failed", detail: String(error.message || error) }, 502, cors);
+            }
+          }
+        }
+        await env.DB.prepare("UPDATE users SET community_email_notifications=?, announcement_email_notifications=?, updated_at=CURRENT_TIMESTAMP WHERE id=?")
+          .bind(communityEmailNotifications ? 1 : 0, announcementEmailNotifications ? 1 : 0, user.id).run();
+        context.waitUntil(env.DB.prepare("INSERT INTO access_events (id, user_id, event_type, metadata_json) VALUES (?, ?, 'notification_preferences_updated', ?)").bind(
+          crypto.randomUUID(),
+          user.id,
+          JSON.stringify({ communityEmailNotifications, announcementEmailNotifications }),
+        ).run());
+        return json({ notifications: { communityEmailNotifications, announcementEmailNotifications } }, 200, cors);
+      }
+
       const primaryEmailMatch = url.pathname.match(/^\/api\/account\/emails\/([0-9a-f-]+)\/primary$/i);
       if (request.method === "PATCH" && primaryEmailMatch) {
         const originError = requireSameOrigin(request, url, cors);
@@ -1951,7 +2142,7 @@ export default {
           ).run());
           if (env.RESEND_API_KEY && env.RESEND_SEGMENT_ID) {
             context.waitUntil(Promise.allSettled([
-              addResendContactToAudience(env, identity.normalized_email),
+              addResendContactToAudience(env, identity.normalized_email, Boolean(user.announcement_email_notifications)),
               previousPrimary?.normalized_email && previousPrimary.normalized_email !== identity.normalized_email
                 ? removeResendContactFromAudience(env, previousPrimary.normalized_email)
                 : Promise.resolve(),
@@ -2086,25 +2277,59 @@ export default {
           last7Days: sandboxLocationsForPeriod("7_days"),
           last30Days: sandboxLocationsForPeriod("30_days"),
         };
+        const portalDownloadsForPeriod = (rows, key, suffix, limit) => rows.map((entry) => ({
+          [key]: entry[key] || (key === "tool" ? "Other" : "Unknown file"),
+          downloads: Number(entry[`downloads_${suffix}`] || 0),
+        })).filter((entry) => entry.downloads > 0)
+          .sort((left, right) => right.downloads - left.downloads || String(left[key]).localeCompare(String(right[key])))
+          .slice(0, limit);
+        const portalToolsByPeriod = {
+          today: portalDownloadsForPeriod(toolResult.results, "tool", "today", 100),
+          last7Days: portalDownloadsForPeriod(toolResult.results, "tool", "7_days", 100),
+          last30Days: portalDownloadsForPeriod(toolResult.results, "tool", "30_days", 100),
+        };
+        const portalFilesByPeriod = {
+          today: portalDownloadsForPeriod(fileResult.results, "file", "today", 20),
+          last7Days: portalDownloadsForPeriod(fileResult.results, "file", "7_days", 20),
+          last30Days: portalDownloadsForPeriod(fileResult.results, "file", "30_days", 20),
+        };
+        const portalRecentActivity = recentResult.results.map((entry) => ({
+          id: entry.id,
+          userId: entry.user_id,
+          eventType: entry.event_type,
+          file: entry.object_key,
+          occurredAt: entry.occurred_at,
+          name: entry.display_name,
+          email: entry.email,
+          withinToday: Number(entry.within_today || 0) === 1,
+          within7Days: Number(entry.within_7_days || 0) === 1,
+        }));
+        const portalRecentForPeriod = (period) => portalRecentActivity
+          .filter((entry) => period === "today" ? entry.withinToday : period === "last7Days" ? entry.within7Days : true)
+          .map(({ withinToday: _withinToday, within7Days: _within7Days, ...entry }) => entry);
+        const portalRecentByPeriod = {
+          today: portalRecentForPeriod("today"),
+          last7Days: portalRecentForPeriod("last7Days"),
+          last30Days: portalRecentForPeriod("last30Days"),
+        };
         return json({
           summary: {
             downloadsToday: Number(summary.downloads_today || 0),
             downloads7Days: Number(summary.downloads_7_days || 0),
             downloads30Days: Number(summary.downloads_30_days || 0),
+            downloadUsersToday: Number(summary.download_users_today || 0),
+            downloadUsers7Days: Number(summary.download_users_7_days || 0),
             downloadUsers30Days: Number(summary.download_users_30_days || 0),
+            loginsToday: Number(summary.logins_today || 0),
+            logins7Days: Number(summary.logins_7_days || 0),
             logins30Days: Number(summary.logins_30_days || 0),
           },
-          tools: toolResult.results.map((entry) => ({ tool: entry.tool || "Other", downloads: Number(entry.downloads) })),
-          files: fileResult.results.map((entry) => ({ file: entry.file, downloads: Number(entry.downloads) })),
-          recent: recentResult.results.map((entry) => ({
-            id: entry.id,
-            userId: entry.user_id,
-            eventType: entry.event_type,
-            file: entry.object_key,
-            occurredAt: entry.occurred_at,
-            name: entry.display_name,
-            email: entry.email,
-          })),
+          tools: portalToolsByPeriod.last30Days,
+          toolsByPeriod: portalToolsByPeriod,
+          files: portalFilesByPeriod.last30Days,
+          filesByPeriod: portalFilesByPeriod,
+          recent: portalRecentByPeriod.last30Days,
+          recentByPeriod: portalRecentByPeriod,
           sandbox: {
             summary: {
               requestsToday: Number(sandboxSummary.requests_today || 0),
@@ -2229,7 +2454,7 @@ export default {
         if (adminUserMatch[1] === user.id && accessStatus === "suspended") return json({ error: "cannot_suspend_current_admin" }, 409, cors);
         const existing = await env.DB.prepare(`
           SELECT users.id, users.display_name, users.institution, users.country, users.role, users.access_status, users.discussion_role,
-            users.discussion_handle, identities.normalized_email AS primary_email
+            users.discussion_handle, users.announcement_email_notifications, identities.normalized_email AS primary_email
           FROM users
           LEFT JOIN user_identities identities ON identities.user_id=users.id AND identities.is_primary=1
           WHERE users.id=?
@@ -2358,7 +2583,7 @@ export default {
         }
         if (accessStatus && existing.primary_email && env.RESEND_API_KEY && env.RESEND_SEGMENT_ID) {
           const syncContact = accessStatus === "active"
-            ? addResendContactToAudience(env, existing.primary_email)
+            ? addResendContactToAudience(env, existing.primary_email, Boolean(existing.announcement_email_notifications))
             : removeResendContactFromAudience(env, existing.primary_email);
           context.waitUntil(syncContact.catch(() => undefined));
         }
@@ -2491,7 +2716,7 @@ export default {
           VALUES (?, ?, ?, 'team', ?, NULL, 'response', ?, ?)
         `).bind(answerId, question.id, body, author.name, Number(order.next_order || 0), user.id).run();
         await env.DB.prepare("UPDATE qa_questions SET updated_at=CURRENT_TIMESTAMP WHERE id=?").bind(question.id).run();
-        await sendDiscussionReplyNotifications(env, context, { question, replyingUser: user, author });
+        await sendDiscussionReplyNotifications(env, context, { question, replyingUser: user, author, replyBody: body });
         const questions = await loadQuestions(env);
         const updated = questions.find((entry) => entry.id === question.id);
         return json({ question: updated, answer: updated?.answers.find((entry) => entry.id === answerId) }, 200, cors);
@@ -2560,7 +2785,7 @@ export default {
               from: env.RESEND_FROM,
               to: [user.signed_in_email],
               subject: `[Preview] ${title}`,
-              html: announcementEmailHtml(previewAnnouncement, { preview: true, includeUnsubscribe: false }),
+              html: input.scientificUpdate === true ? scientificEmailHtml(previewAnnouncement) : announcementEmailHtml(previewAnnouncement, { preview: true, includeUnsubscribe: false }),
               text: `PREVIEW — sent only to the portal administrator\n\nNCI Dose Tools: https://ncidose.github.io/\n\n${title}\n\n${body}\n\nOpen NCI Dose Tools User Portal: https://portal.ncidosetools.com\n\nSincerely,\nNCI Dose Team\nNCI Dose Tools portal: https://ncidose.github.io/\nNational Cancer Institute`,
             }),
           });
@@ -2574,7 +2799,8 @@ export default {
         const includeDrafts = url.searchParams.get("includeDrafts") === "1" && user.role === "admin";
         const result = await env.DB.prepare(`
           SELECT announcements.id, announcements.title, announcements.summary, announcements.body,
-            announcements.category, announcements.audience, announcements.status,
+            announcements.category, announcements.audience, announcements.status, announcements.scientific_update,
+            EXISTS (SELECT 1 FROM subscriber_campaigns WHERE announcement_id=announcements.id) AS subscriber_email_queued,
             announcements.original_published_at, announcements.published_at, announcements.source_url,
             announcement_reads.read_at, deliveries.status AS email_delivery_status,
             deliveries.recipient_count AS email_recipient_count,
@@ -2621,6 +2847,10 @@ export default {
         const originalPublishedAt = cleanText(input.originalPublishedAt, 40) || null;
         const sourceUrl = cleanText(input.sourceUrl, 1000) || null;
         const sendEmail = input.sendEmail === true;
+        const scientificUpdate = input.scientificUpdate === true && category === "Release";
+        const sendSubscriberEmail = input.sendSubscriberEmail === true;
+        if (sendSubscriberEmail && (!scientificUpdate || status !== "published" || originalPublishedAt || sourceUrl)) return json({ error: "scientific_update_required" }, 400, cors);
+        if (sendSubscriberEmail && (!env.AUTH_SECRET || !env.RESEND_API_KEY || !env.RESEND_FROM)) return json({ error: "subscriptions_unavailable" }, 503, cors);
         if (!title || !body) return json({ error: "title_and_body_required" }, 400, cors);
         if (sourceUrl && !sourceUrl.startsWith("https://groups.google.com/g/ncidose")) {
           return json({ error: "invalid_source_url" }, 400, cors);
@@ -2639,13 +2869,14 @@ export default {
         const id = crypto.randomUUID();
         await env.DB.prepare(`
           INSERT INTO announcements (
-            id, title, summary, body, category, audience, status, original_published_at,
+            id, title, summary, body, category, scientific_update, audience, status, original_published_at,
             published_at, source_url, created_by_user_id
-          ) VALUES (?, ?, ?, ?, ?, 'approved_users', ?, ?, CASE WHEN ?='published' THEN CURRENT_TIMESTAMP END, ?, ?)
-        `).bind(id, title, summary, body, category, status, originalPublishedAt, status, sourceUrl, user.id).run();
+          ) VALUES (?, ?, ?, ?, ?, ?, 'approved_users', ?, ?, CASE WHEN ?='published' THEN CURRENT_TIMESTAMP END, ?, ?)
+        `).bind(id, title, summary, body, category, scientificUpdate ? 1 : 0, status, originalPublishedAt, status, sourceUrl, user.id).run();
         const created = await env.DB.prepare(`
           SELECT announcements.id, announcements.title, announcements.summary, announcements.body,
-            announcements.category, announcements.audience, announcements.status,
+            announcements.category, announcements.audience, announcements.status, announcements.scientific_update,
+            EXISTS (SELECT 1 FROM subscriber_campaigns WHERE announcement_id=announcements.id) AS subscriber_email_queued,
             announcements.original_published_at, announcements.published_at, announcements.source_url,
             deliveries.status AS email_delivery_status, deliveries.recipient_count AS email_recipient_count,
             deliveries.provider_broadcast_id
@@ -2653,9 +2884,18 @@ export default {
           LEFT JOIN announcement_email_deliveries deliveries ON deliveries.announcement_id=announcements.id
           WHERE announcements.id=?
         `).bind(id).first();
-        const emailDelivery = sendEmail ? await sendAnnouncementBroadcast(env, created, user.id, audienceSync.approvedCount) : null;
+        const emailDelivery = sendEmail ? await sendAnnouncementBroadcast(env, created, user.id, audienceSync.subscribedCount, audienceSync.subscribedEmails) : null;
+        let subscriberDelivery = null;
+        if (sendSubscriberEmail) {
+          try {
+            subscriberDelivery = { status: "queued", ...await queueScientificUpdate(env, created) };
+            context.waitUntil(drainSubscriberMail(env));
+          } catch {
+            subscriberDelivery = { status: "failed", error: "Subscriber email could not be queued. Save and send again to retry." };
+          }
+        }
         context.waitUntil(env.DB.prepare("INSERT INTO access_events (id, user_id, event_type, metadata_json) VALUES (?, ?, 'announcement_created', ?)").bind(crypto.randomUUID(), user.id, JSON.stringify({ announcementId: id, status })).run());
-        return json({ announcement: { ...announcementFromRow(created), emailDelivery }, emailDelivery }, 201, cors);
+        return json({ announcement: { ...announcementFromRow(created), emailDelivery, subscriberEmailQueued: Boolean(created.subscriber_email_queued || subscriberDelivery?.status === "queued") }, emailDelivery, subscriberDelivery }, 201, cors);
       }
 
       const announcementMatch = url.pathname.match(/^\/api\/admin\/announcements\/([0-9a-f-]+)$/i);
@@ -2674,12 +2914,17 @@ export default {
         const originalPublishedAt = cleanText(input.originalPublishedAt, 40) || null;
         const sourceUrl = cleanText(input.sourceUrl, 1000) || null;
         const sendEmail = input.sendEmail === true;
+        const scientificUpdate = input.scientificUpdate === true && category === "Release";
+        const sendSubscriberEmail = input.sendSubscriberEmail === true;
+        if (sendSubscriberEmail && (!scientificUpdate || status !== "published" || originalPublishedAt || sourceUrl)) return json({ error: "scientific_update_required" }, 400, cors);
+        if (sendSubscriberEmail && (!env.AUTH_SECRET || !env.RESEND_API_KEY || !env.RESEND_FROM)) return json({ error: "subscriptions_unavailable" }, 503, cors);
         if (!title || !body) return json({ error: "title_and_body_required" }, 400, cors);
         if (sourceUrl && !sourceUrl.startsWith("https://groups.google.com/g/ncidose")) {
           return json({ error: "invalid_source_url" }, 400, cors);
         }
         if (sendEmail && status !== "published") return json({ error: "email_requires_published_announcement" }, 400, cors);
         if (sendEmail && (originalPublishedAt || sourceUrl)) return json({ error: "historical_announcement_email_not_allowed" }, 400, cors);
+        if (sendEmail && await env.DB.prepare("SELECT announcement_id FROM subscriber_campaigns WHERE announcement_id=?").bind(existing.id).first()) return json({ error: "subscriber_email_already_queued", detail: "This update already has subscriber email queued. Approved-user email must be selected before subscriber delivery starts." }, 409, cors);
         let audienceSync = null;
         if (sendEmail) {
           try {
@@ -2691,14 +2936,15 @@ export default {
         }
         await env.DB.prepare(`
           UPDATE announcements SET
-            title=?, summary=?, body=?, category=?, status=?, original_published_at=?,
+            title=?, summary=?, body=?, category=?, scientific_update=?, status=?, original_published_at=?,
             published_at=CASE WHEN ?='published' THEN COALESCE(published_at, CURRENT_TIMESTAMP) ELSE NULL END,
             source_url=?, updated_at=CURRENT_TIMESTAMP
           WHERE id=?
-        `).bind(title, summary, body, category, status, originalPublishedAt, status, sourceUrl, announcementMatch[1]).run();
+        `).bind(title, summary, body, category, scientificUpdate ? 1 : 0, status, originalPublishedAt, status, sourceUrl, announcementMatch[1]).run();
         const updated = await env.DB.prepare(`
           SELECT announcements.id, announcements.title, announcements.summary, announcements.body,
-            announcements.category, announcements.audience, announcements.status,
+            announcements.category, announcements.audience, announcements.status, announcements.scientific_update,
+            EXISTS (SELECT 1 FROM subscriber_campaigns WHERE announcement_id=announcements.id) AS subscriber_email_queued,
             announcements.original_published_at, announcements.published_at, announcements.source_url,
             deliveries.status AS email_delivery_status, deliveries.recipient_count AS email_recipient_count,
             deliveries.provider_broadcast_id
@@ -2706,13 +2952,22 @@ export default {
           LEFT JOIN announcement_email_deliveries deliveries ON deliveries.announcement_id=announcements.id
           WHERE announcements.id=?
         `).bind(announcementMatch[1]).first();
-        const emailDelivery = sendEmail ? await sendAnnouncementBroadcast(env, updated, user.id, audienceSync.approvedCount) : updated.email_delivery_status ? {
+        const emailDelivery = sendEmail ? await sendAnnouncementBroadcast(env, updated, user.id, audienceSync.subscribedCount, audienceSync.subscribedEmails) : updated.email_delivery_status ? {
           status: updated.email_delivery_status,
           recipientCount: updated.email_recipient_count,
           providerBroadcastId: updated.provider_broadcast_id,
         } : null;
+        let subscriberDelivery = null;
+        if (sendSubscriberEmail) {
+          try {
+            subscriberDelivery = { status: "queued", ...await queueScientificUpdate(env, updated) };
+            context.waitUntil(drainSubscriberMail(env));
+          } catch {
+            subscriberDelivery = { status: "failed", error: "Subscriber email could not be queued. Save and send again to retry." };
+          }
+        }
         context.waitUntil(env.DB.prepare("INSERT INTO access_events (id, user_id, event_type, metadata_json) VALUES (?, ?, 'announcement_updated', ?)").bind(crypto.randomUUID(), user.id, JSON.stringify({ announcementId: announcementMatch[1], status })).run());
-        return json({ announcement: { ...announcementFromRow(updated), emailDelivery }, emailDelivery }, 200, cors);
+        return json({ announcement: { ...announcementFromRow(updated), emailDelivery, subscriberEmailQueued: Boolean(updated.subscriber_email_queued || subscriberDelivery?.status === "queued") }, emailDelivery, subscriberDelivery }, 200, cors);
       }
 
       if (request.method === "GET" && url.pathname === "/api/files") {

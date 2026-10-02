@@ -74,9 +74,9 @@ const userPaths = [
   },
   {
     title: "Commercial vendor",
-    text: "Test NCICT, NCINM, and NCIRF directly in the public sandbox. Contact NCI licensing only when you are planning production or commercial integration.",
-    href: "/vendors#api-sandbox",
-    linkText: "Open vendor sandbox",
+    text: "Explore APIs, try the public sandbox, or contact NCI about commercial licensing.",
+    href: "/vendors",
+    linkText: "Explore APIs and licensing",
     external: false,
   },
   {

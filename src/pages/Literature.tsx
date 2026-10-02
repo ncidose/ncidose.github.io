@@ -248,7 +248,7 @@ const Literature = () => {
               <h1
                 className={`mt-4 ${
                   selectedTool
-                    ? "whitespace-nowrap text-section-md lg:text-section"
+                    ? "break-words text-section-md lg:text-section"
                     : "text-hero-md lg:text-hero"
                 }`}
               >

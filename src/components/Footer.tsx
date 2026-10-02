@@ -26,14 +26,15 @@ export const Footer = () => {
         href: "/researchers",
       },
       {
-        label: "Vendor API Sandbox",
-        href: "/vendors#api-sandbox",
+        label: "For Vendors",
+        href: "/vendors",
       },
       { label: "Discussions", href: "/discussions" },
       { label: "Literature Registry", href: "/literature" },
       { label: "Links & Resources", href: "/resources" },
     ],
     Resources: [
+      { label: "Subscribe to Scientific Updates", href: "/#stay-updated" },
       { label: "Official NCI Resources", href: "https://dceg.cancer.gov/tools/radiation-dosimetry-tools", external: true },
       {
         label: "Approved User Portal",

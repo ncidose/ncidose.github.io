@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import portalWorker, { adminPortalActivityFilter, adminPortalActivityQueries, adminPortalExcludedEmails, adminRecentActivityQuery, adminSandboxActivityQueries, adminSandboxExcludedCities, adminSandboxReportingFilter, adminUsersQuery, announcementEmailHtml, canPublishQuestion, canViewDiscussion, discussionAuthorForUser, folderArchiveKeys, generateLoginCode, isFolderDownloadPrefix, linkedEmailWelcomeHtml, loginCodeEmailHtml, normalizeAdminUserDetails, normalizePortalEmail, normalizeQuestionVisibility, portalSessionCookieHeader, qaAttachmentValidationError, secondaryEmailAddedHtml, shouldNotifyDiscussionReplyRecipient, shouldNotifyNewDiscussionRecipient, vendorDemoErrorForUpstream, vendorDemoLimits, vendorDemoLocationForRequest, vendorDemoPresetForInput, vendorDemoPresets, vendorDemoRequestForInput, welcomeEmailHtml } from "../../scripts/portal/worker.js";
+import portalWorker, { adminPortalActivityFilter, adminPortalActivityQueries, adminPortalExcludedEmails, adminRecentActivityQuery, adminSandboxActivityQueries, adminSandboxExcludedCities, adminSandboxReportingFilter, adminUsersQuery, announcementEmailHtml, canPublishQuestion, canViewDiscussion, communityDiscussionEmailsEnabled, discussionAuthorForUser, discussionReplyNotificationEmail, folderArchiveKeys, generateLoginCode, isFolderDownloadPrefix, linkedEmailWelcomeHtml, loginCodeEmailHtml, newDiscussionNotificationEmail, normalizeAdminUserDetails, normalizePortalEmail, normalizeQuestionVisibility, portalSessionCookieHeader, qaAttachmentValidationError, secondaryEmailAddedHtml, shouldNotifyDiscussionReplyRecipient, shouldNotifyNewDiscussionRecipient, vendorDemoErrorForUpstream, vendorDemoLimits, vendorDemoLocationForRequest, vendorDemoPresetForInput, vendorDemoPresets, vendorDemoRequestForInput, welcomeEmailHtml } from "../../scripts/portal/worker.js";
 
 describe("admin activity query", () => {
   it("uses an indexed primary-identity join instead of a per-event correlated lookup", () => {
@@ -16,6 +16,23 @@ describe("admin activity query", () => {
     for (const query of Object.values(adminPortalActivityQueries)) {
       expect(query).toContain("choonsiklee@gmail.com");
     }
+  });
+
+  it("aggregates every User Portal report for all selectable activity periods", () => {
+    expect(adminPortalActivityQueries.summary).toContain("download_users_today");
+    expect(adminPortalActivityQueries.summary).toContain("download_users_7_days");
+    expect(adminPortalActivityQueries.summary).toContain("download_users_30_days");
+    expect(adminPortalActivityQueries.summary).toContain("logins_today");
+    expect(adminPortalActivityQueries.summary).toContain("logins_7_days");
+    expect(adminPortalActivityQueries.summary).toContain("logins_30_days");
+    for (const query of [adminPortalActivityQueries.tools, adminPortalActivityQueries.files]) {
+      expect(query).toContain("downloads_today");
+      expect(query).toContain("downloads_7_days");
+      expect(query).toContain("downloads_30_days");
+    }
+    expect(adminRecentActivityQuery).toContain("within_today");
+    expect(adminRecentActivityQuery).toContain("within_7_days");
+    expect(adminRecentActivityQuery).toContain("datetime('now', '-30 days')");
   });
 
   it("excludes the Maryland test cities from every sandbox activity report", () => {
@@ -671,6 +688,33 @@ describe("Q&A visibility", () => {
     expect(shouldNotifyNewDiscussionRecipient("team_only", author.id, author)).toBe(false);
   });
 
+  it("sends new public discussions to every opted-in member", () => {
+    const author = { id: "user-1", role: "user", discussion_role: "community", community_email_notifications: 1 };
+    const optedInMember = { id: "user-2", role: "user", discussion_role: "community", community_email_notifications: 1 };
+    const optedOutMember = { id: "user-3", role: "user", discussion_role: "community", community_email_notifications: 0 };
+
+    expect(communityDiscussionEmailsEnabled(optedInMember)).toBe(true);
+    expect(communityDiscussionEmailsEnabled(optedOutMember)).toBe(false);
+    expect(shouldNotifyNewDiscussionRecipient("public_after_review", author.id, optedInMember)).toBe(true);
+    expect(shouldNotifyNewDiscussionRecipient("public_after_review", author.id, optedOutMember)).toBe(false);
+    expect(shouldNotifyNewDiscussionRecipient("public_after_review", author.id, author)).toBe(false);
+  });
+
+  it("sends public team replies to opted-in members but keeps community replies scoped", () => {
+    const question = { visibility: "public_after_review", submitted_by_user_id: "user-1" };
+    const replyingTeamMember = { id: "team-1", role: "user", discussion_role: "team", community_email_notifications: 1 };
+    const replyingCommunityMember = { id: "user-4", role: "user", discussion_role: "community", community_email_notifications: 1 };
+    const submitter = { id: "user-1", role: "user", discussion_role: "community", community_email_notifications: 1 };
+    const unrelatedMember = { id: "user-2", role: "user", discussion_role: "community", community_email_notifications: 1 };
+    const optedOutMember = { id: "user-3", role: "user", discussion_role: "community", community_email_notifications: 0 };
+
+    expect(shouldNotifyDiscussionReplyRecipient(question, replyingTeamMember, submitter)).toBe(true);
+    expect(shouldNotifyDiscussionReplyRecipient(question, replyingTeamMember, unrelatedMember)).toBe(true);
+    expect(shouldNotifyDiscussionReplyRecipient(question, replyingTeamMember, optedOutMember)).toBe(false);
+    expect(shouldNotifyDiscussionReplyRecipient(question, replyingCommunityMember, submitter)).toBe(true);
+    expect(shouldNotifyDiscussionReplyRecipient(question, replyingCommunityMember, unrelatedMember)).toBe(false);
+  });
+
   it("keeps the private team informed as replies accumulate", () => {
     const question = { visibility: "team_only", submitted_by_user_id: "user-1" };
     const replyingTeamMember = { id: "team-1", role: "user", discussion_role: "team" };
@@ -682,6 +726,57 @@ describe("Q&A visibility", () => {
     expect(shouldNotifyDiscussionReplyRecipient(question, replyingTeamMember, submitter)).toBe(true);
     expect(shouldNotifyDiscussionReplyRecipient(question, replyingTeamMember, unrelatedUser)).toBe(false);
     expect(shouldNotifyDiscussionReplyRecipient(question, replyingTeamMember, replyingTeamMember)).toBe(false);
+  });
+});
+
+describe("discussion notification email content", () => {
+  it("includes the full question only for team and administrator recipients", () => {
+    const input = {
+      id: "discussion-123",
+      requestType: "technical_question",
+      tool: "NCINM",
+      visibility: "team_only",
+      title: "Review mesh <dose>",
+      body: "Please review the oesophagus dose results before responding.",
+      authorName: "Portal Researcher",
+    };
+    const teamEmail = newDiscussionNotificationEmail({ ...input, includeContent: true });
+    const communityEmail = newDiscussionNotificationEmail({ ...input, includeContent: false });
+
+    expect(teamEmail.subject).toContain("Review mesh <dose>");
+    expect(teamEmail.html).toContain("Review mesh &lt;dose&gt;");
+    expect(teamEmail.html).toContain("Submitted by: Portal Researcher");
+    expect(teamEmail.html).toContain("Please review the oesophagus dose results before responding.");
+    expect(teamEmail.html).toContain('href="https://portal.ncidosetools.com/#/portal/questions?discussion=discussion-123"');
+    expect(teamEmail.text).toContain("Question\nPlease review the oesophagus dose results before responding.");
+    expect(communityEmail.html).not.toContain("Please review the oesophagus dose results before responding.");
+    expect(communityEmail.text).not.toContain("Please review the oesophagus dose results before responding.");
+  });
+
+  it("includes reply and original-question context only for team and administrator recipients", () => {
+    const input = {
+      question: {
+        id: "discussion-456",
+        request_type: "bug_report",
+        visibility: "public_after_review",
+        title: "Unexpected batch result",
+        body: "The original question includes the failing input description.",
+      },
+      authorName: "@ncidoseteam",
+      replyBody: "Please check the attached output before I post the final answer. <script>alert(1)</script>",
+    };
+    const teamEmail = discussionReplyNotificationEmail({ ...input, includeContent: true });
+    const communityEmail = discussionReplyNotificationEmail({ ...input, includeContent: false });
+
+    expect(teamEmail.html).toContain("New reply: Unexpected batch result");
+    expect(teamEmail.html).toContain("Please check the attached output before I post the final answer.");
+    expect(teamEmail.html).toContain("The original question includes the failing input description.");
+    expect(teamEmail.html).toContain("&lt;script&gt;alert(1)&lt;/script&gt;");
+    expect(teamEmail.html).not.toContain("<script>alert(1)</script>");
+    expect(teamEmail.text).toContain("New reply\nPlease check the attached output before I post the final answer.");
+    expect(teamEmail.text).toContain("Original question\nThe original question includes the failing input description.");
+    expect(communityEmail.html).not.toContain("Please check the attached output before I post the final answer.");
+    expect(communityEmail.html).not.toContain("The original question includes the failing input description.");
   });
 });
 
@@ -697,6 +792,8 @@ describe("announcement email template", () => {
     expect(html).toContain("border:1px solid #0EA5E9");
     expect(html).toContain("background:#0EA5E9");
     expect(html).toContain("color:#0EA5E9;text-decoration:underline");
+    expect(html).toContain("Manage email notifications in Account");
+    expect(html).toContain("https://portal.ncidosetools.com/#/portal/account");
     expect(html).not.toContain("#2ba8df");
     expect(html).not.toContain("#147da8");
   });
@@ -757,6 +854,18 @@ describe("announcement email template", () => {
     expect(html).toContain("Other email addresses will not receive a code unless they are already linked");
     expect(html).toContain("NCI Dose Team");
     expect(html).not.toContain("RESEND_UNSUBSCRIBE_URL");
+  });
+
+  it("links community emails to the Account notification setting", () => {
+    const html = announcementEmailHtml({
+      title: "New bug report",
+      body: "A public bug report was posted.",
+      category: "PHANTOM",
+    }, { includeUnsubscribe: false, includeCommunityPreferences: true, headerLabel: "Community Discussions" });
+
+    expect(html).toContain("Do not want community discussion emails?");
+    expect(html).toContain("https://portal.ncidosetools.com/#/portal/account");
+    expect(html).toContain("Turn them off in Account");
   });
 
   it("confirms a secondary email and explains verification", () => {

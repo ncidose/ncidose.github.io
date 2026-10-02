@@ -198,6 +198,19 @@ describe("portal migration experience", () => {
     fireEvent.click(screen.getByRole("button", { name: "User Portal Activity" }));
     expect(screen.getByRole("heading", { name: "Sign-ins and downloads" })).toBeInTheDocument();
     expect(screen.queryByRole("heading", { name: "API sandbox usage" })).not.toBeInTheDocument();
+
+    const portalLast30DaysButton = screen.getByRole("button", { name: "Show Last 30 days portal activity" });
+    expect(portalLast30DaysButton).toHaveAttribute("aria-pressed", "true");
+    fireEvent.click(screen.getByRole("button", { name: "Show Today portal activity" }));
+    expect(screen.getByRole("button", { name: "Show Today portal activity" })).toHaveAttribute("aria-pressed", "true");
+    expect(portalLast30DaysButton).toHaveAttribute("aria-pressed", "false");
+    for (const heading of ["Downloads by tool", "Most downloaded files", "Recent logins and downloads"]) {
+      expect(within(screen.getByRole("heading", { name: heading }).parentElement as HTMLElement).getByText("Today")).toBeInTheDocument();
+    }
+    fireEvent.click(screen.getByRole("button", { name: "Show Last 7 days portal activity" }));
+    for (const heading of ["Downloads by tool", "Most downloaded files", "Recent logins and downloads"]) {
+      expect(within(screen.getByRole("heading", { name: heading }).parentElement as HTMLElement).getByText("Last 7 days")).toBeInTheDocument();
+    }
   });
 
   it("keeps public resources visible inside the approved portal", () => {
@@ -243,7 +256,7 @@ describe("portal migration experience", () => {
     expect(screen.queryByText(/kevin\.chang@nih\.gov/i)).not.toBeInTheDocument();
   });
 
-  it("sends an ineligible visitor to the live vendor sandbox instead of email", () => {
+  it("offers commercial licensing and API testing to an ineligible visitor", () => {
     render(
       <MemoryRouter initialEntries={["/portal/request-access"]}>
         <Portal />
@@ -252,8 +265,8 @@ describe("portal migration experience", () => {
 
     answerStaEligibility(false);
 
-    expect(screen.getByRole("heading", { name: /try the live vendor sandbox instead/i })).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /open vendor sandbox/i })).toHaveAttribute("href", "/vendors#api-sandbox");
+    expect(screen.getByRole("heading", { name: /Explore commercial licensing or try the APIs/i })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /open API sandbox/i })).toHaveAttribute("href", "/vendors#api-sandbox");
     expect(screen.queryByText(/kevin\.chang@nih\.gov/i)).not.toBeInTheDocument();
     expect(screen.queryByLabelText(/Your full name/i)).not.toBeInTheDocument();
   });
@@ -355,7 +368,31 @@ describe("portal migration experience", () => {
     expect(screen.getAllByText("researcher@university.edu")).toHaveLength(2);
     expect(screen.getByText(/sign out and return to the User Portal/i)).toBeInTheDocument();
     expect(screen.queryByText(/Preview code/i)).not.toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: /profile information/i })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /^profile$/i })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /account details/i })).toBeInTheDocument();
+    expect(screen.queryByText(/approved access/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/login methods/i)).not.toBeInTheDocument();
+  });
+
+  it("shows both email notification choices as enabled by default and lets the member turn them off", () => {
+    window.sessionStorage.setItem("ncidose-portal-demo-user", "user");
+    render(
+      <MemoryRouter initialEntries={["/portal/account"]}>
+        <Portal />
+      </MemoryRouter>,
+    );
+
+    const communityPreference = screen.getByRole("switch", { name: /community discussion email notifications/i });
+    const announcementPreference = screen.getByRole("switch", { name: /admin announcement email notifications/i });
+    expect(communityPreference).toHaveAttribute("aria-checked", "true");
+    expect(announcementPreference).toHaveAttribute("aria-checked", "true");
+    expect(screen.getByText(/Release, maintenance, and access updates/i)).toBeInTheDocument();
+    expect(screen.getByText(/Updates stay in the Portal. Sign-in and security emails always stay on/i)).toBeInTheDocument();
+
+    fireEvent.click(communityPreference);
+    fireEvent.click(announcementPreference);
+    expect(communityPreference).toHaveAttribute("aria-checked", "false");
+    expect(announcementPreference).toHaveAttribute("aria-checked", "false");
   });
 
   it("shows approved-user management only in the admin view", () => {

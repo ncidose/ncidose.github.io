@@ -12,8 +12,8 @@ const Index = () => {
       <Header />
       <main>
         <Hero />
-        <LatestUpdates />
         <WhereToStart />
+        <LatestUpdates />
         <WhatAreTools />
         <GlobalMap />
       </main>

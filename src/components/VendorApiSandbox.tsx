@@ -580,7 +580,7 @@ const ParameterControls = ({
   </div>
 );
 
-export const VendorApiSandbox = ({ initialTool }: { initialTool?: string | null }) => {
+export const VendorApiSandbox = ({ initialTool, onToolChange }: { initialTool?: string | null; onToolChange?: (tool: string) => void }) => {
   const initialPreset = useMemo(() => vendorApiDemoPresetForTool(initialTool), [initialTool]);
   const [selectedId, setSelectedId] = useState(initialPreset.id);
   const [parameterSets, setParameterSets] = useState<Record<string, Record<string, ParameterValue>>>(() =>
@@ -659,6 +659,18 @@ export const VendorApiSandbox = ({ initialTool }: { initialTool?: string | null 
     };
   }, [selected.id, selected.tool]);
 
+  // Route changes (component links and browser history) must select the matching calculator.
+  useEffect(() => {
+    requestSequence.current += 1;
+    setSelectedId(initialPreset.id);
+    setActiveNcirfBackend("cpu");
+    setStatus("idle");
+    setResult(null);
+    setError("");
+    setErrorCode("");
+    setQueueProgress(null);
+  }, [initialPreset.id]);
+
   const updateParameter = (name: string, value: ParameterValue) => {
     setParameterSets((current) => ({
       ...current,
@@ -675,6 +687,8 @@ export const VendorApiSandbox = ({ initialTool }: { initialTool?: string | null 
     if (status === "running") return;
     requestSequence.current += 1;
     setSelectedId(presetId);
+    const preset = vendorApiDemoPresets.find((item) => item.id === presetId);
+    if (preset) onToolChange?.(preset.tool);
     setActiveNcirfBackend("cpu");
     setStatus("idle");
     setResult(null);
@@ -956,8 +970,9 @@ export const VendorApiSandbox = ({ initialTool }: { initialTool?: string | null 
 
                 {status === "success" && (
                   <div className="min-h-0 flex-1">
-                    <div className="flex items-center gap-2 border-b border-emerald-200 bg-emerald-50 px-5 py-3 text-sm text-emerald-900" role="status">
-                      <CheckCircle2 className="h-4 w-4" /> Live calculation completed
+                    <div className="flex flex-wrap items-center gap-2 border-b border-emerald-200 bg-emerald-50 px-5 py-3 text-sm text-emerald-900" role="status">
+                      <CheckCircle2 className="h-4 w-4 shrink-0" /> Live calculation completed
+                      <a href="#commercial-access" className="ml-auto font-medium underline underline-offset-4" data-analytics-tool={selected.tool} data-analytics-action="view_licensing_path">Discuss commercial licensing</a>
                     </div>
                     {result?.demo?.engine && (
                       <div className="grid gap-4 border-b border-slate-200 bg-slate-50 px-5 py-4 sm:grid-cols-[1fr_auto] sm:items-end">

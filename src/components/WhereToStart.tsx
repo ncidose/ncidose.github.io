@@ -6,8 +6,8 @@ import { portalLinks } from "@/data/nciDoseTools";
 const startingPoints = [
   {
     icon: FlaskConical,
-    title: "Research Use",
-    description: "Eligible non-commercial researchers can prepare the Software Transfer Agreement required before approved access.",
+    title: "For Researchers",
+    description: "Prepare an STA for non-commercial research access.",
     link: "/portal/request-access/",
     linkText: "Request Research Access",
     external: false,
@@ -18,10 +18,10 @@ const startingPoints = [
   },
   {
     icon: Building2,
-    title: "Vendor API Sandbox",
-    description: "Product teams can run NCICT, NCINM, and NCIRF with adjustable inputs, then use the manuals to review the full request structure.",
-    link: "/vendors#api-sandbox",
-    linkText: "Try Live APIs",
+    title: "For Vendors",
+    description: "Explore the APIs and discuss commercial licensing.",
+    link: "/vendors",
+    linkText: "APIs & Commercial Licensing",
     external: false,
     color: "bg-primary",
     analyticsEvent: "vendor_sandbox_open",
@@ -31,7 +31,7 @@ const startingPoints = [
   {
     icon: LogIn,
     title: "Approved User Portal",
-    description: "Existing users with approved research or commercial access can sign in for downloads, announcements, and account support.",
+    description: "Sign in for downloads and account support.",
     link: portalLinks.userPortal,
     linkText: "Open Portal",
     external: true,
@@ -44,14 +44,14 @@ const startingPoints = [
 
 export const WhereToStart = () => {
   return (
-    <section id="where-to-start" className="pb-16 pt-8 sm:pb-20 sm:pt-10">
+    <section id="where-to-start" className="pb-8 pt-2 sm:pb-10">
       <div className="container mx-auto px-6">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
           transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
-          className="mb-10 sm:mb-12"
+          className="sr-only"
         >
           <span className="text-xs font-mono text-primary uppercase tracking-widest">
             Getting Started
@@ -65,7 +65,7 @@ export const WhereToStart = () => {
         </motion.div>
 
         {/* Horizontal cards layout */}
-        <div className="space-y-4">
+        <div className="grid gap-3 md:grid-cols-3">
           {startingPoints.map((point, index) => (
             <motion.div
               key={point.title}
@@ -111,33 +111,13 @@ export const WhereToStart = () => {
 };
 
 const CardContent = ({ point }: { point: typeof startingPoints[0] }) => (
-  <div className="flex items-center bg-white dark:bg-slate-50 border border-border  overflow-hidden transition-all duration-300 group-hover:border-primary/50">
-    {/* Left accent with number */}
-    <div className={`${point.color} w-16 h-full min-h-[100px] flex items-center justify-center shrink-0`}>
-      <span className="font-mono text-white text-2xl font-light">
-        <point.icon className="w-8 h-8 text-white" />
-        {/* {String(index + 1).padStart(2, '0')} */}
-      </span>
-    </div>
-
-    {/* Content */}
-    <div className="flex flex-1 flex-col items-start justify-between gap-4 p-5 sm:flex-row sm:items-center sm:gap-6 sm:p-6">
-      <div className="flex items-center gap-5">
-        {/* <div className="w-12 h-12 rounded-full bg-slate-100 flex items-center justify-center shrink-0">
-          <point.icon className="w-5 h-5 text-slate-600" />
-        </div> */}
-        <div>
-          <h3 className="text-lg font-medium text-slate-900 mb-1">{point.title}</h3>
-          <p className="text-sm text-slate-500">{point.description}</p>
-        </div>
-      </div>
-      
-      {/* Arrow */}
-      <div className="flex w-full shrink-0 items-center justify-between gap-2 text-primary sm:w-auto sm:justify-start">
-        <span className="font-mono text-xs sm:text-sm">
-          {point.linkText}
-        </span>
-        <ArrowRight className="w-5 h-5 transition-transform group-hover:translate-x-1" />
+  <div className="flex h-full items-start gap-3 border border-border bg-white p-4 transition-colors group-hover:border-primary sm:p-5">
+    <point.icon className="mt-1 h-5 w-5 shrink-0 text-primary" aria-hidden="true" />
+    <div className="min-w-0 flex-1">
+      <h3 className="text-lg font-medium text-slate-900">{point.title}</h3>
+      <p className="mt-1 text-sm leading-relaxed text-slate-500">{point.description}</p>
+      <div className="mt-3 flex items-center gap-2 text-sm font-medium text-primary">
+        {point.linkText}<ArrowRight className="h-4 w-4 shrink-0" />
       </div>
     </div>
   </div>

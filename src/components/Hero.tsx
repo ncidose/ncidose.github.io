@@ -1,8 +1,12 @@
 import { motion } from "framer-motion";
+import { UpdateSubscription } from "@/components/UpdateSubscription";
 
 export const Hero = () => {
   return (
-    <section className="relative flex items-center justify-center overflow-hidden pb-8 pt-24 sm:pb-10 sm:pt-28">
+    <section className="relative flex items-center justify-center overflow-hidden pb-8 pt-32 sm:pb-10 sm:pt-28">
+      <div className="absolute inset-x-0 top-20 z-20">
+        <div className="container mx-auto flex justify-end px-6"><UpdateSubscription compact /></div>
+      </div>
       <div className="container mx-auto px-6 relative z-10 flex justify-center">
         <div className="max-w-4xl space-y-6 text-center">
           <motion.div
@@ -31,8 +35,8 @@ export const Hero = () => {
             className="mx-auto max-w-3xl text-base leading-relaxed text-muted-foreground sm:text-lg"
           >
             NCI-developed organ-dose estimation tools for CT, nuclear medicine,
-            and radiography/fluoroscopy research, with a public live sandbox for
-            vendor API testing and licensed pathways for production integration.
+            and radiography/fluoroscopy. Explore research software or integrate
+            dose calculations into your commercial product.
           </motion.p>
         </div>
       </div>

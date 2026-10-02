@@ -2,7 +2,7 @@ export const LICENSING_EMAIL = "kevin.chang@nih.gov";
 
 const defaultProduct = "NCI Dose Tools REST APIs";
 
-export const createLicensingMailto = (product = defaultProduct) => {
+export const createLicensingMessage = (product = defaultProduct) => {
   const productName = product.trim() || defaultProduct;
   const subject = `${productName} commercial licensing inquiry`;
   const body = [
@@ -19,5 +19,10 @@ export const createLicensingMailto = (product = defaultProduct) => {
     "Thank you,",
   ].join("\n");
 
+  return { subject, body };
+};
+
+export const createLicensingMailto = (product = defaultProduct) => {
+  const { subject, body } = createLicensingMessage(product);
   return `mailto:${LICENSING_EMAIL}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
 };

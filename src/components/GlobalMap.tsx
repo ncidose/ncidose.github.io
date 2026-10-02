@@ -106,7 +106,7 @@ export const GlobalMap = () => {
             Global Reach
           </span>
           <h2 className="mt-4 text-section-md lg:text-section">
-            Global Distribution of NCI Dose Tools Users
+            Geographic Reach of NCI Dose Tools STAs
           </h2>
         </motion.div>
 
@@ -125,7 +125,7 @@ export const GlobalMap = () => {
                 center: [0, 12],
               }}
               className="h-full w-full"
-              aria-label="World map with user distribution"
+              aria-label="World map of Software Transfer Agreement records"
             >
               <Geographies geography={geoUrl}>
                 {({ geographies }) =>
@@ -206,14 +206,14 @@ export const GlobalMap = () => {
                   <span className="font-medium">{tooltip.name}</span>
                 </div>
                 <div className="mt-1 pl-4 text-[11px] text-muted-foreground">
-                  <span className="tabular-nums">{tooltip.users.toLocaleString()}</span> users
+                  <span className="tabular-nums">{tooltip.users.toLocaleString()}</span> STA records
                 </div>
               </div>
             ) : null}
 
             <div className="absolute left-6 top-1/2 hidden -translate-y-1/2 sm:block lg:left-10">
               <div className="text-[10px] font-mono uppercase text-muted-foreground">
-                Users
+                STA records
               </div>
               <div className="relative mt-3 flex">
                 <div
@@ -245,12 +245,12 @@ export const GlobalMap = () => {
             </div> */}
           </div>
           <div className="mt-3 text-center font-mono text-[11px] uppercase tracking-wider text-muted-foreground">
-            Total users: {totalUsers.toLocaleString()} · Updated {mapUpdatedAt}
+            Total STA records: {totalUsers.toLocaleString()} · Updated {mapUpdatedAt}
           </div>
           <div className="mt-3 px-1 sm:hidden">
             <div className="flex items-center justify-between gap-4">
               <div className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground">
-                Users
+                STA records
               </div>
               <div className="text-[10px] text-muted-foreground">
                 {legendMinUsers.toLocaleString()}-{legendMaxUsers.toLocaleString()}

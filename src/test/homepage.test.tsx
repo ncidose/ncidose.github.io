@@ -41,13 +41,13 @@ const expectAnalytics = (
 };
 
 describe("homepage visitor paths", () => {
-  it("shows dated release highlights before the role pathways, with one-click histories", () => {
+  it("shows role pathways before dated release highlights, with one-click histories", () => {
     render(<MemoryRouter initialEntries={["/"]}><Index /></MemoryRouter>);
     const section = screen.getByRole("region", { name: "Latest updates" });
     const title = screen.getByRole("heading", { name: "NCI Dose Tools" });
     const pathways = screen.getByRole("heading", { name: "Where to Start" });
     expect(title.compareDocumentPosition(section) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-    expect(section.compareDocumentPosition(pathways) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(pathways.compareDocumentPosition(section) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     const items = within(section).getAllByRole("listitem");
     const updates = getLatestUpdates(releaseHistories);
     expect(items).toHaveLength(4);
@@ -86,8 +86,8 @@ describe("homepage visitor paths", () => {
     expect(startingPointHeading.compareDocumentPosition(productHeading) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(productHeading.compareDocumentPosition(trustHeading) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
 
-    expect(screen.getByRole("heading", { name: "Research Use" })).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "Vendor API Sandbox" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "For Researchers" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "For Vendors" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Approved User Portal" })).toBeInTheDocument();
     expect(screen.queryByRole("heading", { name: "Explore the Tools" })).not.toBeInTheDocument();
     expect(screen.queryByText(/new users can also start an access request from the same page/i)).not.toBeInTheDocument();
@@ -123,14 +123,14 @@ describe("homepage visitor paths", () => {
       "Tools",
       "Manuals",
       "For Researchers",
-      "Vendor Sandbox",
+      "For Vendors",
       "Discussions",
       "Literature Registry",
     ]);
     expect(within(desktopNavigation as HTMLElement).getByRole("link", { name: "For Researchers" })).not.toHaveAttribute(
       "data-analytics-event",
     );
-    const vendorNavigation = within(desktopNavigation as HTMLElement).getByRole("link", { name: "Vendor Sandbox" });
+    const vendorNavigation = within(desktopNavigation as HTMLElement).getByRole("link", { name: "For Vendors" });
     expect(vendorNavigation).toHaveAttribute("href", "/vendors");
     expect(vendorNavigation).not.toHaveAttribute("data-analytics-event");
 

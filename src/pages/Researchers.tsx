@@ -67,6 +67,8 @@ const Researchers = () => {
                   dosimetry method development, the tools are available at no cost
                   for non-commercial research use under approved agreements.
                 </p>
+                <Link to="/portal/request-access/" className="btn-precision mt-6 inline-flex items-center gap-2">Request Research Access <ArrowRight className="h-4 w-4" /></Link>
+
               </motion.div>
             </div>
           </div>

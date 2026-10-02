@@ -120,8 +120,8 @@ export const seoRoutes = [
   })),
   {
     path: "/vendors",
-    title: "Live Vendor API Sandbox | NCI Dose Tools",
-    heading: "Live Vendor API Sandbox",
+    title: "Vendor APIs and Commercial Licensing | NCI Dose Tools",
+    heading: "Vendor APIs and Commercial Licensing",
     description:
       "Run public NCICT, NCINM, and NCIRF API test cases with adjustable inputs, review technical manuals, and find the production licensing pathway.",
     schemaType: "WebPage",

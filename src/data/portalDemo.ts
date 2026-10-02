@@ -124,6 +124,8 @@ export const demoApprovedUser = {
   role: "user" as const,
   discussionRole: "community" as const,
   discussionHandle: "approvedresearcher",
+  communityEmailNotifications: true,
+  announcementEmailNotifications: true,
   staStatus: "Approved" as const,
   staApprovedOn: "June 18, 2024",
   identities: [
