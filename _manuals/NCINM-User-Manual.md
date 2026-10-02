@@ -5,6 +5,8 @@ Current documented release: **September 30, 2026 (4.20260930)**
 Current release type: **Scientific Update**
 Latest scientific update: **September 30, 2026**
 
+![NCINM 4 main window showing the ICRP mesh phantom, source-region inputs, and target-organ dose output](images/ncinm4-mesh-interface.png)
+
 ---
 
 ## Introduction

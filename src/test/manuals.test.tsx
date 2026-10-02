@@ -233,6 +233,10 @@ describe("public manuals", () => {
     expect(screen.getByText("Latest scientific update September 30, 2026")).toBeInTheDocument();
 
     const expectedImages = [
+      [
+        "NCINM 4 main window showing the ICRP mesh phantom, source-region inputs, and target-organ dose output",
+        "ncinm4-mesh-interface.png",
+      ],
       ["ICRP mesh phantom tab with age and sex selection", "ncinm4-mesh-phantom-selection.png"],
       [
         "NCINM4 radiopharmaceutical, administered-activity, and action controls",
