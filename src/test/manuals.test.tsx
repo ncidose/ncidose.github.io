@@ -179,7 +179,7 @@ describe("public manuals", () => {
 
   it.each([
     ["ncict", "September 9, 2026", "Maintenance Update", "Maintenance Update"],
-    ["ncinm", "September 30, 2026", "Scientific Update", "Scientific Update"],
+    ["ncinm", "October 2, 2026", "Maintenance Update", "Maintenance Update"],
     ["ncirf", "September 10, 2026", "Scientific Update", "Scientific Update"],
     ["phantom", "August 20, 2026", "Scientific Update", "Scientific Update"],
   ])("renders the declared classification for the latest %s release", (toolId, date, classification, badgeLabel) => {
@@ -228,8 +228,8 @@ describe("public manuals", () => {
       </MemoryRouter>,
     );
 
-    expect(screen.getByText("Documented release September 30, 2026 (4.20260930)")).toBeInTheDocument();
-    expect(screen.getByText("Scientific Update")).toBeInTheDocument();
+    expect(screen.getByText("Documented release October 2, 2026 (4.20261002)")).toBeInTheDocument();
+    expect(screen.getByText("Maintenance Update")).toBeInTheDocument();
     expect(screen.getByText("Latest scientific update September 30, 2026")).toBeInTheDocument();
 
     const expectedImages = [
@@ -319,7 +319,7 @@ describe("public manuals", () => {
 
   it.each([
     ["ncirf", "NCIRF Release History", "September 10, 2026"],
-    ["ncinm", "NCINM Release History", "September 30, 2026"],
+    ["ncinm", "NCINM Release History", "October 2, 2026"],
     ["phantom", "PHANTOM Library History", "August 20, 2026"],
   ])("renders the %s release record", (toolId, title, latestRelease) => {
     render(

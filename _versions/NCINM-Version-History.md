@@ -2,11 +2,18 @@
 
 _Scientific and maintenance update record for the National Cancer Institute dosimetry system for Nuclear Medicine._
 
-Latest release: **September 30, 2026**
+Latest release: **October 2, 2026**
 Latest scientific update: **September 30, 2026**
 Record begins: **2019**
 
 ## 2026
+
+### October 2, 2026 — Maintenance Update
+
+Desktop release: **4.20261002** (macOS and Windows).
+
+- Corrected the ICRP mesh target-organ mass display to match the targets used by the active dose coefficients, including stem-cell and basal-cell layers.
+- Organ doses, S values and Monte Carlo uncertainty calculations are unchanged.
 
 ### September 30, 2026 — Scientific Update
 
