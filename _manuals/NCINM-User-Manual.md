@@ -90,7 +90,7 @@ organs using mother-to-fetus S values.
 The phantom display updates automatically when the phantom library, sex, or age
 selection is changed.
 
-![Fetus phantom tab and gestational-age selection](images/ncinm3-fetus-phantom-selection.png)
+![ICRP mesh phantom tab with age and sex selection](images/ncinm4-mesh-phantom-selection.png)
 
 ---
 
@@ -150,7 +150,9 @@ The default activity is:
 | MBq | 3700 |
 | mCi | 100 |
 
-![Administered activity inputs in MBq and mCi](images/ncinm3-administered-activity.png)
+The example below shows an entered activity of 370 MBq (10 mCi).
+
+![NCINM4 radiopharmaceutical, administered-activity, and action controls](images/ncinm4-activity-actions.png)
 
 ---
 
@@ -168,7 +170,7 @@ The first column is labeled **Source Region** for NCI and ICRP phantoms. On
 the Fetus tab, it changes to **Maternal Source region** to identify the source
 regions as maternal anatomy.
 
-![Maternal source-region table with residence-time and cumulated-activity columns](images/ncinm3-source-region-table.png)
+![ICRP mesh source-region table with residence-time and cumulated-activity columns](images/ncinm4-mesh-source-region-table.png)
 
 For radionuclide-based calculations, users enter residence time or cumulated
 activity manually. NCINM4 converts between them using:
@@ -222,7 +224,15 @@ The target-region output table has column headers:
 The first column is labeled **Target Region** for NCI and ICRP phantoms. On
 the Fetus tab, it changes to **Fetal Target Region**.
 
-![Fetal target-region dose output with mass, dose, and dose-per-activity columns](images/ncinm3-target-region-output.png)
+For the ICRP mesh library, **Mass g** corresponds to the dosimetric target
+tissue represented by the active SAFs and S values. Consequently, stem- and
+basal-cell targets display the mass of the thin radiosensitive target layer,
+not the mass of the entire organ wall or a blood-inclusive organ mass. Heart W
+similarly displays the mesh heart-wall target mass. Active and shallow marrow
+retain their ICRP reference masses because skeletal SAFs are calculated using
+dose-response functions rather than division by one Monte Carlo target mass.
+The displayed mass is descriptive and is not used to rescale the S values or
+the calculated dose.
 
 NCINM4 calculates dose from S values, administered activity, and source-region
 residence time. Effective dose is reported in the final row for NCI and ICRP
@@ -239,8 +249,6 @@ target organs using mother-to-fetus S values.
 ---
 
 ## 6. Export S Values
-
-![Export S Values, Clear Tables, and Batch dose calculation controls](images/ncinm3-action-buttons.png)
 
 To export S values:
 

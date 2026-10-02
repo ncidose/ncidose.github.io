@@ -233,19 +233,14 @@ describe("public manuals", () => {
     expect(screen.getByText("Latest scientific update September 30, 2026")).toBeInTheDocument();
 
     const expectedImages = [
-      ["Fetus phantom tab and gestational-age selection", "ncinm3-fetus-phantom-selection.png"],
-      ["Administered activity inputs in MBq and mCi", "ncinm3-administered-activity.png"],
+      ["ICRP mesh phantom tab with age and sex selection", "ncinm4-mesh-phantom-selection.png"],
       [
-        "Maternal source-region table with residence-time and cumulated-activity columns",
-        "ncinm3-source-region-table.png",
+        "NCINM4 radiopharmaceutical, administered-activity, and action controls",
+        "ncinm4-activity-actions.png",
       ],
       [
-        "Fetal target-region dose output with mass, dose, and dose-per-activity columns",
-        "ncinm3-target-region-output.png",
-      ],
-      [
-        "Export S Values, Clear Tables, and Batch dose calculation controls",
-        "ncinm3-action-buttons.png",
+        "ICRP mesh source-region table with residence-time and cumulated-activity columns",
+        "ncinm4-mesh-source-region-table.png",
       ],
     ];
 
