@@ -67,8 +67,8 @@ type DemoStreamEvent = DemoResponse & {
 
 const demoErrors: Record<string, string> = {
   demo_busy: "This demo calculator is already running. Please try again shortly.",
-  demo_not_configured: "The live demo is temporarily unavailable.",
-  demo_server_maintenance: "The calculation server is temporarily unavailable, likely because of maintenance or a restart. Service status will refresh automatically.",
+  demo_not_configured: "The live demo is under maintenance. Please try again later.",
+  demo_server_maintenance: "The calculation server is under maintenance. Please try again later. Service status will refresh automatically.",
   demo_upstream_error: "The calculation server did not complete this example. Please try again later.",
   invalid_demo_parameters: "One or more demonstration inputs are outside the allowed range.",
   ncinm_newborn_biokinetics_unavailable: "Built-in radiopharmaceutical biokinetic data are not available for newborns. Select an age of at least 0.5 years and try again.",
@@ -78,6 +78,8 @@ const demoErrors: Record<string, string> = {
 };
 
 const demoErrorTitles: Record<string, string> = {
+  demo_not_configured: "Sandbox under maintenance",
+  demo_server_maintenance: "Server under maintenance",
   invalid_demo_parameters: "Check the demo inputs",
   ncinm_newborn_biokinetics_unavailable: "Biokinetic data unavailable",
   ncinm_radiopharmaceutical_not_found: "Biokinetic data unavailable",
@@ -159,7 +161,7 @@ const ServiceAvailabilityIndicator = ({
       : availability === "available"
         ? `${label} available`
         : availability === "unavailable"
-          ? `${label} temporarily unavailable`
+          ? `${label} under maintenance`
           : `${label} status check pending`}</span>
   </div>
 );
@@ -924,8 +926,8 @@ export const VendorApiSandbox = ({ initialTool, onToolChange }: { initialTool?: 
                     {serviceAvailability === "unavailable" ? (
                       <>
                         <AlertCircle className="h-9 w-9 text-amber-500" />
-                        <p className="mt-5 text-sm font-medium text-slate-800">The {activeServiceLabel} calculation service is temporarily unavailable.</p>
-                        <p className="mt-2 max-w-md text-xs leading-5 text-slate-500">The server may be restarting or under maintenance. This status refreshes automatically.</p>
+                        <p className="mt-5 text-sm font-medium text-slate-800">The {activeServiceLabel} calculation service is under maintenance.</p>
+                        <p className="mt-2 max-w-md text-xs leading-5 text-slate-500">Please try again later. This status refreshes automatically.</p>
                       </>
                     ) : <Play className="h-9 w-9 text-slate-300" />}
                   </div>

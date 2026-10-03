@@ -112,7 +112,7 @@ describe("vendor API sandbox", () => {
     expect(screen.queryByText(/calculation server did not complete/i)).not.toBeInTheDocument();
   });
 
-  it("explains when the calculation server is likely restarting or under maintenance", async () => {
+  it("explains when the calculation server is under maintenance", async () => {
     const fetchMock = vi.fn(async (_url: RequestInfo | URL, options?: RequestInit) => new Response(JSON.stringify(
       options?.method === "POST"
         ? { error: "demo_server_maintenance", usage: { used: 1, limit: 30, remaining: 29, windowMinutes: 60 } }
@@ -127,9 +127,9 @@ describe("vendor API sandbox", () => {
     expect(await screen.findByText(/NCICT API available/i)).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: /Run NCICT demo/i }));
 
-    expect(await screen.findByText(/likely because of maintenance or a restart/i)).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "Server under maintenance" })).toBeInTheDocument();
     expect(screen.getByText(/status will refresh automatically/i)).toBeInTheDocument();
-    expect(screen.getByTestId("vendor-api-service-status")).toHaveTextContent(/temporarily unavailable/i);
+    expect(screen.getByTestId("vendor-api-service-status")).toHaveTextContent(/under maintenance/i);
     expect(screen.getByRole("button", { name: /Run NCICT demo/i })).toBeDisabled();
   });
 
