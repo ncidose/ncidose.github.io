@@ -15,7 +15,7 @@ Desktop release: **4.20261002** (macOS and Windows).
 - Corrected the ICRP mesh target-organ mass display to match the targets used by the active dose coefficients, including stem-cell and basal-cell layers.
 - This mass-display correction does not change organ doses, S values or Monte Carlo uncertainty calculations.
 
-This release also includes the September 29–30 scientific updates:
+This release also includes the scientific update:
 
 - Updated the biokinetic library to 133 reviewed radiopharmaceutical conditions; unavailable newborn biokinetic data are now explicitly identified.
 - Corrected remainder-activity allocation to avoid overlapping source regions and normalise weights after exclusions. ICRP mesh oesophageal remainder activity now uses wall coefficients.
