@@ -17,7 +17,7 @@ Desktop release: **4.20261002** (macOS and Windows).
 
 This release also includes the scientific update:
 
-- Corrected remainder-activity allocation to avoid overlapping source regions and normalise weights after exclusions. ICRP mesh oesophageal remainder activity now uses wall coefficients.
+- Corrected remainder-activity allocation by removing double-counted composite/component source regions and renormalising weights after all exclusions. ICRP mesh oesophageal remainder activity now uses wall coefficients.
 
 ### September 30, 2026 — Scientific Update
 
