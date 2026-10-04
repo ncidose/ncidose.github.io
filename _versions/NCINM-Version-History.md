@@ -17,7 +17,6 @@ Desktop release: **4.20261002** (macOS and Windows).
 
 This release also includes the scientific update:
 
-- Updated the biokinetic library to 133 reviewed radiopharmaceutical conditions.
 - Corrected remainder-activity allocation to avoid overlapping source regions and normalise weights after exclusions. ICRP mesh oesophageal remainder activity now uses wall coefficients.
 
 ### September 30, 2026 — Scientific Update
