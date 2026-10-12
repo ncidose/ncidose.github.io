@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-10-05T13:20:09.257Z",
+  "generatedAt": "2026-10-12T13:34:58.746Z",
   "source": "NCBI E-utilities PubMed and PubMed Central searches",
   "note": "Searches combine tool-specific identifiers with modality terms to reduce unrelated full-text matches.",
   "tools": [
@@ -17,17 +17,17 @@
         "pmcFullText": "https://pmc.ncbi.nlm.nih.gov/search/?term=%28%22NCICT%22%5Bbody%5D+OR+%22National+Cancer+Institute+dosimetry+system+for+Computed+Tomography%22%5Bbody%5D+OR+%22National+Cancer+Institute+dosimetry+system+for+CT%22%5Bbody%5D%29+AND+%28%22computed+tomography%22%5Bbody%5D+OR+%22CT+dosimetry%22%5Bbody%5D+OR+%22CT+scan%22%5Bbody%5D+OR+%22CT+scans%22%5Bbody%5D+OR+%22CT+imaging%22%5Bbody%5D+OR+%22CT+examination%22%5Bbody%5D+OR+%22CT+examinations%22%5Bbody%5D+OR+%22PET%2FCT%22%5Bbody%5D%29"
       },
       "counts": {
-        "pubmedTitleAbstract": 44,
+        "pubmedTitleAbstract": 46,
         "pmcFullTextRecords": 74,
         "pmcMappedPmids": 72,
         "pmcWithoutPmid": 2,
-        "combinedUniquePmids": 97,
-        "displayedArticles": 97
+        "combinedUniquePmids": 99,
+        "displayedArticles": 99
       },
       "years": [
         {
           "year": "2026",
-          "count": 18,
+          "count": 20,
           "articles": [
             {
               "pmid": "42188702",
@@ -121,6 +121,30 @@
                 "PubMed title/abstract"
               ],
               "pubmedUrl": "https://pubmed.ncbi.nlm.nih.gov/41988721/",
+              "pmcUrl": null
+            },
+            {
+              "pmid": "42842975",
+              "pmcid": null,
+              "title": "Doses in planning computed tomography in one radiotherapy department: Description of exposure parameters and estimation of organ doses, effective doses and typical doses",
+              "journal": "Radiography (London, England : 1995)",
+              "pubdate": "2026 Oct 7",
+              "publicationDate": "2026-10-07",
+              "year": "2026",
+              "authors": [
+                "Garcia NB",
+                "Borges C",
+                "Jacob K",
+                "Santos J",
+                "Couto JG",
+                "Sá AC"
+              ],
+              "nciTeamAuthored": false,
+              "doi": "10.1016/j.radi.2026.103584",
+              "sources": [
+                "PubMed title/abstract"
+              ],
+              "pubmedUrl": "https://pubmed.ncbi.nlm.nih.gov/42842975/",
               "pmcUrl": null
             },
             {
@@ -376,6 +400,30 @@
               ],
               "pubmedUrl": "https://pubmed.ncbi.nlm.nih.gov/42669967/",
               "pmcUrl": "https://pmc.ncbi.nlm.nih.gov/articles/PMC13527227/"
+            },
+            {
+              "pmid": "42843372",
+              "pmcid": null,
+              "title": "Shapley effects to identify the most influential input parameters of organ dose estimation following CT scans in childhood",
+              "journal": "Journal of radiological protection : official journal of the Society for Radiological Protection",
+              "pubdate": "2026 Oct 7",
+              "publicationDate": "2026-10-07",
+              "year": "2026",
+              "authors": [
+                "Foucault A",
+                "Il Idrissi M",
+                "Iooss B",
+                "Lee C",
+                "Bernier MO",
+                "Ancelet S"
+              ],
+              "nciTeamAuthored": true,
+              "doi": "10.1088/1361-6498/aeb137",
+              "sources": [
+                "PubMed title/abstract"
+              ],
+              "pubmedUrl": "https://pubmed.ncbi.nlm.nih.gov/42843372/",
+              "pmcUrl": null
             },
             {
               "pmid": "42676647",
@@ -3033,7 +3081,7 @@
         "pmcFullText": "https://pmc.ncbi.nlm.nih.gov/search/?term=%28%22NCI%2FUF%22%5Bbody%5D+OR+%22NCI-UF%22%5Bbody%5D+OR+%22National+Cancer+Institute%2FUniversity+of+Florida%22%5Bbody%5D+OR+%22reference+hybrid+phantom%22%5Bbody%5D+OR+%22reference+hybrid+phantoms%22%5Bbody%5D+OR+%28%22UF+family%22%5Bbody%5D+AND+%28phantom%5Bbody%5D+OR+phantoms%5Bbody%5D%29+AND+%28dosimetry%5Bbody%5D+OR+radiation%5Bbody%5D%29%29+OR+%28%28%22hybrid+computational+phantom%22%5Bbody%5D+OR+%22hybrid+computational+phantoms%22%5Bbody%5D%29+AND+%28%22National+Cancer+Institute%22%5Bbody%5D+OR+NCI%5Bbody%5D+OR+%22University+of+Florida%22%5Bbody%5D+OR+UF%5Bbody%5D%29%29%29"
       },
       "counts": {
-        "pubmedTitleAbstract": 31,
+        "pubmedTitleAbstract": 32,
         "pmcFullTextRecords": 68,
         "pmcMappedPmids": 68,
         "pmcWithoutPmid": 0,
@@ -3669,6 +3717,7 @@
               "nciTeamAuthored": true,
               "doi": "10.1088/0031-9155/60/6/2309",
               "sources": [
+                "PubMed title/abstract",
                 "PMC full text"
               ],
               "pubmedUrl": "https://pubmed.ncbi.nlm.nih.gov/25715852/",
