@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import portalWorker, { adminPortalActivityFilter, adminPortalActivityQueries, adminPortalExcludedEmails, adminRecentActivityQuery, adminSandboxActivityQueries, adminSandboxExcludedCities, adminSandboxReportingFilter, adminUsersQuery, announcementEmailHtml, canPublishQuestion, canViewDiscussion, communityDiscussionEmailsEnabled, discussionAuthorForUser, discussionReplyNotificationEmail, folderArchiveKeys, generateLoginCode, isFolderDownloadPrefix, linkedEmailWelcomeHtml, loginCodeEmailHtml, newDiscussionNotificationEmail, normalizeAdminUserDetails, normalizePortalEmail, normalizeQuestionVisibility, portalFileListLimit, portalSessionCookieHeader, qaAttachmentValidationError, secondaryEmailAddedHtml, shouldNotifyDiscussionReplyRecipient, shouldNotifyNewDiscussionRecipient, vendorDemoErrorForUpstream, vendorDemoLimits, vendorDemoLocationForRequest, vendorDemoPresetForInput, vendorDemoPresets, vendorDemoRequestForInput, welcomeEmailHtml } from "../../scripts/portal/worker.js";
+import portalWorker, { adminPortalActivityFilter, adminPortalActivityQueries, adminPortalExcludedEmails, adminRecentActivityQuery, adminSandboxActivityQueries, adminSandboxExcludedCities, adminSandboxReportingFilter, adminUsersQuery, announcementBroadcastName, announcementEmailHtml, canPublishQuestion, canViewDiscussion, communityDiscussionEmailsEnabled, discussionAuthorForUser, discussionReplyNotificationEmail, folderArchiveKeys, generateLoginCode, isFolderDownloadPrefix, linkedEmailWelcomeHtml, loginCodeEmailHtml, newDiscussionNotificationEmail, normalizeAdminUserDetails, normalizePortalEmail, normalizeQuestionVisibility, portalFileListLimit, portalSessionCookieHeader, qaAttachmentValidationError, secondaryEmailAddedHtml, sendAnnouncementBroadcast, shouldNotifyDiscussionReplyRecipient, shouldNotifyNewDiscussionRecipient, vendorDemoErrorForUpstream, vendorDemoLimits, vendorDemoLocationForRequest, vendorDemoPresetForInput, vendorDemoPresets, vendorDemoRequestForInput, welcomeEmailHtml } from "../../scripts/portal/worker.js";
 
 describe("admin activity query", () => {
   it("uses an indexed primary-identity join instead of a per-event correlated lookup", () => {
@@ -786,6 +786,57 @@ describe("discussion notification email content", () => {
 });
 
 describe("announcement email template", () => {
+  it("keeps the internal Resend broadcast name within the provider limit", () => {
+    const name = announcementBroadcastName("DICOM CT + structure files now available for NCI size-dependent phantoms");
+
+    expect(name).toHaveLength(70);
+    expect(name).toMatch(/^NCI Dose Tools - DICOM CT/);
+  });
+
+  it("retries a failed delivery without creating a second delivery record", async () => {
+    const preparedSql: string[] = [];
+    const prepare = vi.fn((sql: string) => {
+      preparedSql.push(sql);
+      const statement = {
+        bind: vi.fn(() => statement),
+        first: vi.fn(async () => sql.includes("SELECT id, status") ? { id: "delivery-1", status: "failed" } : null),
+        run: vi.fn(async () => ({ meta: { changes: 1 } })),
+      };
+      return statement;
+    });
+    vi.stubGlobal("fetch", vi.fn(async (_input, init) => {
+      const payload = JSON.parse(String(init?.body));
+      expect(payload.name).toHaveLength(70);
+      return new Response(JSON.stringify({ id: "broadcast-1" }), {
+        status: 200,
+        headers: { "content-type": "application/json" },
+      });
+    }));
+
+    try {
+      await expect(sendAnnouncementBroadcast({
+        DB: { prepare },
+        RESEND_API_KEY: "test-key",
+        RESEND_SEGMENT_ID: "segment-1",
+        RESEND_FROM: "NCI Dose Tools <test@example.org>",
+      }, {
+        id: "announcement-1",
+        title: "DICOM CT + structure files now available for NCI size-dependent phantoms",
+        body: "A release is available.",
+        category: "Release",
+      }, "admin-1", 269, ["user@example.org"])).resolves.toMatchObject({
+        status: "sent",
+        recipientCount: 269,
+        providerBroadcastId: "broadcast-1",
+      });
+    } finally {
+      vi.unstubAllGlobals();
+    }
+
+    expect(preparedSql.some((sql) => sql.includes("WHERE id=? AND status='failed'"))).toBe(true);
+    expect(preparedSql.some((sql) => sql.includes("INSERT INTO announcement_email_deliveries"))).toBe(false);
+  });
+
   it("uses the portal blue for branded email accents", () => {
     const html = announcementEmailHtml({
       title: "Brand test",

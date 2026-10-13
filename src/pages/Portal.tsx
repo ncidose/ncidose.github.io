@@ -3039,7 +3039,7 @@ const Admin = ({ demoMode }: { demoMode: boolean }) => {
   };
 
   const editingAnnouncement = adminAnnouncements.find((announcement) => announcement.id === editingAnnouncementId) || null;
-  const emailOptionDisabled = Boolean(originalPublishedAt || sourceUrl || editingAnnouncement?.emailDelivery || editingAnnouncement?.subscriberEmailQueued);
+  const emailOptionDisabled = Boolean(originalPublishedAt || sourceUrl || (editingAnnouncement?.emailDelivery && editingAnnouncement.emailDelivery.status !== "failed") || editingAnnouncement?.subscriberEmailQueued);
   const subscriberEmailDisabled = Boolean(originalPublishedAt || sourceUrl || editingAnnouncement?.subscriberEmailQueued);
   const selectedSandboxTools = activityData.sandbox.toolsByPeriod?.[sandboxActivityPeriod]
     ?? (sandboxActivityPeriod === "last30Days" ? activityData.sandbox.tools : []);
@@ -3311,7 +3311,7 @@ const Admin = ({ demoMode }: { demoMode: boolean }) => {
               <input type="checkbox" checked={sendAnnouncementEmail} disabled={emailOptionDisabled} onChange={(event) => setSendAnnouncementEmail(event.target.checked)} className="mt-1 h-4 w-4 accent-sky-600" />
               <span>
                 <span className="block text-sm font-medium">Email approved users when publishing</span>
-                <span className="mt-1 block text-xs leading-relaxed">Sends once to each active user's primary email through Resend. Publishing edits does not send again.</span>
+                <span className="mt-1 block text-xs leading-relaxed">Sends once to each active user's primary email through Resend. Successful deliveries are not repeated; failed deliveries can be retried.</span>
                 {emailOptionDisabled && <span className="mt-1 block text-xs">Email is unavailable for older imported posts and announcements that were already emailed.</span>}
               </span>
             </label>

@@ -1693,14 +1693,29 @@ async function logoutPortalSession(request, env, cors) {
   return new Response(null, { status: 204, headers });
 }
 
-async function sendAnnouncementBroadcast(env, announcement, requestedByUserId, recipientCount, recipientEmails = []) {
-  const existing = await env.DB.prepare("SELECT status FROM announcement_email_deliveries WHERE announcement_id=?").bind(announcement.id).first();
-  if (existing) return { status: existing.status, duplicate: true };
-  const deliveryId = crypto.randomUUID();
-  await env.DB.prepare(`
-    INSERT INTO announcement_email_deliveries (id, announcement_id, status, recipient_count, requested_by_user_id, recipient_emails_json)
-    VALUES (?, ?, 'queued', ?, ?, ?)
-  `).bind(deliveryId, announcement.id, recipientCount, requestedByUserId, JSON.stringify(recipientEmails)).run();
+export const announcementBroadcastName = (title) => `NCI Dose Tools - ${title}`.slice(0, 70);
+
+export async function sendAnnouncementBroadcast(env, announcement, requestedByUserId, recipientCount, recipientEmails = []) {
+  const existing = await env.DB.prepare("SELECT id, status FROM announcement_email_deliveries WHERE announcement_id=?").bind(announcement.id).first();
+  if (existing && existing.status !== "failed") return { status: existing.status, duplicate: true };
+  const deliveryId = existing?.id || crypto.randomUUID();
+  if (existing) {
+    const claimed = await env.DB.prepare(`
+      UPDATE announcement_email_deliveries
+      SET status='queued', recipient_count=?, requested_by_user_id=?, recipient_emails_json=?,
+        provider_broadcast_id=NULL, error_message=NULL, updated_at=CURRENT_TIMESTAMP
+      WHERE id=? AND status='failed'
+    `).bind(recipientCount, requestedByUserId, JSON.stringify(recipientEmails), deliveryId).run();
+    if (Number(claimed.meta?.changes ?? claimed.changes ?? 0) !== 1) {
+      const current = await env.DB.prepare("SELECT status FROM announcement_email_deliveries WHERE id=?").bind(deliveryId).first();
+      return { status: current?.status || "queued", duplicate: true };
+    }
+  } else {
+    await env.DB.prepare(`
+      INSERT INTO announcement_email_deliveries (id, announcement_id, status, recipient_count, requested_by_user_id, recipient_emails_json)
+      VALUES (?, ?, 'queued', ?, ?, ?)
+    `).bind(deliveryId, announcement.id, recipientCount, requestedByUserId, JSON.stringify(recipientEmails)).run();
+  }
   try {
     const broadcast = await resendRequest(env, "/broadcasts", {
       method: "POST",
@@ -1708,7 +1723,7 @@ async function sendAnnouncementBroadcast(env, announcement, requestedByUserId, r
         segment_id: env.RESEND_SEGMENT_ID,
         from: env.RESEND_FROM,
         subject: announcement.title,
-        name: `NCI Dose Tools - ${announcement.title}`.slice(0, 120),
+        name: announcementBroadcastName(announcement.title),
         html: announcementEmailHtml(announcement),
         text: `NCI Dose Tools: https://ncidose.github.io/\n\n${announcement.title}\n\n${announcement.body}\n\nOpen User Portal: https://portal.ncidosetools.com\n\nSincerely,\nNCI Dose Team\nNCI Dose Tools portal: https://ncidose.github.io/\nNational Cancer Institute\n\nManage email notifications: https://portal.ncidosetools.com/#/portal/account\nUnsubscribe from announcement emails: {{{RESEND_UNSUBSCRIBE_URL}}}`,
         send: true,
@@ -1716,7 +1731,7 @@ async function sendAnnouncementBroadcast(env, announcement, requestedByUserId, r
     });
     await env.DB.prepare(`
       UPDATE announcement_email_deliveries
-      SET status='sent', provider_broadcast_id=?, updated_at=CURRENT_TIMESTAMP
+      SET status='sent', provider_broadcast_id=?, error_message=NULL, updated_at=CURRENT_TIMESTAMP
       WHERE id=?
     `).bind(broadcast.id || null, deliveryId).run();
     return { status: "sent", recipientCount, providerBroadcastId: broadcast.id || null };
