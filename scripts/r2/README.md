@@ -101,6 +101,11 @@ After updating the local folder, publish its new and changed files with:
 The push maps the local folder root to R2 `PHANTOM/`. It rebuilds the hidden
 folder-download archives and does not delete remote objects.
 
+`dicomrt` directories are intentionally excluded from hidden folder-download
+archives. Their validated CT + RTSTRUCT ZIP files are uploaded as ordinary
+objects and downloaded one phantom at a time; they are not duplicated inside
+large parent-folder archives.
+
 When a PHANTOM release reorganizes or removes files, replace the remote folder
 with an exact mirror of the local release:
 

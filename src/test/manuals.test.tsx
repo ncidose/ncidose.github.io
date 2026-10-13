@@ -69,6 +69,21 @@ describe("public manuals", () => {
     expect(screen.getByRole("button", { name: "Introduction" })).not.toHaveAttribute("href");
   });
 
+  it("documents individual NCI size DICOM CT and RTSTRUCT packages", () => {
+    render(
+      <MemoryRouter initialEntries={["/manuals/phantom"]}>
+        <Routes>
+          <Route path="/manuals/:manualId" element={<Manuals />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    expect(screen.getByText("Documented release October 13, 2026")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "DICOM CT and RT Structure Sets" })).toBeInTheDocument();
+    expect(screen.getAllByText("dicomrt-manifest.csv").length).toBeGreaterThan(0);
+    expect(screen.getByText(/bulk archive of the complete DICOMRT folder is intentionally not generated/i)).toBeInTheDocument();
+  });
+
   it("renders the September NCIRF scientific update and SpekPy workflow", () => {
     render(
       <MemoryRouter initialEntries={["/manuals/ncirf"]}>

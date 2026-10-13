@@ -35,6 +35,8 @@ const token = process.env.NCIDOSE_R2_UPLOAD_TOKEN || (() => {
 const partSize = 32 * 1024 * 1024;
 const fileConcurrency = 4;
 const excludedNames = new Set([".DS_Store", "_archive", "upload_to_r2.py"]);
+const individuallyPackagedDirectoryNames = new Set(["dicomrt"]);
+const folderBundleExclusions = ["*/dicomrt/*"];
 const legacyBundleKeys = new Set([
   "PHANTOM/nci_size/arm_highres.zip",
   "PHANTOM/nci_size/arm_lowres.zip",
@@ -96,6 +98,7 @@ async function collectDirectories(directory, prefix) {
   const entries = await readdir(directory, { withFileTypes: true });
   for (const entry of entries.sort((a, b) => a.name.localeCompare(b.name))) {
     if (!entry.isDirectory() || excludedNames.has(entry.name)) continue;
+    if (individuallyPackagedDirectoryNames.has(entry.name.toLowerCase())) continue;
     const absolute = path.join(directory, entry.name);
     const key = `${prefix}/${entry.name}`;
     directories.push({ absolute, key });
@@ -214,7 +217,10 @@ for (const [index, directory] of bundleDirectories.entries()) {
     .filter((key) => key.startsWith(`${directory.key}/`))
     .map((key) => key.slice(parentKey.length + 1));
   console.log(`Building folder download ${directory.key}`);
-  execFileSync("zip", ["-0", "-q", "-r", archive, path.basename(directory.absolute), "-x", "*/.DS_Store", ...exclusions], {
+  execFileSync("zip", [
+    "-0", "-q", "-r", archive, path.basename(directory.absolute),
+    "-x", "*/.DS_Store", ...folderBundleExclusions, ...exclusions,
+  ], {
     cwd: path.dirname(directory.absolute),
   });
   bundleFiles.push({ absolute: archive, key: archiveKey, size: (await stat(archive)).size });

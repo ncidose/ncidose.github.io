@@ -2,12 +2,29 @@
 
 _Scientific and maintenance update record for the NCI computational phantom libraries._
 
-Latest release: **September 30, 2026**
+Latest release: **October 13, 2026**
 Latest scientific update: **August 20, 2026**
-Latest maintenance update: **September 30, 2026**
+Latest maintenance update: **October 13, 2026**
 Record begins: **2010**
 
 ## 2026
+
+### October 13, 2026 — Maintenance Update
+
+- Released individually downloadable DICOM CT and RT Structure Set packages for
+  all **362** NCI body size-dependent armless high-resolution phantoms.
+- Added phantom-identifying CT and RTSTRUCT filenames and synthetic DICOM header
+  metadata for phantom ID, demographics, library, arm posture, resolution,
+  matrix dimensions, and voxel spacing.
+- Used the existing NCI computational phantom HU CT library for 360 packages;
+  derived HU from the released age/sex material-density table for the two
+  smallest newborn size phantoms whose matching HU CT NIfTI is unavailable.
+- Validated every archive for ZIP integrity, CT slice count, RTSTRUCT ROI count,
+  patient metadata, shared CT series/frame identifiers, and complete CT image
+  references, and published SHA-256 digests in `dicomrt-manifest.csv`.
+- Excluded DICOMRT directories from bulk folder archives so users download only
+  the required phantom package and the 362-series collection is not duplicated
+  in parent-folder downloads.
 
 ### September 30, 2026 — Maintenance Update
 

@@ -64,6 +64,7 @@ import { cn } from "@/lib/utils";
 import { getPortalHeaderEmail, selectPrimaryPortalIdentity } from "@/lib/portalUser";
 import { sandboxApiLabel, sandboxApiUsageRows, type SandboxApiUsage } from "@/lib/sandboxActivity";
 import { buildAnswerThreads, questionAnswerLabel, questionAuthorLabel, questionRequestTypeLabels, questionRequestTypes, questionTools, type ManagedQuestion, type QuestionAnswerThread, type QuestionRequestType, type QuestionTool, type QuestionVisibility } from "@/lib/questions";
+import { allowsFolderBundleDownload } from "@/lib/folderDownloads";
 
 type PortalIdentity = {
   id: string;
@@ -1334,7 +1335,6 @@ export const Downloads = ({ demoMode, initialTool }: { demoMode: boolean; initia
   const visibleFiles = files.filter((file) => itemName(file.key).toLowerCase().includes(normalizedSearch));
   const selectedTool = rootPrefix.replace(/\/$/, "");
   const selectedManualUrl = toolManualUrls[selectedTool];
-  const supportsFolderDownloads = selectedTool === "PHANTOM" || selectedTool === "DCC";
 
   return (
     <div className="space-y-6">
@@ -1384,7 +1384,7 @@ export const Downloads = ({ demoMode, initialTool }: { demoMode: boolean; initia
                   <div><div className="text-sm font-medium text-slate-800">{itemName(folder.prefix)}</div><div className="mt-1 text-xs text-muted-foreground">Folder</div></div>
                   <ChevronRight className="ml-auto h-4 w-4 text-muted-foreground" />
                 </button>
-                {supportsFolderDownloads && (
+                {allowsFolderBundleDownload(selectedTool, folder.prefix) && (
                   <Button type="button" variant="outline" disabled={!folder.downloadAvailable} onClick={() => downloadFolder(folder)} className="shrink-0 rounded-none">
                     <Download className="h-4 w-4" /> {folder.downloadAvailable ? "Download folder" : "Folder download pending"}
                   </Button>

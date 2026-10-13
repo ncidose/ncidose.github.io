@@ -3,6 +3,7 @@ import { MemoryRouter } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ADMIN_USER_PAGE_SIZE, paginateAdminUsers } from "@/lib/adminPagination";
 import { getPortalHeaderEmail, selectPrimaryPortalIdentity } from "@/lib/portalUser";
+import { allowsFolderBundleDownload } from "@/lib/folderDownloads";
 import { AnnouncementBody, Downloads, Portal, PortalSignIn } from "@/pages/Portal";
 
 const portalTestMocks = vi.hoisted(() => ({
@@ -36,6 +37,12 @@ describe("portal migration experience", () => {
 
   afterEach(() => {
     vi.unstubAllGlobals();
+  });
+
+  it("keeps DICOMRT packages individual instead of offering a bulk folder archive", () => {
+    expect(allowsFolderBundleDownload("PHANTOM", "PHANTOM/nci-size/armless-highres/")).toBe(true);
+    expect(allowsFolderBundleDownload("PHANTOM", "PHANTOM/nci-size/armless-highres/dicomrt/")).toBe(false);
+    expect(allowsFolderBundleDownload("DCC", "DCC/ncict/")).toBe(true);
   });
 
   it("turns URLs in announcement bodies into external links", () => {

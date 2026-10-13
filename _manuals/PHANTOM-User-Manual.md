@@ -1,9 +1,9 @@
 # PHANTOM — NCI Computational Human Phantom Libraries
 
-Current documented release: **September 30, 2026**
+Current documented release: **October 13, 2026**
 Current release type: **Maintenance Update**
 Latest scientific update: **August 20, 2026**
-Latest maintenance update: **September 30, 2026**
+Latest maintenance update: **October 13, 2026**
 
 ## Introduction
 
@@ -36,7 +36,7 @@ The PHANTOM libraries currently available in the release folder are summarized b
 | Arm variants²      |                   arms and armless                   |                    arms and armless                    |                                                          arms and armless                                                          |                     arms and armless                     |
 | NIfTI (`.nii.gz`) |                       48 files                       |                      1,448 files                      |                                                              24 files                                                              |                         64 files                         |
 | Organ metadata CSV  |                   per NIfTI folder                   |                    per NIfTI folder                    |                                                          per NIfTI folder                                                          |                     per NIfTI folder                     |
-| DICOMRT³           |                     not included                     |                      not included                      |                                                            armless only                                                            |                    arm singleres only                    |
+| DICOMRT³           |                     not included                     |              armless highres (362 ZIPs)               |                                                            armless only                                                            |                    arm singleres only                    |
 | Monte Carlo input   |                     not included                     |                      not included                      |                                                            not included                                                            |                MCNP, arm/armless multires                |
 | Reference           | [Lee 2010](https://pubmed.ncbi.nlm.nih.gov/20019401/) | [Geyer 2014](https://pubmed.ncbi.nlm.nih.gov/25144322/) | [ICRP 110](<https://www.icrp.org/publication.asp?id=icrp%20publication%20110>), [ICRP 143](https://pubmed.ncbi.nlm.nih.gov/33000625/) | [Maynard 2014](https://pubmed.ncbi.nlm.nih.gov/25030913/) |
 
@@ -49,7 +49,8 @@ breech fineboxes for 10, 15, 20, and 25 weeks.
 the patient’s arms are raised.
 
 ³ DICOMRT files are provided only for selected supported libraries:
-**icrp-reference/armless/dicomrt** and **nci-pregnant/arm-singleres/dicomrt**.
+**nci-size/armless-highres/dicomrt**, **icrp-reference/armless/dicomrt**, and
+**nci-pregnant/arm-singleres/dicomrt**.
 DICOM-CT and RT STRUCTURE files can be directly imported into Treatment Planning
 Systems (TPS). Recommended citation for DICOMRT files:
 [Griffin 2019](https://pubmed.ncbi.nlm.nih.gov/31158829/)
@@ -73,6 +74,7 @@ NCI reference-size and body size-dependent phantoms use:
 ```text
 nci-reference/{arm-highres,arm-lowres,armless-highres,armless-lowres}
 nci-size/{arm-highres,arm-lowres,armless-highres,armless-lowres}
+nci-size/armless-highres/dicomrt
 ```
 
 The NIfTI files and `organ-metadata.csv` are stored directly in each of these
@@ -119,6 +121,62 @@ release are:
 nci-pregnant/arm-multires/mcnp-input
 nci-pregnant/armless-multires/mcnp-input
 ```
+
+---
+
+## DICOM CT and RT Structure Sets
+
+The complete **NCI body size-dependent armless high-resolution library** is
+available under:
+
+```text
+nci-size/armless-highres/dicomrt
+```
+
+This folder contains **362 independently downloadable ZIP archives**, one per
+phantom, plus `dicomrt-manifest.csv`. A bulk archive of the complete DICOMRT
+folder is intentionally not generated because each CT series contains hundreds
+of DICOM instances and the full collection is large. Download only the phantom
+or phantoms needed for a study.
+
+Each archive is named:
+
+```text
+{phantom_id}-armless-highres-dicom-ct-rtstruct.zip
+```
+
+After extraction, the archive contains one folder with a complete CT series and
+one referenced RT Structure Set. Filenames repeat the phantom identity so files
+remain identifiable outside their original folder:
+
+```text
+CT_{phantom_id}-armless-highres_0001.dcm
+CT_{phantom_id}-armless-highres_0002.dcm
+...
+RS_{phantom_id}-armless-highres.dcm
+```
+
+The DICOM patient and study fields identify the synthetic phantom rather than a
+clinical patient. They include the phantom ID, representative age and sex,
+height, weight, NCI library, armless posture, high-resolution profile, matrix
+dimensions, and voxel spacing. The RT Structure Set references the SOP Instance
+UID of every CT slice and stores pre-contoured structures from the released
+integer label map. CT voxel values use the existing NCI computational phantom HU
+CT library where available. For the two smallest size phantoms (`00f050005` and
+`00m050005`), whose matching HU CT NIfTI is not present in that library, HU is
+derived from the released NCI age/sex material-density table.
+
+To import a package into a compatible treatment-planning system, extract the ZIP
+and import all DICOM files in the extracted phantom folder together. Do not
+rename or separate the RTSTRUCT from its CT series before import. TPS behavior
+varies, so confirm geometry, orientation, HU values, and structure alignment in
+the receiving system before research use. These synthetic datasets are intended
+for dosimetry research and software validation, not patient-specific clinical
+treatment planning.
+
+`dicomrt-manifest.csv` records each archive filename, byte size, SHA-256 digest,
+CT slice and ROI counts, matrix and spacing, and CT source. Release storage keeps
+only these archives and the manifest; loose per-slice DICOM files are not retained.
 
 ---
 
