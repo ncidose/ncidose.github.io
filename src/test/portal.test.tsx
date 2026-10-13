@@ -95,7 +95,11 @@ describe("portal migration experience", () => {
     vi.stubGlobal("fetch", fetchMock);
 
     render(<Downloads demoMode={false} initialTool="PHANTOM" />);
-    fireEvent.click(await screen.findByRole("button", { name: "armless highres (362 ZIPs)" }));
+    const quickLinkTable = screen.getByRole("table");
+    expect(quickLinkTable).toHaveClass("w-full", "table-auto");
+    expect(within(quickLinkTable).queryByRole("row", { name: /^Reference(?:\s|$)/i })).not.toBeInTheDocument();
+    const dicomRtRow = await screen.findByRole("row", { name: /DICOMRT/i });
+    fireEvent.click(within(dicomRtRow).getByRole("button", { name: "armless highres" }));
 
     await waitFor(() => expect(fetchMock).toHaveBeenLastCalledWith(
       "/api/files?prefix=PHANTOM%2Fnci-size%2Farmless-highres%2Fdicomrt%2F",

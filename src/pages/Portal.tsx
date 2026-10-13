@@ -1311,7 +1311,7 @@ const phantomGuideRows: PhantomGuideRow[] = [
     label: "DICOMRT",
     cells: [
       { text: "not included" },
-      { links: [{ label: "armless highres (362 ZIPs)", prefix: "PHANTOM/nci-size/armless-highres/dicomrt/" }] },
+      { links: [{ label: "armless highres", prefix: "PHANTOM/nci-size/armless-highres/dicomrt/" }] },
       { links: [{ label: "armless only", prefix: "PHANTOM/icrp-reference/armless/dicomrt/" }] },
       { links: [{ label: "arm singleres only", prefix: "PHANTOM/nci-pregnant/arm-singleres/dicomrt/" }] },
     ],
@@ -1326,18 +1326,6 @@ const phantomGuideRows: PhantomGuideRow[] = [
         { label: "MCNP arm multires", prefix: "PHANTOM/nci-pregnant/arm-multires/mcnp-input/" },
         { label: "MCNP armless multires", prefix: "PHANTOM/nci-pregnant/armless-multires/mcnp-input/" },
       ] },
-    ],
-  },
-  {
-    label: "Reference",
-    cells: [
-      { links: [{ label: "Lee 2010", href: "https://pubmed.ncbi.nlm.nih.gov/20019401/" }] },
-      { links: [{ label: "Geyer 2014", href: "https://pubmed.ncbi.nlm.nih.gov/25144322/" }] },
-      { links: [
-        { label: "ICRP 110", href: "https://www.icrp.org/publication.asp?id=icrp%20publication%20110" },
-        { label: "ICRP 143", href: "https://pubmed.ncbi.nlm.nih.gov/33000625/" },
-      ] },
-      { links: [{ label: "Maynard 2014", href: "https://pubmed.ncbi.nlm.nih.gov/25030913/" }] },
     ],
   },
 ];
@@ -1494,12 +1482,12 @@ export const Downloads = ({ demoMode, initialTool }: { demoMode: boolean; initia
             <p className="mt-1 text-xs leading-relaxed text-muted-foreground">Choose a library, format, or arm variant to open its download folder directly. Availability matches the PHANTOM user manual.</p>
           </div>
           <div className="overflow-x-auto">
-            <table className="min-w-[1120px] w-full border-collapse text-sm">
+            <table className="w-full table-auto border-collapse text-sm">
               <thead>
                 <tr className="bg-slate-100 text-slate-800">
-                  <th scope="col" className="w-44 border-b border-r border-border px-5 py-4 text-left font-semibold">Release item</th>
+                  <th scope="col" className="border-b border-r border-border px-3 py-4 text-left font-semibold sm:px-5">Release item</th>
                   {phantomGuideColumns.map((column) => (
-                    <th key={column.prefix} scope="col" className="border-b border-r border-border px-5 py-4 text-center font-semibold last:border-r-0">
+                    <th key={column.prefix} scope="col" className="border-b border-r border-border px-3 py-4 text-center font-semibold last:border-r-0 sm:px-5">
                       <button type="button" onClick={() => void loadFolder(column.prefix)} className="underline decoration-primary/40 underline-offset-4 transition-colors hover:text-primary hover:decoration-primary">{column.label}</button>
                     </th>
                   ))}
@@ -1508,9 +1496,9 @@ export const Downloads = ({ demoMode, initialTool }: { demoMode: boolean; initia
               <tbody>
                 {phantomGuideRows.map((row) => (
                   <tr key={row.label}>
-                    <th scope="row" className="border-b border-r border-border px-5 py-4 text-left font-medium text-slate-700">{row.label}</th>
+                    <th scope="row" className="border-b border-r border-border px-3 py-4 text-left font-medium text-slate-700 sm:px-5">{row.label}</th>
                     {row.cells.map((cell, cellIndex) => (
-                      <td key={`${row.label}-${phantomGuideColumns[cellIndex].prefix}`} className="border-b border-r border-border px-5 py-4 text-center text-slate-600 last:border-r-0">
+                      <td key={`${row.label}-${phantomGuideColumns[cellIndex].prefix}`} className="border-b border-r border-border px-3 py-4 text-center text-slate-600 last:border-r-0 sm:px-5">
                         {cell.links ? (
                           <div className="flex flex-wrap justify-center gap-x-3 gap-y-2">
                             {cell.links.map((link) => (
