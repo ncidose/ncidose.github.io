@@ -4,6 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ADMIN_USER_PAGE_SIZE, paginateAdminUsers } from "@/lib/adminPagination";
 import { getPortalHeaderEmail, selectPrimaryPortalIdentity } from "@/lib/portalUser";
 import { allowsFolderBundleDownload } from "@/lib/folderDownloads";
+import { portalDownloadUrl, queuePortalDownloads } from "@/lib/portalDownloads";
 import { AnnouncementBody, Downloads, Portal, PortalSignIn } from "@/pages/Portal";
 
 const portalTestMocks = vi.hoisted(() => ({
@@ -39,10 +40,68 @@ describe("portal migration experience", () => {
     vi.unstubAllGlobals();
   });
 
-  it("keeps DICOMRT packages individual instead of offering a bulk folder archive", () => {
-    expect(allowsFolderBundleDownload("PHANTOM", "PHANTOM/nci-size/armless-highres/")).toBe(true);
+  it("keeps every PHANTOM file individual while retaining DCC folder archives", () => {
+    expect(allowsFolderBundleDownload("PHANTOM", "PHANTOM/nci-size/armless-highres/")).toBe(false);
     expect(allowsFolderBundleDownload("PHANTOM", "PHANTOM/nci-size/armless-highres/dicomrt/")).toBe(false);
     expect(allowsFolderBundleDownload("DCC", "DCC/ncict/")).toBe(true);
+  });
+
+  it("queues selected downloads with encoded URLs and a short stagger", () => {
+    const triggered: string[] = [];
+    const delays: number[] = [];
+    queuePortalDownloads(
+      ["PHANTOM/one file.zip", "PHANTOM/two.zip"],
+      (key) => triggered.push(portalDownloadUrl(key)),
+      (task, delay) => { delays.push(delay); task(); },
+    );
+
+    expect(triggered).toEqual([
+      "/api/download?key=PHANTOM%2Fone%20file.zip",
+      "/api/download?key=PHANTOM%2Ftwo.zip",
+    ]);
+    expect(delays).toEqual([0, 100]);
+  });
+
+  it("shows folders first and downloads checked files together", async () => {
+    const fetchMock = vi.fn(async () => ({
+      ok: true,
+      json: async () => ({
+        objects: [
+          { key: "PHANTOM/zeta.zip", size: 2048, etag: "z" },
+          { key: "PHANTOM/alpha.zip", size: 1024, etag: "a" },
+        ],
+        folders: [{ prefix: "PHANTOM/nci-size/", downloadAvailable: false }],
+        cursor: null,
+      }),
+    }) as Response);
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(<Downloads demoMode={false} initialTool="PHANTOM" />);
+
+    const folder = await screen.findByText("nci-size");
+    const alpha = screen.getByText("alpha.zip");
+    expect(folder.compareDocumentPosition(alpha) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+
+    fireEvent.click(screen.getByRole("checkbox", { name: "Check all shown files" }));
+    expect(screen.getByText(/2 selected/)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Download selected/i })).toBeEnabled();
+  });
+
+  it("opens the body-size DICOMRT folder from the PHANTOM quick-link table", async () => {
+    const fetchMock = vi.fn(async () => ({
+      ok: true,
+      json: async () => ({ objects: [], folders: [], cursor: null }),
+    }) as Response);
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(<Downloads demoMode={false} initialTool="PHANTOM" />);
+    fireEvent.click(await screen.findByRole("button", { name: "armless highres (362 ZIPs)" }));
+
+    await waitFor(() => expect(fetchMock).toHaveBeenLastCalledWith(
+      "/api/files?prefix=PHANTOM%2Fnci-size%2Farmless-highres%2Fdicomrt%2F",
+      { credentials: "include", signal: expect.any(AbortSignal) },
+    ));
+    expect(screen.queryByText("Phantom library quick links")).not.toBeInTheDocument();
   });
 
   it("turns URLs in announcement bodies into external links", () => {

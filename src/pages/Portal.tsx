@@ -65,6 +65,7 @@ import { getPortalHeaderEmail, selectPrimaryPortalIdentity } from "@/lib/portalU
 import { sandboxApiLabel, sandboxApiUsageRows, type SandboxApiUsage } from "@/lib/sandboxActivity";
 import { buildAnswerThreads, questionAnswerLabel, questionAuthorLabel, questionRequestTypeLabels, questionRequestTypes, questionTools, type ManagedQuestion, type QuestionAnswerThread, type QuestionRequestType, type QuestionTool, type QuestionVisibility } from "@/lib/questions";
 import { allowsFolderBundleDownload } from "@/lib/folderDownloads";
+import { portalDownloadUrl, queuePortalDownloads } from "@/lib/portalDownloads";
 
 type PortalIdentity = {
   id: string;
@@ -1241,6 +1242,106 @@ const formatBytes = (bytes: number) => {
 
 const itemName = (key: string) => key.replace(/\/$/, "").split("/").pop() || key;
 
+const triggerPortalDownload = (key: string) => {
+  const link = document.createElement("a");
+  link.href = portalDownloadUrl(key);
+  link.download = itemName(key);
+  link.style.display = "none";
+  document.body.append(link);
+  link.click();
+  link.remove();
+};
+
+type PhantomGuideLink = { label: string; prefix: string; href?: never } | { label: string; href: string; prefix?: never };
+type PhantomGuideCell = { text?: string; links?: PhantomGuideLink[] };
+type PhantomGuideRow = { label: string; cells: PhantomGuideCell[] };
+
+const phantomGuideColumns = [
+  { label: "UF/NCI reference size phantoms", prefix: "PHANTOM/nci-reference/" },
+  { label: "UF/NCI body size-dependent phantoms", prefix: "PHANTOM/nci-size/" },
+  { label: "ICRP reference phantoms", prefix: "PHANTOM/icrp-reference/" },
+  { label: "UF/NCI pregnant women phantoms", prefix: "PHANTOM/nci-pregnant/" },
+] satisfies PhantomGuideLink[];
+
+const phantomGuideRows: PhantomGuideRow[] = [
+  {
+    label: "Distinct subjects",
+    cells: phantomGuideColumns.map(({ prefix }, index) => ({
+      links: [{ label: ["12", "362", "12", "8 gestational ages"][index], prefix }],
+    })),
+  },
+  {
+    label: "Arm variants",
+    cells: [
+      { links: [
+        { label: "arm highres", prefix: "PHANTOM/nci-reference/arm-highres/" },
+        { label: "arm lowres", prefix: "PHANTOM/nci-reference/arm-lowres/" },
+        { label: "armless highres", prefix: "PHANTOM/nci-reference/armless-highres/" },
+        { label: "armless lowres", prefix: "PHANTOM/nci-reference/armless-lowres/" },
+      ] },
+      { links: [
+        { label: "arm highres", prefix: "PHANTOM/nci-size/arm-highres/" },
+        { label: "arm lowres", prefix: "PHANTOM/nci-size/arm-lowres/" },
+        { label: "armless highres", prefix: "PHANTOM/nci-size/armless-highres/" },
+        { label: "armless lowres", prefix: "PHANTOM/nci-size/armless-lowres/" },
+      ] },
+      { links: [
+        { label: "arm", prefix: "PHANTOM/icrp-reference/arm/" },
+        { label: "armless", prefix: "PHANTOM/icrp-reference/armless/" },
+      ] },
+      { links: [
+        { label: "arm singleres", prefix: "PHANTOM/nci-pregnant/arm-singleres/" },
+        { label: "arm multires", prefix: "PHANTOM/nci-pregnant/arm-multires/" },
+        { label: "armless singleres", prefix: "PHANTOM/nci-pregnant/armless-singleres/" },
+        { label: "armless multires", prefix: "PHANTOM/nci-pregnant/armless-multires/" },
+      ] },
+    ],
+  },
+  {
+    label: "NIfTI (.nii.gz)",
+    cells: phantomGuideColumns.map(({ prefix }, index) => ({
+      links: [{ label: ["48 files", "1,448 files", "24 files", "64 files"][index], prefix }],
+    })),
+  },
+  {
+    label: "Organ metadata CSV",
+    cells: phantomGuideColumns.map(({ prefix }) => ({ links: [{ label: "per NIfTI folder", prefix }] })),
+  },
+  {
+    label: "DICOMRT",
+    cells: [
+      { text: "not included" },
+      { links: [{ label: "armless highres (362 ZIPs)", prefix: "PHANTOM/nci-size/armless-highres/dicomrt/" }] },
+      { links: [{ label: "armless only", prefix: "PHANTOM/icrp-reference/armless/dicomrt/" }] },
+      { links: [{ label: "arm singleres only", prefix: "PHANTOM/nci-pregnant/arm-singleres/dicomrt/" }] },
+    ],
+  },
+  {
+    label: "Monte Carlo input",
+    cells: [
+      { text: "not included" },
+      { text: "not included" },
+      { text: "not included" },
+      { links: [
+        { label: "MCNP arm multires", prefix: "PHANTOM/nci-pregnant/arm-multires/mcnp-input/" },
+        { label: "MCNP armless multires", prefix: "PHANTOM/nci-pregnant/armless-multires/mcnp-input/" },
+      ] },
+    ],
+  },
+  {
+    label: "Reference",
+    cells: [
+      { links: [{ label: "Lee 2010", href: "https://pubmed.ncbi.nlm.nih.gov/20019401/" }] },
+      { links: [{ label: "Geyer 2014", href: "https://pubmed.ncbi.nlm.nih.gov/25144322/" }] },
+      { links: [
+        { label: "ICRP 110", href: "https://www.icrp.org/publication.asp?id=icrp%20publication%20110" },
+        { label: "ICRP 143", href: "https://pubmed.ncbi.nlm.nih.gov/33000625/" },
+      ] },
+      { links: [{ label: "Maynard 2014", href: "https://pubmed.ncbi.nlm.nih.gov/25030913/" }] },
+    ],
+  },
+];
+
 export const Downloads = ({ demoMode, initialTool }: { demoMode: boolean; initialTool?: string | null }) => {
   const { toast } = useToast();
   const [search, setSearch] = useState("");
@@ -1251,6 +1352,7 @@ export const Downloads = ({ demoMode, initialTool }: { demoMode: boolean; initia
   const [cursor, setCursor] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [loadError, setLoadError] = useState("");
+  const [selectedKeys, setSelectedKeys] = useState<Set<string>>(() => new Set());
   const folderRequest = useRef<AbortController | null>(null);
 
   useEffect(() => () => folderRequest.current?.abort(), []);
@@ -1273,6 +1375,7 @@ export const Downloads = ({ demoMode, initialTool }: { demoMode: boolean; initia
       setFiles([]);
       setFolders([]);
       setCursor(null);
+      setSelectedKeys(new Set());
     }
     try {
       const query = new URLSearchParams({ prefix: nextPrefix });
@@ -1322,7 +1425,7 @@ export const Downloads = ({ demoMode, initialTool }: { demoMode: boolean; initia
   };
 
   const downloadFile = (file: PortalFile) => {
-    window.location.assign(`/api/download?key=${encodeURIComponent(file.key)}`);
+    triggerPortalDownload(file.key);
   };
 
   const downloadFolder = (folder: PortalFolder) => {
@@ -1331,8 +1434,39 @@ export const Downloads = ({ demoMode, initialTool }: { demoMode: boolean; initia
   };
 
   const normalizedSearch = search.trim().toLowerCase();
-  const visibleFolders = folders.filter((folder) => itemName(folder.prefix).toLowerCase().includes(normalizedSearch));
-  const visibleFiles = files.filter((file) => itemName(file.key).toLowerCase().includes(normalizedSearch));
+  const visibleFolders = folders
+    .filter((folder) => itemName(folder.prefix).toLowerCase().includes(normalizedSearch))
+    .sort((left, right) => itemName(left.prefix).localeCompare(itemName(right.prefix)));
+  const visibleFiles = files
+    .filter((file) => itemName(file.key).toLowerCase().includes(normalizedSearch))
+    .sort((left, right) => itemName(left.key).localeCompare(itemName(right.key)));
+  const selectedFiles = files.filter((file) => selectedKeys.has(file.key));
+  const selectedBytes = selectedFiles.reduce((total, file) => total + file.size, 0);
+  const allVisibleFilesSelected = visibleFiles.length > 0 && visibleFiles.every((file) => selectedKeys.has(file.key));
+  const toggleFile = (key: string) => setSelectedKeys((current) => {
+    const next = new Set(current);
+    if (next.has(key)) next.delete(key);
+    else next.add(key);
+    return next;
+  });
+  const toggleVisibleFiles = () => setSelectedKeys((current) => {
+    const next = new Set(current);
+    for (const file of visibleFiles) {
+      if (allVisibleFilesSelected) next.delete(file.key);
+      else next.add(file.key);
+    }
+    return next;
+  });
+  const downloadSelectedFiles = () => {
+    const selected = selectedFiles.map((file) => file.key);
+    if (!selected.length) return;
+    queuePortalDownloads(selected, triggerPortalDownload);
+    toast({
+      title: `${selected.length} downloads started`,
+      description: "Your browser may ask you to allow multiple downloads from this site.",
+    });
+    setSelectedKeys(new Set());
+  };
   const selectedTool = rootPrefix.replace(/\/$/, "");
   const selectedManualUrl = toolManualUrls[selectedTool];
 
@@ -1353,6 +1487,50 @@ export const Downloads = ({ demoMode, initialTool }: { demoMode: boolean; initia
       </div>
 
       {selectedTool === "DCC" && <p className="text-sm leading-relaxed text-muted-foreground">Dose conversion coefficient data and supporting publications. Open a folder to browse its datasets or download the complete folder.</p>}
+      {selectedTool === "PHANTOM" && prefix === rootPrefix && (
+        <section className="border border-border bg-white">
+          <div className="border-b border-border px-5 py-4">
+            <h3 className="text-sm font-semibold text-slate-800">Phantom library quick links</h3>
+            <p className="mt-1 text-xs leading-relaxed text-muted-foreground">Choose a library, format, or arm variant to open its download folder directly. Availability matches the PHANTOM user manual.</p>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="min-w-[1120px] w-full border-collapse text-sm">
+              <thead>
+                <tr className="bg-slate-100 text-slate-800">
+                  <th scope="col" className="w-44 border-b border-r border-border px-5 py-4 text-left font-semibold">Release item</th>
+                  {phantomGuideColumns.map((column) => (
+                    <th key={column.prefix} scope="col" className="border-b border-r border-border px-5 py-4 text-center font-semibold last:border-r-0">
+                      <button type="button" onClick={() => void loadFolder(column.prefix)} className="underline decoration-primary/40 underline-offset-4 transition-colors hover:text-primary hover:decoration-primary">{column.label}</button>
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {phantomGuideRows.map((row) => (
+                  <tr key={row.label}>
+                    <th scope="row" className="border-b border-r border-border px-5 py-4 text-left font-medium text-slate-700">{row.label}</th>
+                    {row.cells.map((cell, cellIndex) => (
+                      <td key={`${row.label}-${phantomGuideColumns[cellIndex].prefix}`} className="border-b border-r border-border px-5 py-4 text-center text-slate-600 last:border-r-0">
+                        {cell.links ? (
+                          <div className="flex flex-wrap justify-center gap-x-3 gap-y-2">
+                            {cell.links.map((link) => (
+                              link.href ? (
+                                <a key={link.href} href={link.href} target="_blank" rel="noreferrer" className="font-medium text-primary underline decoration-primary/40 underline-offset-4 hover:decoration-primary">{link.label}</a>
+                              ) : (
+                                <button key={link.prefix} type="button" onClick={() => void loadFolder(link.prefix)} className="font-medium text-primary underline decoration-primary/40 underline-offset-4 hover:decoration-primary">{link.label}</button>
+                              )
+                            ))}
+                          </div>
+                        ) : cell.text}
+                      </td>
+                    ))}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </section>
+      )}
       <section className="border border-border bg-white">
         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border px-5 py-4">
           <div className="flex min-w-0 items-center gap-3">
@@ -1376,7 +1554,37 @@ export const Downloads = ({ demoMode, initialTool }: { demoMode: boolean; initia
         ) : loadError ? (
           <div className="p-8 text-center"><p className="text-sm text-destructive">{loadError}</p><Button type="button" variant="outline" onClick={() => void loadFolder(prefix)} className="mt-4 rounded-none">Try again</Button></div>
         ) : (
-          <div className="divide-y divide-border">
+          <div>
+            {(files.length > 0 || selectedFiles.length > 0) && (
+              <div className="flex flex-col gap-3 border-b border-border bg-slate-50 px-6 py-4 sm:flex-row sm:items-center sm:justify-between">
+                <div className="flex flex-wrap items-center gap-4">
+                  <label className="inline-flex cursor-pointer items-center gap-2 text-sm font-medium text-slate-700">
+                    <input
+                      type="checkbox"
+                      aria-label="Check all shown files"
+                      checked={allVisibleFilesSelected}
+                      onChange={toggleVisibleFiles}
+                      disabled={visibleFiles.length === 0}
+                      className="h-4 w-4 accent-primary"
+                    />
+                    Check all
+                  </label>
+                  <span className="font-mono text-xs text-muted-foreground">
+                    {selectedFiles.length} selected{selectedFiles.length ? ` · ${formatBytes(selectedBytes)}` : ""}
+                  </span>
+                  {selectedFiles.length > 0 && (
+                    <button type="button" onClick={() => setSelectedKeys(new Set())} className="text-xs font-medium text-primary hover:underline">Clear</button>
+                  )}
+                </div>
+                <div className="flex flex-col gap-2 sm:items-end">
+                  <Button type="button" disabled={selectedFiles.length === 0} onClick={downloadSelectedFiles} className="rounded-none">
+                    <Download className="h-4 w-4" /> Download selected
+                  </Button>
+                  <p className="text-xs text-muted-foreground">Files download individually; your browser may ask to allow multiple downloads.</p>
+                </div>
+              </div>
+            )}
+            <div className="divide-y divide-border">
             {visibleFolders.map((folder) => (
               <div key={folder.prefix} className="flex flex-col gap-3 px-6 py-4 hover:bg-slate-50 sm:flex-row sm:items-center">
                 <button type="button" onClick={() => void loadFolder(folder.prefix)} className="flex min-w-0 flex-1 items-center gap-4 text-left">
@@ -1393,11 +1601,15 @@ export const Downloads = ({ demoMode, initialTool }: { demoMode: boolean; initia
             ))}
             {visibleFiles.map((file) => (
               <div key={file.key} className="flex flex-col justify-between gap-4 px-6 py-4 sm:flex-row sm:items-center">
-                <div className="flex min-w-0 items-center gap-4"><div className="flex h-10 w-10 shrink-0 items-center justify-center border border-border bg-slate-50"><FileArchive className="h-5 w-5 text-primary" /></div><div className="min-w-0"><div className="break-words text-sm font-medium text-slate-800">{itemName(file.key)}</div><div className="mt-1 text-xs text-muted-foreground">{formatBytes(file.size)}</div></div></div>
+                <div className="flex min-w-0 items-center gap-4">
+                  <input type="checkbox" aria-label={`Select ${itemName(file.key)}`} checked={selectedKeys.has(file.key)} onChange={() => toggleFile(file.key)} className="h-4 w-4 shrink-0 accent-primary" />
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center border border-border bg-slate-50"><FileArchive className="h-5 w-5 text-primary" /></div><div className="min-w-0"><div className="break-words text-sm font-medium text-slate-800">{itemName(file.key)}</div><div className="mt-1 text-xs text-muted-foreground">{formatBytes(file.size)}</div></div>
+                </div>
                 <Button type="button" onClick={() => downloadFile(file)} className="shrink-0 rounded-none"><Download className="h-4 w-4" /> Download</Button>
               </div>
             ))}
             {!loading && visibleFolders.length === 0 && visibleFiles.length === 0 && <div className="p-10 text-center text-sm text-muted-foreground">No files found in this folder.</div>}
+            </div>
           </div>
         )}
         {cursor && !loadError && <div className="border-t border-border p-4 text-center"><Button type="button" variant="outline" disabled={loading} onClick={() => void loadFolder(prefix, cursor)} className="rounded-none">{loading ? <Loader2 className="h-4 w-4 animate-spin" /> : null} Load more</Button></div>}

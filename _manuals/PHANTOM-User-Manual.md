@@ -136,8 +136,16 @@ nci-size/armless-highres/dicomrt
 This folder contains **362 independently downloadable ZIP archives**, one per
 phantom, plus `dicomrt-manifest.csv`. A bulk archive of the complete DICOMRT
 folder is intentionally not generated because each CT series contains hundreds
-of DICOM instances and the full collection is large. Download only the phantom
-or phantoms needed for a study.
+of DICOM instances and the full collection is large. In the User Portal, use
+the checkboxes to choose one or more phantom ZIPs, then select **Download
+selected**. The browser downloads each selected ZIP independently and may ask
+for permission to allow multiple downloads from the portal.
+
+The PHANTOM download page also provides a library summary table with direct
+links to each available library, posture/resolution variant, DICOMRT folder,
+and pregnant MCNP input folder. PHANTOM bulk folder archives are not stored;
+this avoids duplicating the release data while still allowing multi-file
+selection in the portal.
 
 Each archive is named:
 

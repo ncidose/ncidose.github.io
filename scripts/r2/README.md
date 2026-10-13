@@ -41,14 +41,15 @@ another folder after `--` when needed:
 
 The sync is additive: it uploads new or changed files and skips objects whose
 byte size and SHA-256 metadata match. It also builds private folder-download
-archives for every nested folder under `PHANTOM/` and `DCC/`. The portal keeps
-those archives out of the file browser and presents a consistent **Download
-folder** action instead. It never deletes R2 objects. `.DS_Store` and the legacy
+archives for every nested folder under `DCC/`. The portal keeps those archives
+out of the file browser and presents a consistent **Download folder** action.
+PHANTOM files use portal checkboxes for multi-file downloads instead of stored
+folder archives. The sync never deletes R2 objects. `.DS_Store` and the legacy
 `upload_to_r2.py` helper are excluded. The local `_release/_archive` directory
 is also excluded so historical installers remain only in the local archive and
 are not republished to R2.
 
-To rebuild and publish only the hidden PHANTOM and DCC folder downloads, run:
+To rebuild and publish only the hidden DCC folder downloads, run:
 
 ```bash
 ./scripts/macos-node.sh npm run r2:sync-folder-downloads
@@ -98,13 +99,9 @@ After updating the local folder, publish its new and changed files with:
 ./scripts/macos-node.sh npm run phantom:push
 ```
 
-The push maps the local folder root to R2 `PHANTOM/`. It rebuilds the hidden
-folder-download archives and does not delete remote objects.
-
-`dicomrt` directories are intentionally excluded from hidden folder-download
-archives. Their validated CT + RTSTRUCT ZIP files are uploaded as ordinary
-objects and downloaded one phantom at a time; they are not duplicated inside
-large parent-folder archives.
+The push maps the local folder root to R2 `PHANTOM/` and does not delete remote
+objects. It does not build hidden PHANTOM folder archives. Users can select one
+or more files in the portal and download them as individual objects.
 
 When a PHANTOM release reorganizes or removes files, replace the remote folder
 with an exact mirror of the local release:
@@ -113,8 +110,8 @@ with an exact mirror of the local release:
 ./scripts/macos-node.sh npm run phantom:replace
 ```
 
-Replacement uploads and verifies every local file and folder-download archive
-before deleting stale objects under `PHANTOM/` and
-`_folder-downloads/PHANTOM/`. The delete API is restricted to those two
-prefixes. The command finishes with a second listing that verifies the remote
-object set and byte sizes exactly match the local release.
+Replacement uploads and verifies every local file before deleting stale objects
+under `PHANTOM/` and old archives under `_folder-downloads/PHANTOM/`. The delete
+API is restricted to those two prefixes. The command finishes with a second
+listing that verifies the remote object set and byte sizes exactly match the
+local release.

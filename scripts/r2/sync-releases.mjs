@@ -35,8 +35,6 @@ const token = process.env.NCIDOSE_R2_UPLOAD_TOKEN || (() => {
 const partSize = 32 * 1024 * 1024;
 const fileConcurrency = 4;
 const excludedNames = new Set([".DS_Store", "_archive", "upload_to_r2.py"]);
-const individuallyPackagedDirectoryNames = new Set(["dicomrt"]);
-const folderBundleExclusions = ["*/dicomrt/*"];
 const legacyBundleKeys = new Set([
   "PHANTOM/nci_size/arm_highres.zip",
   "PHANTOM/nci_size/arm_lowres.zip",
@@ -98,7 +96,6 @@ async function collectDirectories(directory, prefix) {
   const entries = await readdir(directory, { withFileTypes: true });
   for (const entry of entries.sort((a, b) => a.name.localeCompare(b.name))) {
     if (!entry.isDirectory() || excludedNames.has(entry.name)) continue;
-    if (individuallyPackagedDirectoryNames.has(entry.name.toLowerCase())) continue;
     const absolute = path.join(directory, entry.name);
     const key = `${prefix}/${entry.name}`;
     directories.push({ absolute, key });
@@ -201,8 +198,8 @@ const bundleTempDirectory = await mkdtemp(path.join(os.tmpdir(), "ncidose-r2-bun
 try {
 const bundleFiles = [];
 const bundleRoots = profile === "phantom"
-  ? [{ absolute: source, key: "PHANTOM" }]
-  : ["PHANTOM", "DCC"].map((key) => ({ absolute: path.join(source, key), key }));
+  ? []
+  : ["DCC"].map((key) => ({ absolute: path.join(source, key), key }));
 const bundleDirectories = [];
 for (const root of bundleRoots) {
   if ((await stat(root.absolute).catch(() => null))?.isDirectory()) {
@@ -219,7 +216,7 @@ for (const [index, directory] of bundleDirectories.entries()) {
   console.log(`Building folder download ${directory.key}`);
   execFileSync("zip", [
     "-0", "-q", "-r", archive, path.basename(directory.absolute),
-    "-x", "*/.DS_Store", ...folderBundleExclusions, ...exclusions,
+    "-x", "*/.DS_Store", ...exclusions,
   ], {
     cwd: path.dirname(directory.absolute),
   });

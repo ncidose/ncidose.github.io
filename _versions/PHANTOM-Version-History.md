@@ -22,9 +22,11 @@ Record begins: **2010**
 - Validated every archive for ZIP integrity, CT slice count, RTSTRUCT ROI count,
   patient metadata, shared CT series/frame identifiers, and complete CT image
   references, and published SHA-256 digests in `dicomrt-manifest.csv`.
-- Excluded DICOMRT directories from bulk folder archives so users download only
-  the required phantom package and the 362-series collection is not duplicated
-  in parent-folder downloads.
+- Added a download-page library matrix with direct links to every released
+  phantom family, posture/resolution variant, DICOMRT collection, and pregnant
+  MCNP input folder.
+- Added checkbox selection and multi-file download initiation, and retired all
+  PHANTOM bulk folder archives so release data are not stored twice.
 
 ### September 30, 2026 — Maintenance Update
 

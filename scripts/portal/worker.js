@@ -2,7 +2,8 @@ import { handlePublicSubscriptions, handleAdminSubscribers, queueScientificUpdat
 import { summarizeAnnouncement } from "../../src/lib/announcementSummary.js";
 import { ncirfBuiltInSpectrumForValues } from "../../src/data/ncirfBuiltInSpectra.js";
 const allowedPrefixes = ["NCICT/", "NCINM/", "NCIRF/", "PHANTOM/", "DCC/"];
-const folderDownloadPrefixes = ["PHANTOM/", "DCC/"];
+const folderDownloadPrefixes = ["DCC/"];
+export const portalFileListLimit = 1000;
 const portalSessionCookie = "__Host-ncidose_session";
 const loginCodeLifetimeMinutes = 10;
 const portalSessionLifetimeDays = 30;
@@ -2975,8 +2976,10 @@ export default {
         if (prefix && !allowedPrefixes.some((allowed) => prefix.startsWith(allowed) || allowed.startsWith(prefix))) {
           return json({ error: "invalid_prefix" }, 400, cors);
         }
-        const result = await env.BUCKET.list({ prefix, delimiter: "/", limit: 200, cursor: url.searchParams.get("cursor") || undefined });
-        const listedFolders = result.delimitedPrefixes.filter((folder) => allowedPrefixes.some((allowed) => folder.startsWith(allowed)));
+        const result = await env.BUCKET.list({ prefix, delimiter: "/", limit: portalFileListLimit, cursor: url.searchParams.get("cursor") || undefined });
+        const listedFolders = result.delimitedPrefixes
+          .filter((folder) => allowedPrefixes.some((allowed) => folder.startsWith(allowed)))
+          .sort((left, right) => left.localeCompare(right));
         const folderDownloads = await Promise.all(listedFolders.map(async (folderPrefix) => {
           let available = false;
           for (const archiveKey of folderArchiveKeys(folderPrefix)) {
@@ -2987,10 +2990,11 @@ export default {
           }
           return { prefix: folderPrefix, downloadAvailable: available };
         }));
-        const legacyFolderArchives = new Set(listedFolders.flatMap((folderPrefix) => folderArchiveKeys(folderPrefix).slice(1)));
+        const legacyFolderArchives = new Set(listedFolders.map((folderPrefix) => `${folderPrefix.slice(0, -1)}.zip`));
         return json({
           objects: result.objects
             .filter((object) => isDownloadableKey(object.key) && !legacyFolderArchives.has(object.key))
+            .sort((left, right) => left.key.localeCompare(right.key))
             .map((object) => ({ key: object.key, size: object.size, etag: object.httpEtag })),
           folders: folderDownloads,
           cursor: result.truncated ? result.cursor : null,

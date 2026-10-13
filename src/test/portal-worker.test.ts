@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import portalWorker, { adminPortalActivityFilter, adminPortalActivityQueries, adminPortalExcludedEmails, adminRecentActivityQuery, adminSandboxActivityQueries, adminSandboxExcludedCities, adminSandboxReportingFilter, adminUsersQuery, announcementEmailHtml, canPublishQuestion, canViewDiscussion, communityDiscussionEmailsEnabled, discussionAuthorForUser, discussionReplyNotificationEmail, folderArchiveKeys, generateLoginCode, isFolderDownloadPrefix, linkedEmailWelcomeHtml, loginCodeEmailHtml, newDiscussionNotificationEmail, normalizeAdminUserDetails, normalizePortalEmail, normalizeQuestionVisibility, portalSessionCookieHeader, qaAttachmentValidationError, secondaryEmailAddedHtml, shouldNotifyDiscussionReplyRecipient, shouldNotifyNewDiscussionRecipient, vendorDemoErrorForUpstream, vendorDemoLimits, vendorDemoLocationForRequest, vendorDemoPresetForInput, vendorDemoPresets, vendorDemoRequestForInput, welcomeEmailHtml } from "../../scripts/portal/worker.js";
+import portalWorker, { adminPortalActivityFilter, adminPortalActivityQueries, adminPortalExcludedEmails, adminRecentActivityQuery, adminSandboxActivityQueries, adminSandboxExcludedCities, adminSandboxReportingFilter, adminUsersQuery, announcementEmailHtml, canPublishQuestion, canViewDiscussion, communityDiscussionEmailsEnabled, discussionAuthorForUser, discussionReplyNotificationEmail, folderArchiveKeys, generateLoginCode, isFolderDownloadPrefix, linkedEmailWelcomeHtml, loginCodeEmailHtml, newDiscussionNotificationEmail, normalizeAdminUserDetails, normalizePortalEmail, normalizeQuestionVisibility, portalFileListLimit, portalSessionCookieHeader, qaAttachmentValidationError, secondaryEmailAddedHtml, shouldNotifyDiscussionReplyRecipient, shouldNotifyNewDiscussionRecipient, vendorDemoErrorForUpstream, vendorDemoLimits, vendorDemoLocationForRequest, vendorDemoPresetForInput, vendorDemoPresets, vendorDemoRequestForInput, welcomeEmailHtml } from "../../scripts/portal/worker.js";
 
 describe("admin activity query", () => {
   it("uses an indexed primary-identity join instead of a per-event correlated lookup", () => {
@@ -636,16 +636,21 @@ describe("Q&A attachment validation", () => {
 });
 
 describe("folder downloads", () => {
-  it("supports nested PHANTOM and DCC folders through hidden archives", () => {
-    expect(isFolderDownloadPrefix("PHANTOM/nci_size/")).toBe(true);
+  it("keeps hidden folder archives only for DCC", () => {
+    expect(isFolderDownloadPrefix("PHANTOM/nci_size/")).toBe(false);
     expect(isFolderDownloadPrefix("DCC/nevada_nuclear_bomb_test/thyroid_dose/")).toBe(true);
-    expect(folderArchiveKeys("PHANTOM/nci_size/")).toEqual([
-      "_folder-downloads/PHANTOM/nci_size.zip",
-      "PHANTOM/nci_size.zip",
+    expect(folderArchiveKeys("PHANTOM/nci_size/")).toEqual([]);
+    expect(folderArchiveKeys("DCC/ncict/")).toEqual([
+      "_folder-downloads/DCC/ncict.zip",
+      "DCC/ncict.zip",
     ]);
   });
 
-  it("does not add folder downloads to the three flat software distributions", () => {
+  it("loads every current folder entry before requiring pagination", () => {
+    expect(portalFileListLimit).toBe(1000);
+  });
+
+  it("does not add folder downloads to software and PHANTOM distributions", () => {
     expect(isFolderDownloadPrefix("NCICT/releases/")).toBe(false);
     expect(isFolderDownloadPrefix("NCINM/data/")).toBe(false);
     expect(isFolderDownloadPrefix("NCIRF/examples/")).toBe(false);
