@@ -11,6 +11,9 @@
 
 @layer base {
   :root {
+    /* Used by the standalone portal to detect an incomplete stylesheet load. */
+    --ncidose-styles-ready: 1;
+
     /* Core Background Colors - Light theme */
     --background: 210 40% 98%; /* Soft off-white */
     --foreground: 222 47% 11%; /* Dark navy text */

@@ -74,6 +74,7 @@ describe("shared discussion and announcement formatting", () => {
     };
     render(<MemoryRouter initialEntries={["/portal/questions?discussion=first"]}><SwitchDiscussion /><PortalQuestions demoMode={false} /></MemoryRouter>);
     await waitFor(() => expect(screen.getByText("first body")).toBeInTheDocument());
+    expect(screen.getAllByText("0 replies")).toHaveLength(2);
     fireEvent.click(screen.getByRole("button", { name: "Next discussion" }));
     await waitFor(() => expect(screen.getByText("second body")).toBeInTheDocument());
     expect(screen.queryByText("first body")).not.toBeInTheDocument();
