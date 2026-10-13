@@ -807,6 +807,10 @@ describe("announcement email template", () => {
     vi.stubGlobal("fetch", vi.fn(async (_input, init) => {
       const payload = JSON.parse(String(init?.body));
       expect(payload.name).toHaveLength(70);
+      expect(payload.html).toContain("Manage email notifications in Account");
+      expect(payload.html).not.toContain("RESEND_UNSUBSCRIBE_URL");
+      expect(payload.text).toContain("Manage email notifications in Account: https://portal.ncidosetools.com/#/portal/account");
+      expect(payload.text).not.toContain("Unsubscribe from announcement emails");
       return new Response(JSON.stringify({ id: "broadcast-1" }), {
         status: 200,
         headers: { "content-type": "application/json" },
@@ -850,6 +854,8 @@ describe("announcement email template", () => {
     expect(html).toContain("color:#0EA5E9;text-decoration:underline");
     expect(html).toContain("Manage email notifications in Account");
     expect(html).toContain("https://portal.ncidosetools.com/#/portal/account");
+    expect(html).not.toContain("RESEND_UNSUBSCRIBE_URL");
+    expect(html).not.toContain("Unsubscribe from announcement emails");
     expect(html).not.toContain("#2ba8df");
     expect(html).not.toContain("#147da8");
   });
