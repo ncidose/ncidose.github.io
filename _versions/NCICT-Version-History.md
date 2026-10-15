@@ -2,11 +2,42 @@
 
 _Scientific and maintenance update record for the National Cancer Institute dosimetry system for Computed Tomography._
 
-Latest release: **September 9, 2026**
-Latest scientific update: **May 2, 2026**
+Update under review: **October 14, 2026 — Scientific Update**
+Latest published release: **September 9, 2026**
+Latest published API version: **4.20260915**
 Record begins: **2011**
 
 ## 2026
+
+### October 14, 2026 — Scientific Update
+
+#### GUI and API
+
+- Added scanner-specific radial dose correction that uses `CTDIc` and `CTDIp` to approximate bowtie-filter shape and correct reference-scanner organ doses while preserving CTDIvol. In ICRP adult validation, it reduced the residual interscanner variation of conventional scanner-independent calculations from about 8% to 2%; the algorithm and validation have been submitted for peer review.
+- Added cephalic/breech fetal presentation selection for supported gestational ages.
+- Expanded normalized CTDIw coverage by 22 additional scanner models, from 136 to 158, and added an `nCTDIc`/`nCTDIp` library for validated scanner/filter conditions, with support for user-defined `nCTDIc`/`nCTDIp` values.
+- Corrected the NCI size-phantom muscle tally and replaced the ICRP blood-vessel surrogate with a dedicated tally.
+- Updated WED and SSDE to use scan-average WED.
+- Unified Batch and API input rules:
+  - Added stable CTDI profile IDs and optional `ctdi_profile_id` or paired `nctdic`/`nctdip` inputs for radial correction while retaining CTDIvol as the absolute dose input.
+  - Added flexible protocol-name matching, including common aliases such as `Chest CT`, `AP`, and `CAP`, and minor spelling errors. A supplied protocol overrides start/end; cm ranges and 1001–1010 landmark IDs remain supported.
+  - Simplified phantom selection: provide the available patient information, and NCICT automatically selects the closest supported phantom and calculates dose. Height and weight take priority over WED; a missing height or weight is filled from the closest sex-specific ICRP reference, and WED matching uses the submitted scan range. Patient input requires at least one of age, height, weight, or WED.
+  - Added explicit `dose_target` selection (`patient`, `fetus`, or `mother`) and optional `cephalic`/`breech` presentation. Gestational age is required for fetus and mother; irrelevant patient size fields are ignored, and omitted presentation defaults to `cephalic`.
+  - Simplified optional inputs: omit WED when unavailable, and omit `tcm_strength` when supplying a `custom_ma` profile. Empty strings are also accepted.
+  - Added submitted and matched protocol names to output while preserving numeric dose precision.
+  - Updated CSV/HTTP examples and manuals to cover the simplified input rules and a wider range of patient and pregnancy cases.
+
+#### GUI
+
+- Added Monte Carlo statistical uncertainty for dose results, including propagated marrow and effective-dose uncertainty and a fixed 90% dose-coverage threshold.
+- Corrected breech phantom images for supported gestational ages.
+- Corrected radial-alpha loading, preserved CTDIvol during center/peripheral edits, and restored startup CTDIvol calculation from the displayed scanner settings.
+- Optimized backend processing and preserved user-defined scan ranges when switching among ICRP, size-dependent, fetus, and pregnant-women phantoms.
+- Leave unavailable fetal and maternal cardiac substructure doses blank in Batch output, with Heart wall dose reported separately.
+
+#### API
+
+- Return cardiac substructure doses as JSON `null` for fetus and mother, with Heart wall dose reported separately.
 
 ### September 9, 2026 — Maintenance Update
 
