@@ -3,15 +3,45 @@
 Documented version: **4.20261014**
 Update: **October 14, 2026 — Scientific Update**
 
-This manual describes the local update under review; the cloud endpoint is
-updated separately when this version is deployed.
+This manual documents the version above; local packages and the cloud endpoint
+are updated separately.
 
 NCICTAPI provides REST-style access to the NCICT4 CT organ dose calculation
 workflow. A client sends one JSON object to `/param`; the server matches the
 requested phantom, applies the scanner and scan-range parameters, calculates
 organ doses, and returns JSON output.
 
-Cloud endpoint:
+## Getting Started
+
+### Local Windows API
+
+1. Run the supplied NCICT API Windows installer and complete installation.
+2. Open **Start NCICT API** from the Start menu or desktop shortcut. Keep its
+   console window open while using the API.
+3. From the same Windows computer, call `http://127.0.0.1:8081`. No API key is
+   required by this local package.
+4. Use **Stop NCICT API**, or close the console window, to stop the server.
+
+Check the server in Windows PowerShell:
+
+```powershell
+curl.exe http://127.0.0.1:8081/health
+```
+
+Save a JSON example from this manual as `request.json`, then submit it:
+
+```powershell
+curl.exe http://127.0.0.1:8081/param -H "Content-Type: application/json" --data-binary "@request.json"
+```
+
+The installed `Docs` folder contains this manual and a keyless local request
+example. The server listens only on the same computer; installation does not
+create a Windows service, automatic startup entry, or firewall rule. If startup
+fails, check whether another application is already using port 8081.
+
+### Cloud API
+
+No local installation is needed. Use the hosted endpoint and assigned API key:
 
 ```text
 POST https://ncict-api.ncidosetools.com/param
@@ -22,17 +52,13 @@ X-API-Key: <assigned vendor API key>
 *A vendor-specific API key is provided after the commercial licensing
 agreement is executed.*
 
-Local Xojo debug endpoint:
+The JSON input and output described below apply to both local and cloud APIs
+when running the corresponding version. Only the base URL and authentication
+differ; cloud deployment may lag the installed release.
 
-```text
-POST http://localhost:8081/param
-Content-Type: application/json
-X-API-Key: <assigned vendor API key>
-```
+### Cloud Authentication
 
-## Authentication
-
-`POST /param` requires the API key assigned to the licensed vendor. Send the
+On the cloud service, `POST /param` requires the API key assigned to the licensed vendor. Send the
 key in the `X-API-Key` request header. Do not include it in the URL or JSON
 body. Missing, disabled, or invalid keys return HTTP `401`.
 
@@ -49,7 +75,7 @@ administrator to have it disabled or rotated. Successful requests are logged
 under the registered company name; the raw key is not written to the API
 access log.
 
-### Command-Line Example
+### Cloud Command-Line Example
 
 Save one of the JSON examples below as `request.json`. For an interactive test,
 read the key without placing it in shell history:
@@ -66,7 +92,7 @@ curl https://ncict-api.ncidosetools.com/param \
 unset NCIDOSE_API_KEY
 ```
 
-### Python Example
+### Cloud Python Example
 
 Provide `NCIDOSE_API_KEY` to the Python process through the deployment
 environment or secret manager. Do not put the raw key in the source file.

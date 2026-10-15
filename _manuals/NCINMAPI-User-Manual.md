@@ -22,7 +22,37 @@ Predefined newborn biokinetic data are unavailable, so newborn
 radiopharmaceutical requests return an explicit error. See the
 [NCINM release history](/versions/ncinm) for a concise summary.
 
-Cloud endpoint:
+## Getting Started
+
+### Local Windows API
+
+1. Run the supplied NCINM API Windows installer and complete installation.
+2. Open **Start NCINM API** from the Start menu or desktop shortcut. Keep its
+   console window open while using the API.
+3. From the same Windows computer, call `http://127.0.0.1:8082`. No API key is
+   required by this local package.
+4. Use **Stop NCINM API**, or close the console window, to stop the server.
+
+Check the server in Windows PowerShell:
+
+```powershell
+curl.exe http://127.0.0.1:8082/health
+```
+
+Save a JSON example from this manual as `request.json`, then submit it:
+
+```powershell
+curl.exe http://127.0.0.1:8082/param -H "Content-Type: application/json" --data-binary "@request.json"
+```
+
+The installed `Docs` folder contains this manual and a keyless local request
+example. The server listens only on the same computer; installation does not
+create a Windows service, automatic startup entry, or firewall rule. If startup
+fails, check whether another application is already using port 8082.
+
+### Cloud API
+
+No local installation is needed. Use the hosted endpoint and assigned API key:
 
 ```text
 POST https://ncinm-api.ncidosetools.com/param
@@ -33,17 +63,13 @@ X-API-Key: <assigned vendor API key>
 *A vendor-specific API key is provided after the commercial licensing
 agreement is executed.*
 
-Local Xojo debug endpoint:
+The JSON input and output described below apply to both local and cloud APIs
+when running the corresponding version. Only the base URL and authentication
+differ; cloud deployment may lag the installed release.
 
-```text
-POST http://localhost:8080/param
-Content-Type: application/json
-X-API-Key: <assigned vendor API key>
-```
+### Cloud Authentication
 
-## Authentication
-
-`POST /param` requires the API key assigned to the licensed vendor. Send the
+On the cloud service, `POST /param` requires the API key assigned to the licensed vendor. Send the
 key in the `X-API-Key` request header. Do not include it in the URL or JSON
 body. Missing, disabled, or invalid keys return HTTP `401`.
 
@@ -60,7 +86,7 @@ administrator to have it disabled or rotated. Successful requests are logged
 under the registered company name; the raw key is not written to the API
 access log.
 
-### Command-Line Example
+### Cloud Command-Line Example
 
 Save one of the JSON examples below as `request.json`. For an interactive test,
 read the key without placing it in shell history:
@@ -77,7 +103,7 @@ curl https://ncinm-api.ncidosetools.com/param \
 unset NCIDOSE_API_KEY
 ```
 
-### Python Example
+### Cloud Python Example
 
 Provide `NCIDOSE_API_KEY` to the Python process through the deployment
 environment or secret manager. Do not put the raw key in the source file.
@@ -101,7 +127,8 @@ response.raise_for_status()
 print(response.json())
 ```
 
-Ready-to-run local examples are provided in:
+The installed `Docs` folder includes `ncinmapi-local-smoke.http` for keyless
+local testing. The complete reference request set is maintained as:
 
 ```text
 _ncinm4api_test.http

@@ -16,7 +16,86 @@ once through the NCI Dose Tools administrator, and reuse their IDs in dose
 requests. `GET /spectra` lists the beams available to the authenticated company.
 Existing integrations using only kVp/HVL continue to use the built-in library.
 
-## CPU and GPU Services
+## Getting Started
+
+### Local Windows API (CPU)
+
+1. Run the supplied NCIRF API Windows installer and complete installation.
+2. Open **Start NCIRF API** from the Start menu or desktop shortcut. Keep its
+   console window open while using the API; the first launch prepares the
+   bundled Geant4 runtime in the current user's local data folder.
+3. From the same Windows computer, call `http://127.0.0.1:8083`. No API key is
+   required by this local package.
+4. Use **Stop NCIRF API**, or close the console window, to stop the server.
+
+Check the server in Windows PowerShell:
+
+```powershell
+curl.exe http://127.0.0.1:8083/health
+```
+
+Save a JSON example from this manual as `request.json`, then submit it:
+
+```powershell
+curl.exe http://127.0.0.1:8083/param -H "Content-Type: application/json" --data-binary "@request.json"
+```
+
+The installed `Docs` folder includes `ncirfapi-local-smoke.http`. Its 10,000
+histories are for a quick installation check, not production precision.
+This Windows package uses **Geant4 CPU**, not the separate Linux/WSL2 hybrid
+GPU runtime; use explicit `Hist` for local calculations.
+
+The server listens only on the same computer. Installation does not create a
+Windows service, automatic startup entry, or firewall rule. If startup fails,
+check whether port 8083 is already in use. Runtime, queue data and custom
+spectra are stored under `%LOCALAPPDATA%\NCI Dose Tools\NCIRF API` and are
+preserved on uninstall.
+
+### Local GPU API (Linux / WSL2)
+
+1. Download the supplied **Linux x86-64 hybrid API package**, extract it, and
+   copy the **entire API folder** to Ubuntu 24.04, either on a Linux computer or
+   inside WSL2 on Windows. No Windows installer is used for this package.
+2. Keep the executable, `ncirf4api Libs`, and `ncirf4api Resources` together.
+   The Resources folder includes `ncirf4_mcgpu_20261014`; do not copy only the
+   MC-GPU executable or remove its bundled data and libraries. Geant4/MC-GPU
+   source code is not needed.
+3. For GPU operation, install a compatible NVIDIA driver with working
+   `nvidia-smi`. The current runtime supports Ampere compute capabilities
+   **8.0/8.6** and was tested on RTX 3090. Other GPU architectures are not yet
+   enabled by this binary.
+4. In the Linux/Ubuntu terminal, change to the extracted API folder and run:
+
+```sh
+sh "ncirf4api Resources/ncirf4_mcgpu_20261014/start-api.sh" "$(pwd)/ncirf4api"
+```
+
+Like the Windows CPU installer, the latest hybrid build allows direct
+same-computer loopback requests **without an API key**; omit the `X-API-Key`
+header. Earlier hybrid builds require a key, so use the updated build for
+keyless operation. Preserve Linux executable permissions when extracting or
+copying the package; see its bundled README if permissions need restoring.
+
+The launcher binds to `http://127.0.0.1:8083`. On the same Windows computer
+hosting WSL2, use that address from Windows applications too (default WSL2
+localhost forwarding). Check it with `curl.exe http://127.0.0.1:8083/health`
+in PowerShell. Stop any other local NCIRF API using port 8083 first. Keep the
+API running while making requests; press **Ctrl+C** in its Ubuntu terminal
+to stop it. This does not install an automatic background service.
+
+For a hosted/reverse-proxied deployment, set `NCI_API_REQUIRE_KEY=1` and configure
+the server key registry before starting the API. This forces key authentication
+even for loopback requests; never expose the default keyless local configuration
+through a public proxy. Explicitly supplied keys are always validated.
+
+The launcher automatically selects a supported GPU, or falls back to full
+Geant4 CPU calculation if no supported GPU is detected. **CPU fallback requires
+explicit `Hist`**; `TopDoseError` works only when GPU execution is selected.
+GPU calculation failures are reported rather than silently retried on CPU.
+Writable calculation data are stored outside the package, by default under
+`~/.local/state/ncirf4-portable` (or the configured `XDG_STATE_HOME`).
+
+### Cloud CPU and GPU APIs
 
 The licensed API is available through two compatible services:
 
@@ -30,7 +109,7 @@ libraries 1-5, and return the same core dose and uncertainty structure. On the
 GPU service, `PSDMode: 0` selects the fixed-history optimized PSD calculation;
 `Thread` controls its Geant4 PSD branch rather than CUDA launch geometry.
 
-### GPU Stopping Modes
+#### GPU Stopping Modes
 
 For phantom libraries 1-4, the GPU API accepts exactly one CUDA stopping input:
 `Hist` for a fixed number of histories or `TopDoseError` for an uncertainty
@@ -60,17 +139,15 @@ X-API-Key: <assigned vendor API key>
 *A vendor-specific API key is provided after the commercial licensing
 agreement is executed.*
 
-Local Xojo debug endpoint:
+The common request fields and response structure below apply to local and
+cloud services of the corresponding version. Select the appropriate base URL
+and authentication: the Windows CPU installer and updated local hybrid build
+are keyless for direct same-computer loopback requests; cloud services require
+a key. GPU-specific stopping modes apply only when using a GPU engine.
 
-```text
-POST http://localhost:8080/param
-Content-Type: application/json
-X-API-Key: <assigned vendor API key>
-```
+### Cloud Authentication
 
-## Authentication
-
-`POST /param`, `/jobs`, and `GET /spectra` require an API key assigned to the
+On the cloud services, `POST /param`, `/jobs`, and `GET /spectra` require an API key assigned to the
 licensed vendor and enabled for the selected service. Send the key in the
 `X-API-Key` request header. Do not include it in the URL or JSON body. Missing,
 disabled, or invalid keys return HTTP `401`.
@@ -88,7 +165,7 @@ administrator to have it disabled or rotated. Successful requests are logged
 under the registered company name; the raw key is not written to the API
 access log.
 
-### Command-Line Example
+### Cloud Command-Line Example
 
 Save one of the JSON examples below as `request.json`. For an interactive test,
 read the key without placing it in shell history:
@@ -105,7 +182,7 @@ curl https://ncirf-api.ncidosetools.com/param \
 unset NCIDOSE_API_KEY
 ```
 
-### Python Example
+### Cloud Python Example
 
 Provide `NCIDOSE_API_KEY` to the Python process through the deployment
 environment or secret manager. Do not put the raw key in the source file.
@@ -134,7 +211,7 @@ print(response.json())
 ## Health Check
 
 ```http
-GET http://localhost:8080/health
+GET http://localhost:8083/health
 GET https://ncirf-api.ncidosetools.com/health
 GET https://ncirfgpu-api.ncidosetools.com/health
 ```
@@ -205,7 +282,8 @@ For a GPU integration, use the same route on
 
 The response contains `ok`, `builtin_count`, `custom_count`, `count`, and a
 `spectra` array. All 114 built-in spectra are shared; custom entries are visible
-only to the company associated with the supplied API key. Responses are marked
+only to the company associated with the supplied API key on the cloud services.
+The keyless Windows package uses the local company scope `local`. Responses are marked
 `Cache-Control: no-store`. This route accepts GET only.
 
 Every entry includes `spectrum_id`, `display_name`, `type` (`builtin` or
@@ -309,8 +387,9 @@ NCIRFAPI/Custom Spectra/
   registration-errors.log
 ```
 
-The company folder name must exactly match the company name in the API key
-registration, including case. A separate folder grants a separate company
+For cloud services, the company folder name must exactly match the company name
+in the API key registration, including case. For the keyless Windows package,
+use a `local` company folder under its Custom Spectra directory. A separate folder grants a separate company
 access; copying an identical beam file into both folders explicitly grants
 both companies access. Hospital/equipment mappings remain the vendor's
 responsibility; this initial implementation scopes permissions by company,
@@ -390,9 +469,8 @@ Supported aliases include `id`, `phantom_library`, `age`, `sex`, `height_cm`, `w
 ## Example: Size-Dependent Phantom
 
 ```http
-POST http://localhost:8080/param
+POST http://127.0.0.1:8083/param
 Content-Type: application/json
-X-API-Key: <assigned vendor API key>
 
 {
   "ID": "10009",
@@ -421,9 +499,8 @@ X-API-Key: <assigned vendor API key>
 ## Example: Pregnant Phantom
 
 ```http
-POST http://localhost:8080/param
+POST http://127.0.0.1:8083/param
 Content-Type: application/json
-X-API-Key: <assigned vendor API key>
 
 {
   "ID": "10006",
