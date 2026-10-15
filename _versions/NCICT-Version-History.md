@@ -2,16 +2,14 @@
 
 _Scientific and maintenance update record for the National Cancer Institute dosimetry system for Computed Tomography._
 
-Latest published GUI release: **October 14, 2026 — Scientific Update**
-Latest published API version: **4.20260915**
-API update under review: **4.20261014**
+Latest release: **October 14, 2026 — Scientific Update**
 Record begins: **2011**
 
 ## 2026
 
 ### October 14, 2026 — Scientific Update
 
-Released for the macOS Universal GUI (Intel and Apple Silicon). The API changes below are prepared but have not been deployed; the Windows release is unchanged.
+The macOS GUI uses a Universal build supporting Intel and Apple Silicon.
 
 #### GUI and API
 
