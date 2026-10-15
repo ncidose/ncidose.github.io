@@ -5,7 +5,7 @@ _**NCI Dosimetry System for Computed Tomography**_
 Documented version: **4.20261014**
 Update: **October 14, 2026 — Scientific Update**
 
-This manual describes the macOS Universal release, supporting Intel and Apple Silicon. The Windows release remains 4.20260909.
+This manual describes version 4.20261014 for macOS Universal (Intel and Apple Silicon) and Windows x64.
 
 ![NCICT 4 main window showing phantom selection, scan coverage, scanner inputs, and organ dose output](images/ncict4-main-window.png)
 
