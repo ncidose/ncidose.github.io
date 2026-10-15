@@ -3,7 +3,7 @@
 _Scientific and maintenance update record for the NCI computational phantom libraries._
 
 Latest release: **October 13, 2026**
-Latest scientific update: **August 20, 2026**
+Latest scientific update: **August 11, 2026**
 Latest maintenance update: **October 13, 2026**
 Record begins: **2010**
 
@@ -12,13 +12,18 @@ Record begins: **2010**
 ### October 13, 2026 — Maintenance Update
 
 - Released individually downloadable DICOM CT and RT Structure Set packages for
-  all **362** NCI body size-dependent armless high-resolution phantoms.
+  all **362** NCI body size-dependent armless phantoms at both high and low
+  resolution.
+- Curated the released structure sets to omit non-target contents and
+  bulk-material regions, alphabetize ROI names, group cardiac substructures with
+  a `heart-` prefix, and group cortical structures with a `cortical-` prefix.
 - Added phantom-identifying CT and RTSTRUCT filenames and synthetic DICOM header
   metadata for phantom ID, demographics, library, arm posture, resolution,
   matrix dimensions, and voxel spacing.
 - Used the existing NCI computational phantom HU CT library for 360 packages;
   derived HU from the released age/sex material-density table for the two
-  smallest newborn size phantoms whose matching HU CT NIfTI is unavailable.
+  smallest newborn high-resolution phantoms whose matching HU CT NIfTI is
+  unavailable and for all low-resolution packages.
 - Validated every archive for ZIP integrity, CT slice count, RTSTRUCT ROI count,
   patient metadata, shared CT series/frame identifiers, and complete CT image
   references, and published SHA-256 digests in `dicomrt-manifest.csv`.
@@ -48,7 +53,7 @@ Record begins: **2010**
   indentation and removing cell-block separators from included lattice files.
 - Restored successful input and geometry initialization in MCNPX and MCNP6.
 
-### August 20, 2026 — Scientific Update
+### August 20, 2026 — Maintenance Update
 
 - Corrected the 20- and 25-week breech fetal surfaces to remain within the uterus.
 - Fixed pregnant-phantom volume clipping by sizing single-resolution grids from
@@ -56,15 +61,16 @@ Record begins: **2010**
   armless NIfTI phantoms.
 - Updated and validated the related metadata, MCNP files, and master workbook.
 
-### August 11, 2026 — Maintenance Update
+### August 11, 2026 — Scientific Update
 
+- Added breech fetal presentations at 10, 15, 20, and 25 weeks of gestation
+  alongside the existing cephalic pregnant phantom library.
 - Renamed and reorganized PHANTOM folders so the main libraries are easier to
   browse: `nci-reference`, `nci-size`, `nci-pregnant`, and `icrp-reference`.
 - Standardized release filenames across NIfTI, DICOMRT, Monte Carlo input files,
   and the master workbook, now named `phantom-mastertable.xlsx`.
 - Updated the pregnant phantom release so arm/armless and single-/multi-resolution
-  folders use a consistent naming pattern. Cephalic presentations are included for
-  all gestational ages, with breech presentations included where available.
+  folders use a consistent naming pattern.
 - Added starting MCNP input files for the pregnant multi-resolution phantoms, with
   one input file per gestational age and clear options for available fetal
   presentations.
