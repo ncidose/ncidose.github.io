@@ -7,7 +7,7 @@ Record begins: **2011**
 
 ## 2026
 
-### October 14, 2026 — Scientific Update
+### October 14, 2026 — Scientific Update — NCICT4
 
 The macOS GUI uses a Universal build supporting Intel and Apple Silicon.
 
@@ -39,7 +39,7 @@ The macOS GUI uses a Universal build supporting Intel and Apple Silicon.
 
 - Return cardiac substructure doses as JSON `null` for fetus and mother, with Heart wall dose reported separately.
 
-### September 9, 2026 — Maintenance Update
+### September 9, 2026 — Maintenance Update — NCICT4
 
 #### GUI
 
@@ -62,7 +62,7 @@ The macOS GUI uses a Universal build supporting Intel and Apple Silicon.
 - Preserved the calculated precision of API dose results, including small nonzero doses previously rounded to zero in the response. This response-precision correction does not alter the underlying calculation algorithms or dose libraries.
 - Changed dose values from two-decimal JSON strings to JSON numbers. Existing integrations must accept numeric dose values; field names, units, inputs, and phantom metadata are unchanged.
 
-### May 2, 2026 — Scientific Update
+### May 2, 2026 — Scientific Update — NCICT4
 
 #### GUI and batch processing
 
@@ -86,11 +86,11 @@ The macOS GUI uses a Universal build supporting Intel and Apple Silicon.
 - Added scan range validation after landmark conversion.
 - Improved API error responses for invalid input.
 
-### April 24, 2026 — Scientific Update
+### April 24, 2026 — Scientific Update — NCICT4
 
 - Corrected displayed DLP values that did not match CTDIvol multiplied by scan length.
 
-### April 15, 2026 — Scientific Update
+### April 15, 2026 — Scientific Update — NCICT4
 
 #### Phantom library
 
@@ -121,34 +121,34 @@ The macOS GUI uses a Universal build supporting Intel and Apple Silicon.
 
 ## 2024
 
-### December 16, 2024 — Maintenance Update
+### December 16, 2024 — Maintenance Update — NCICT3
 
 - Fixed an issue where the Batch Run menu did not function correctly.
 
-### December 15, 2024 — Maintenance Update
+### December 15, 2024 — Maintenance Update — NCICT3
 
 - Added in-application links to the user manual and technical support forum (now NCI Dose Tools Discussions).
 
-### June 26, 2024 — Scientific Update
+### June 26, 2024 — Scientific Update — NCICT3
 
 - Corrected an x-ray spectrum index mismatch between 100 and 120 kVp.
 
-### February 29, 2024 — Scientific Update
+### February 29, 2024 — Scientific Update — NCICT3
 
 - Corrected TCM profile selection for body phantoms.
 
-### January 25, 2024 — Scientific Update
+### January 25, 2024 — Scientific Update — NCICT3
 
 - Corrected effective diameter and SSDE updates when the scan range changes.
 
-### January 24, 2024 — Scientific Update
+### January 24, 2024 — Scientific Update — NCICT3
 
 - Added head CTDI phantom-based TCM profiles to better simulate pediatric CT examinations.
 - Removed muscle layers from frontal and rear phantom views to improve visualization of internal anatomy.
 
 ## 2023
 
-### April 28, 2023 — Maintenance Update
+### April 28, 2023 — Maintenance Update — NCICT3
 
 - Revised frontal and rear views of ICRP phantoms.
 
@@ -156,67 +156,67 @@ The macOS GUI uses a Universal build supporting Intel and Apple Silicon.
 
 ### December 14, 2022 — Scientific Update
 
-### November 23, 2022
+### December 13, 2022 — Scientific Update — NCICT2
 
 - Published NCICT 2.0: Lee et al., “CT organ dose calculator size adaptive for pediatric and adult patients,” *Biomedical Physics & Engineering Express*, 8:065020 (2022).
 
 ## 2021
 
-### November 23, 2021 — Maintenance Update
+### November 23, 2021 — Maintenance Update — NCICT3
 
 - Fixed a crash caused by blank lines in batch input files, often introduced during CSV editing in Excel.
 
-### November 20, 2021 — Scientific Update
+### November 20, 2021 — Scientific Update — NCICT3
 
 - Displayed the tube current profile per image slice alongside phantom visualization.
 - Displayed “Average CTDIvol” when TCM strength is greater than 0.
 - Displayed “Custom CTDIvol” when CTDIvol is entered manually.
 - Fixed multiple TCM-related issues in the batch module.
 
-### October 27, 2021 — Maintenance Update
+### October 27, 2021 — Maintenance Update — NCICT3
 
 - Made height and weight fields read-only for body size-dependent phantoms; body size is adjusted using arrow controls.
 - Enabled batch input for pregnant women phantoms and fetal phantoms.
 - Added User Manual and User Forum menu items under the **Help** menu (the forum is now NCI Dose Tools Discussions).
 
-### October 21, 2021 — Scientific Update
+### October 21, 2021 — Scientific Update — NCICT3
 
 - Derived tube current (mA) from custom CTDIvol values and enabled TCM for the derived mA profile.
 
-### September 15, 2021 — Scientific Update
+### September 15, 2021 — Scientific Update — NCICT3
 
 - Fixed an issue where the program stopped when the batch input file was missing.
 - Separated mA and rotation time from mAs to support proper TCM adjustment.
 - Added an mA limit to prevent unrealistically high mA values for obese patients in TCM mode.
 - Disabled TCM when custom CTDIvol is entered.
 
-### May 20, 2021 — Scientific Update
+### May 20, 2021 — Scientific Update — NCICT3
 
 - Added automatic selection of the best-matching phantom based on patient height and weight in batch mode.
 
-### May 13, 2021 — Scientific Update
+### May 13, 2021 — Scientific Update — NCICT3
 
 - Added batch calculation functionality using `ncict_batch_input.csv`.
 - Implemented tube current modulation using generic modulation profiles.
 
-### March 7, 2021 — Scientific Update
+### March 7, 2021 — Scientific Update — NCICT3
 
 - Added effective diameter calculation for pregnant women phantoms.
 
 ## 2020
 
-### March 12, 2020 — Maintenance Update
+### March 12, 2020 — Maintenance Update — NCICT3
 
 - Improved scan range dragging speed in the Windows version.
 
 ## 2019
 
-### December 5, 2019 — Scientific Update
+### December 5, 2019 — Scientific Update — NCICT3
 
 - Added maternal organ dose calculations in NCICT 3.0.20191205.
 - Presented NCICT at RSNA 2019.
 
-### March 1, 2019 — Scientific Update
+### March 1, 2019 — Scientific Update — NCICT3
 
 - Added eight pregnant phantoms with fetal models.
 - Enabled fetal organ dose calculations.
@@ -224,34 +224,34 @@ The macOS GUI uses a Universal build supporting Intel and Apple Silicon.
 
 ## 2018
 
-### November 18, 2018 — Scientific Update
+### November 18, 2018 — Scientific Update — NCICT2
 
 - Added 98 adult phantoms, completing the full set of 351 phantoms.
 - Presented NCICTX at AAPM 2018 and renamed the software to NCICT.
 
 ## 2016
 
-### April 1, 2016 — Scientific Update
+### April 1, 2016 — Scientific Update — NCICT2
 
 - Added 72 adult and 181 pediatric phantoms in NCICTX 20160401.
 - Presented NCICTX at AAPM 2016.
 
 ## 2015
 
-### December 1, 2015
+### December 1, 2015 — NCICT1
 
 - Published NCICT 1.0 in the *Journal of Radiological Protection*.
 - Presented NCICT at RSNA 2015.
 
 ## 2014
 
-### December 1, 2014 — Scientific Update
+### December 1, 2014 — Scientific Update — NCICT1
 
 - Replaced the original NCI phantoms with ICRP pediatric and adult phantoms.
 
 ## 2012
 
-### April 18, 2012 — Maintenance Update
+### April 18, 2012 — Maintenance Update — NCICT1
 
 - Translated the MATLAB version to Visual Basic 6.0 in NCICT 1.0.20120418.
 - Implemented the batch routine for automated calculations.
@@ -259,6 +259,6 @@ The macOS GUI uses a Universal build supporting Intel and Apple Silicon.
 
 ## 2011
 
-### May 17, 2011 — Scientific Update
+### May 17, 2011 — Scientific Update — NCICT1
 
 - Released the initial NCICT 1.0 version based on NCI phantoms and the MATLAB framework.

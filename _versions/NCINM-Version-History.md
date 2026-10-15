@@ -2,13 +2,27 @@
 
 _Scientific and maintenance update record for the National Cancer Institute dosimetry system for Nuclear Medicine._
 
-Latest release: **October 2, 2026**
-Latest scientific update: **September 30, 2026**
+Latest release: **October 6, 2026**
+Latest scientific update: **October 6, 2026**
 Record begins: **2019**
 
 ## 2026
 
-### October 2, 2026 — Maintenance Update
+### October 6, 2026 — Scientific Update — NCINM4
+
+Desktop version prepared: **4.20261006**. Distribution is pending; the
+published macOS and Windows installers remain at **4.20261002**.
+
+#### Desktop GUI
+
+- Expanded the ICRP-mesh S-value library with 182 directly alpha-emitting radionuclides from ICRP Publication 107 for all 12 age- and sex-specific mesh phantoms. Non-skeletal values use the whole-body mesh calculations; red-marrow and endosteal values use the ICRP Publication 133 and 155 skeletal models.
+- Added alpha-specific alimentary source regions, including mucosa and small-intestine near-wall villi sources.
+- Added retained-chain and user-entered redistributed-daughter calculations for Ac-225, Bi-213, Ra-223, Th-227, At-211, and Pb-212.
+- Replaced the long radionuclide list with linked element and isotope selectors.
+- Added restorable **Export Result** and **Import Result** CSV reports, including source and daughter inputs.
+- Moved **Export S Values...** to the File menu, added multi-source export, and added overwrite confirmation.
+
+### October 2, 2026 — Maintenance Update — NCINM4
 
 Desktop release: **4.20261002** (macOS and Windows).
 
@@ -19,7 +33,7 @@ This release also includes the scientific update:
 
 - Corrected remainder-activity allocation by removing double-counted composite/component source regions and renormalising weights after all exclusions. ICRP mesh oesophageal remainder activity now uses wall coefficients.
 
-### September 30, 2026 — Scientific Update
+### September 30, 2026 — Scientific Update — NCINM4
 
 #### GUI
 
@@ -37,7 +51,7 @@ The NCINM4 API was deployed to the hosted service on October 1, 2026.
 - Added an explicit error for newborn radiopharmaceutical requests because predefined newborn biokinetic data are not available.
 - The API returns organ absorbed dose and effective dose. Mesh Monte Carlo uncertainty is currently available in the GUI only.
 
-### September 9, 2026 — Maintenance Update
+### September 9, 2026 — Maintenance Update — NCINM3
 
 #### Dose calculation corrections
 
@@ -52,13 +66,13 @@ The NCINM4 API was deployed to the hosted service on October 1, 2026.
 - Prevented concurrent API requests from mixing shared calculation state.
 - Made S-value loading failures return an explicit API error instead of continuing with unavailable calculation data.
 
-### August 22, 2026 — Maintenance Update
+### August 22, 2026 — Maintenance Update — NCINM3
 
 - Added dot- and comma-decimal input support to the GUI, Batch Manager, and API.
 - Added comma- and semicolon-delimited batch CSV import while keeping exported CSV files comma-delimited with dot decimals.
 - Clarified source and target table headers, including maternal source-region and fetal target-region labels on the Fetus tab.
 
-### August 12, 2026 — Maintenance Update
+### August 12, 2026 — Maintenance Update — NCINM3
 
 #### macOS security and distribution
 
@@ -66,7 +80,7 @@ The NCINM4 API was deployed to the hosted service on October 1, 2026.
 - Enabled the Hardened Runtime, notarized the signed DMG through Apple's notarization service, and stapled the notarization ticket to the DMG.
 - Both the DMG and application can be verified by macOS Gatekeeper and no longer trigger the usual unidentified-developer blocking message when the distributed files are unmodified.
 
-### May 10, 2026 — Scientific Update
+### May 10, 2026 — Scientific Update — NCINM3
 
 #### GUI
 
@@ -103,12 +117,12 @@ The NCINM4 API was deployed to the hosted service on October 1, 2026.
 
 ## 2024
 
-### December 15, 2024 — Scientific Update
+### December 15, 2024 — Scientific Update — NCINM2
 
 - Added in-application links to the user manual and technical support forum (now NCI Dose Tools Discussions).
 - Corrected radionuclide selection when switching radiopharmaceuticals.
 
-### January 24, 2024 — Scientific Update
+### January 24, 2024 — Scientific Update — NCINM2
 
 - Added biokinetic models developed for pediatric thyroid cancer patients (Kwon et al., *Journal of Radiological Protection*, 2023).
 - Added biokinetic models developed for adult thyroid cancer patients (Kwon et al., *Journal of Radiological Protection*, in press at the time of release).
@@ -116,38 +130,38 @@ The NCINM4 API was deployed to the hosted service on October 1, 2026.
 
 ## 2022
 
-### December 15, 2022 — Scientific Update
+### December 15, 2022 — Scientific Update — NCINM2
 
 - Corrected mismatches between radionuclides and radiopharmaceuticals.
 - Sorted radiopharmaceutical names alphabetically.
 - Revised the effective-dose calculation algorithm.
 
-### December 14, 2022 — Scientific Update
+### December 14, 2022 — Scientific Update — NCINM2
 
 - Published NCINM 2.0: Villoing et al., “Organ dose calculator for diagnostic nuclear medicine patients based on the ICRP reference voxel phantoms and biokinetic models,” *Biomedical Physics & Engineering Express*, 9:015004 (2023).
 - Included blood mass in target-organ mass for ICRP pediatric and adult phantoms when blood is the source region, consistent with **ICRP Publication 133**.
 - Extended biokinetic data to **230 radiopharmaceuticals** from ICRP Publications 53, 80, 106, and 128.
 
-### November 9, 2022 — Scientific Update
+### November 9, 2022 — Scientific Update — NCINM2
 
 - Fixed issues related to radionuclide and radiopharmaceutical mismatches.
 - Enabled copy and paste by mouse dragging.
 
-### September 19, 2022 — Scientific Update
+### September 19, 2022 — Scientific Update — NCINM2
 
 - Updated adult gastrointestinal-tract self- and cross-fire SAFs using **ICRP Publication 133**.
 - Fixed an issue that prevented S-value export for ICRP phantoms.
 
-### May 12, 2022 — Scientific Update
+### May 12, 2022 — Scientific Update — NCINM2
 
 - Added biokinetic data for four additional radiopharmaceuticals.
 - Corrected ovary-data issues in the ICRP 15-year-old female phantom.
 
-### April 20, 2022 — Scientific Update
+### April 20, 2022 — Scientific Update — NCINM2
 
 - Revised NCI phantom-based active marrow and endosteum SAFs and S values using the latest dose-response functions adopted by **ICRP Committee 2**.
 
-### March 29, 2022 — Scientific Update
+### March 29, 2022 — Scientific Update — NCINM2
 
 - Corrected logical errors in skeletal dose calculations.
 - Removed effective-dose calculations based on ICRP Publication 60 tissue-weighting factors.
@@ -157,43 +171,43 @@ The NCINM4 API was deployed to the hosted service on October 1, 2026.
 
 ## 2021
 
-### November 29, 2021 — Maintenance Update
+### November 29, 2021 — Maintenance Update — NCINM2
 
 - Implemented frontal images of ICRP voxel phantoms, replacing frontal images of NCI hybrid phantoms.
 
-### November 13, 2021 — Scientific Update
+### November 13, 2021 — Scientific Update — NCINM2
 
 - Corrected the zero-adipose-mass issue for the ICRP newborn female phantom.
 - Fixed errors in the Windows installation file.
 - Revised the user interface to be more compact.
 
-### October 19, 2021 — Scientific Update
+### October 19, 2021 — Scientific Update — NCINM2
 
 - Added biokinetic data for **62 radiopharmaceuticals**.
 - Added User Manual and User Forum items under the Help menu (the forum is now NCI Dose Tools Discussions).
 
-### May 15, 2021 — Scientific Update
+### May 15, 2021 — Scientific Update — NCINM2
 
 - Added blood mass to target-organ mass in ICRP pediatric reference phantoms, consistent with adult ICRP phantoms in **ICRP Publication 133**.
 
-### May 13, 2021 — Scientific Update
+### May 13, 2021 — Scientific Update — NCINM2
 
 - Added biokinetic models for 12 radiopharmaceuticals extracted from multiple ICRP publications.
 - Added S values from the 12 ICRP reference pediatric and adult phantoms.
 
 ## 2020
 
-### July 20, 2020
+### July 20, 2020 — NCINM1
 
 - Published NCINM 1.0: Villoing et al., “NCINM: organ dose calculator for patients undergoing nuclear medicine procedures,” *Biomedical Physics & Engineering Express*, 6:055010 (2020).
 
-### March 12, 2020 — Scientific Update
+### March 12, 2020 — Scientific Update — NCINM1
 
 - Completed comprehensive benchmarking against **OLINDA/EXM 1.0** and **IDAC 2.1**.
 
 ## 2019
 
-### August 22, 2019 — Scientific Update
+### August 22, 2019 — Scientific Update — NCINM1
 
 - Created NCINM 1.0 based on the 12 NCI reference phantoms.
 - Initiated alpha testing.
