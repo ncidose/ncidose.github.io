@@ -2,18 +2,20 @@
 
 _Scientific and maintenance update record for the National Cancer Institute dosimetry system for Computed Tomography._
 
-Update under review: **October 14, 2026 — Scientific Update**
-Latest published release: **September 9, 2026**
+Latest published GUI release: **October 14, 2026 — Scientific Update**
 Latest published API version: **4.20260915**
+API update under review: **4.20261014**
 Record begins: **2011**
 
 ## 2026
 
 ### October 14, 2026 — Scientific Update
 
+Released for the macOS Universal GUI (Intel and Apple Silicon). The API changes below are prepared but have not been deployed; the Windows release is unchanged.
+
 #### GUI and API
 
-- Added scanner-specific radial dose correction that uses `CTDIc` and `CTDIp` to approximate bowtie-filter shape and correct reference-scanner organ doses while preserving CTDIvol. In ICRP adult validation, it reduced the residual interscanner variation of conventional scanner-independent calculations from about 8% to 2%; the algorithm and validation have been submitted for peer review.
+- Added scanner-specific radial dose correction that uses `CTDIc` and `CTDIp` to approximate bowtie-filter shape and correct reference-scanner organ doses while preserving CTDIvol. In ICRP adult validation, it reduced **the residual interscanner variation of conventional scanner-independent calculations from about 8% to 2%**; the algorithm and validation have been submitted for peer review.
 - Added cephalic/breech fetal presentation selection for supported gestational ages.
 - Expanded normalized CTDIw coverage by 22 additional scanner models, from 136 to 158, and added an `nCTDIc`/`nCTDIp` library for validated scanner/filter conditions, with support for user-defined `nCTDIc`/`nCTDIp` values.
 - Corrected the NCI size-phantom muscle tally and replaced the ICRP blood-vessel surrogate with a dedicated tally.

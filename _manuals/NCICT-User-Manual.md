@@ -5,7 +5,7 @@ _**NCI Dosimetry System for Computed Tomography**_
 Documented version: **4.20261014**
 Update: **October 14, 2026 — Scientific Update**
 
-This manual describes the local update under review, ahead of distribution.
+This manual describes the macOS Universal release, supporting Intel and Apple Silicon. The Windows release remains 4.20260909.
 
 ![NCICT 4 main window showing phantom selection, scan coverage, scanner inputs, and organ dose output](images/ncict4-main-window.png)
 
@@ -26,13 +26,13 @@ muscle and blood-vessel dose coefficients.
 
 ## Calculation workflow
 
-| Step | Description                                                  |
-| ---- | ------------------------------------------------------------ |
-| 1    | Define patient characteristics                               |
-| 2    | Enter scanner parameters                                     |
-| 3    | Define scan coverage                                         |
-| 4    | Review organ and effective dose output                       |
-| 5    | Optionally run multiple cases using Batch Calculation        |
+| Step | Description                                           |
+| ---- | ----------------------------------------------------- |
+| 1    | Define patient characteristics                        |
+| 2    | Enter scanner parameters                              |
+| 3    | Define scan coverage                                  |
+| 4    | Review organ and effective dose output                |
+| 5    | Optionally run multiple cases using Batch Calculation |
 
 Numeric fields accept either dot or comma decimal notation regardless of the
 operating-system regional setting.
@@ -158,9 +158,9 @@ The adult-body method was validated against scanner-specific Monte Carlo
 organ-dose coefficients from Jansen et al. (2022) using 35 adult-body
 scanner-configuration/tube-potential conditions from eight scanner models at
 80, 100, 120, and 140 kV. Each condition was evaluated in both ICRP adult male
-and female phantoms, for 70 Monte Carlo datasets in total. Median interscanner
+and female phantoms, for 70 Monte Carlo datasets in total. **Median interscanner
 organ-dose variation decreased from approximately 8% after conventional CTDIw
-normalization to approximately 2% after radial correction. The associated
+normalization to approximately 2% after radial correction.** The associated
 manuscript has been submitted for peer review. These findings apply to
 eligible 32-cm adult-body conditions and do not represent total patient-specific
 dose uncertainty.
@@ -276,21 +276,21 @@ for all users and in repeated analyses; it is not a user-adjustable setting.
 
 ### Cardiac substructure acronyms
 
-| Acronym    | Cardiac Substructure            |
-| ---------- | ------------------------------- |
-| H LA       | Left Atrium                     |
-| H RA       | Right Atrium                    |
-| H LV       | Left Ventricle                  |
-| H RV       | Right Ventricle                 |
-| H LVM      | Left Ventricular Myocardium     |
-| H LMCA     | Left Main Coronary Artery       |
-| H LADA     | Left Anterior Descending Artery |
-| H LCA      | Left Circumflex Artery          |
-| H RCA      | Right Coronary Artery           |
-| H AV       | Aortic Valve                    |
-| H MV       | Mitral Valve                    |
-| H PV       | Pulmonary Valve                 |
-| H TV       | Tricuspid Valve                 |
+| Acronym | Cardiac Substructure            |
+| ------- | ------------------------------- |
+| H LA    | Left Atrium                     |
+| H RA    | Right Atrium                    |
+| H LV    | Left Ventricle                  |
+| H RV    | Right Ventricle                 |
+| H LVM   | Left Ventricular Myocardium     |
+| H LMCA  | Left Main Coronary Artery       |
+| H LADA  | Left Anterior Descending Artery |
+| H LCA   | Left Circumflex Artery          |
+| H RCA   | Right Coronary Artery           |
+| H AV    | Aortic Valve                    |
+| H MV    | Mitral Valve                    |
+| H PV    | Pulmonary Valve                 |
+| H TV    | Tricuspid Valve                 |
 
 ---
 
@@ -335,25 +335,25 @@ dose_target,age,sex,presentation,height,weight,wed,start,end,kvp,tcm_strength,he
 
 The Batch parser reads column headers, so columns may be reordered as long as the required headers are present. Required headers are `dose_target`, `sex`, `kvp`, `tcm_strength`, `head_body`, and `ctdivol`, plus either `protocol` or both `start` and `end`. Each row must provide a protocol name or both boundaries. The `age` column is optional for patient-only files but is required when a row requests fetus or mother dose. The `sex` cell may be blank for fetus or mother dose. Additional empty columns may be placed after **custom_ma** to enter slice-specific custom mA values across Excel cells.
 
-| Category | Column | Use |
-| -------- | ------ | --- |
-| Case identifier | `patientID` | Optional case identifier; rows are numbered if omitted |
-| Phantom selection | `dose_target` | Required dose recipient: `patient`, `fetus`, or `mother` |
-| Phantom selection | `age` | At least one required*: patient age in years; gestational age is always required for fetus or mother |
-| Phantom selection | `sex` | Required for patient dose; `f`, `m`, `female`, and `male` are accepted; ignored for fetus or mother |
-| Phantom selection | `presentation` | Optional `cephalic` or `breech`; defaults to `cephalic` and is ignored for patient dose |
-| Phantom selection | `height` | At least one required*: patient height in cm; ignored for fetus and mother |
-| Phantom selection | `weight` | At least one required*: patient weight in kg; ignored for fetus and mother |
-| Phantom selection | `wed` | At least one required*: scan-average water-equivalent diameter in cm; leave blank when unavailable; ignored when height or weight is available and for fetus and mother |
-| Scan range | `protocol` | Optional predefined protocol name with alias and minor-typo matching; overrides start/end |
-| Scan range | `start`, `end` | Required when protocol is blank: distance from the top of the head in cm, or anatomical landmark IDs |
-| Scanner parameters | `kvp` | Tube potential in kVp; must be greater than `0` |
-| Scanner parameters | `tcm_strength` | `0` to `1`; leave blank when providing a custom mA profile |
-| Scanner parameters | `head_body` | `1` = 16 cm head CTDI phantom; `2` = 32 cm body CTDI phantom |
-| Scanner parameters | `ctdivol` | Required CTDIvol in mGy; must be greater than or equal to `0` |
-| Scanner parameters | `ctdi_profile_id` | Optional exact profile ID for the submitted kVp and CTDI phantom |
-| Scanner parameters | `nctdic`, `nctdip` | Optional center/peripheral CTDI in mGy/100 mAs; enter both as positive values |
-| Scanner parameters | `custom_ma` | First custom mA value; required when `tcm_strength` is blank |
+| Category           | Column                 | Use                                                                                                                                                                     |
+| ------------------ | ---------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Case identifier    | `patientID`          | Optional case identifier; rows are numbered if omitted                                                                                                                  |
+| Phantom selection  | `dose_target`        | Required dose recipient: `patient`, `fetus`, or `mother`                                                                                                          |
+| Phantom selection  | `age`                | At least one required*: patient age in years; gestational age is always required for fetus or mother                                                                    |
+| Phantom selection  | `sex`                | Required for patient dose; `f`, `m`, `female`, and `male` are accepted; ignored for fetus or mother                                                             |
+| Phantom selection  | `presentation`       | Optional `cephalic` or `breech`; defaults to `cephalic` and is ignored for patient dose                                                                           |
+| Phantom selection  | `height`             | At least one required*: patient height in cm; ignored for fetus and mother                                                                                              |
+| Phantom selection  | `weight`             | At least one required*: patient weight in kg; ignored for fetus and mother                                                                                              |
+| Phantom selection  | `wed`                | At least one required*: scan-average water-equivalent diameter in cm; leave blank when unavailable; ignored when height or weight is available and for fetus and mother |
+| Scan range         | `protocol`           | Optional predefined protocol name with alias and minor-typo matching; overrides start/end                                                                               |
+| Scan range         | `start`, `end`     | Required when protocol is blank: distance from the top of the head in cm, or anatomical landmark IDs                                                                    |
+| Scanner parameters | `kvp`                | Tube potential in kVp; must be greater than `0`                                                                                                                       |
+| Scanner parameters | `tcm_strength`       | `0` to `1`; leave blank when providing a custom mA profile                                                                                                          |
+| Scanner parameters | `head_body`          | `1` = 16 cm head CTDI phantom; `2` = 32 cm body CTDI phantom                                                                                                        |
+| Scanner parameters | `ctdivol`            | Required CTDIvol in mGy; must be greater than or equal to `0`                                                                                                         |
+| Scanner parameters | `ctdi_profile_id`    | Optional exact profile ID for the submitted kVp and CTDI phantom                                                                                                        |
+| Scanner parameters | `nctdic`, `nctdip` | Optional center/peripheral CTDI in mGy/100 mAs; enter both as positive values                                                                                           |
+| Scanner parameters | `custom_ma`          | First custom mA value; required when `tcm_strength` is blank                                                                                                          |
 
 \* For patient dose, provide at least one of `age`, `height`, `weight`, or `wed`.
 
@@ -361,11 +361,11 @@ The Batch parser reads column headers, so columns may be reordered as long as th
 
 `ctdivol` remains the required absolute dose input in every mode.
 
-| Mode | Input fields | Output `radial_mode` |
-| ---- | ------------ | -------------------- |
-| CTDIvol only | Leave `ctdi_profile_id`, `nctdic`, and `nctdip` blank | `ctdivol_only` |
-| Built-in scanner profile | Enter the exact `ctdi_profile_id`; leave `nctdic` and `nctdip` blank | `scanner_library` |
-| Explicit center/peripheral values | Enter positive `nctdic` and `nctdip` together; the ID is optional provenance | `explicit_cp` |
+| Mode                              | Input fields                                                                     | Output `radial_mode` |
+| --------------------------------- | -------------------------------------------------------------------------------- | ---------------------- |
+| CTDIvol only                      | Leave `ctdi_profile_id`, `nctdic`, and `nctdip` blank                      | `ctdivol_only`       |
+| Built-in scanner profile          | Enter the exact `ctdi_profile_id`; leave `nctdic` and `nctdip` blank       | `scanner_library`    |
+| Explicit center/peripheral values | Enter positive `nctdic` and `nctdip` together; the ID is optional provenance | `explicit_cp`        |
 
 Profile IDs can be read from the GUI status line or from
 **ncictCtdiProfiles.csv**. A profile ID must have data for the submitted `kvp`
@@ -389,7 +389,7 @@ column. The included template contains examples of all three modes.
 | Patient     | WED only                             | Phantom with the closest WED over the scan range         |
 | Patient     | Age and sex only                     | Age- and sex-specific reference body size                |
 | Patient     | Age unavailable, body size available | Infer the closest age/size group                         |
-| Patient     | Age and body size unavailable        | Input error: provide age, height, weight, or WED          |
+| Patient     | Age and body size unavailable        | Input error: provide age, height, weight, or WED         |
 | Fetus       | Gestational age                      | Fetal phantom for the closest supported week             |
 | Mother      | Gestational age                      | Maternal phantom for the closest supported week          |
 
@@ -434,14 +434,14 @@ phantom. Output records the submitted name in `protocol`, the resolved name in
 `matched_protocol`, and the final start/end in cm. Both name columns are blank
 when only start/end were supplied.
 
-| Output `protocol` | Output `matched_protocol` |
-| ----------------- | ------------------------- |
-| Chest             | Chest                     |
-| chset CT          | Chest                     |
-| abdomen/pelvis    | AP                        |
-| CAP               | CAP                       |
-Keep `protocol` before `custom_ma` so cells following `custom_ma` contain only
-custom mA samples.
+| Output `protocol`                                                                  | Output `matched_protocol` |
+| ------------------------------------------------------------------------------------ | --------------------------- |
+| Chest                                                                                | Chest                       |
+| chset CT                                                                             | Chest                       |
+| abdomen/pelvis                                                                       | AP                          |
+| CAP                                                                                  | CAP                         |
+| Keep `protocol` before `custom_ma` so cells following `custom_ma` contain only |                             |
+| custom mA samples.                                                                   |                             |
 
 Scan start and end locations can be specified either as distances from the top of the head in cm or as anatomical landmark IDs. If a landmark ID is used for one boundary, a landmark ID should also be used for the other boundary.
 
