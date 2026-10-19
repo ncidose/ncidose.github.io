@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-10-12T13:34:58.746Z",
+  "generatedAt": "2026-10-19T13:15:39.433Z",
   "source": "NCBI E-utilities PubMed and PubMed Central searches",
   "note": "Searches combine tool-specific identifiers with modality terms to reduce unrelated full-text matches.",
   "tools": [
@@ -82,11 +82,11 @@
               "pmcid": null,
               "title": "CT image-based evaluation of phantom-derived DLP-to-effective dose conversion factors for adult abdomen-pelvis CT",
               "journal": "Journal of radiological protection : official journal of the Society for Radiological Protection",
-              "pubdate": "2026 Sep 23",
-              "publicationDate": "2026-09-23",
+              "pubdate": "2026 Oct 13",
+              "publicationDate": "2026-10-13",
               "year": "2026",
               "authors": [
-                "Rafet SM",
+                "Morato S",
                 "Saha M",
                 "Siegelman J",
                 "Lee C"
