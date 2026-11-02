@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-10-19T13:15:39.433Z",
+  "generatedAt": "2026-11-02T14:09:33.990Z",
   "source": "NCBI E-utilities PubMed and PubMed Central searches",
   "note": "Searches combine tool-specific identifiers with modality terms to reduce unrelated full-text matches.",
   "tools": [
@@ -128,8 +128,8 @@
               "pmcid": null,
               "title": "Doses in planning computed tomography in one radiotherapy department: Description of exposure parameters and estimation of organ doses, effective doses and typical doses",
               "journal": "Radiography (London, England : 1995)",
-              "pubdate": "2026 Oct 7",
-              "publicationDate": "2026-10-07",
+              "pubdate": "2026 Oct",
+              "publicationDate": "2026-10-01",
               "year": "2026",
               "authors": [
                 "Garcia NB",
@@ -406,12 +406,12 @@
               "pmcid": null,
               "title": "Shapley effects to identify the most influential input parameters of organ dose estimation following CT scans in childhood",
               "journal": "Journal of radiological protection : official journal of the Society for Radiological Protection",
-              "pubdate": "2026 Oct 7",
-              "publicationDate": "2026-10-07",
+              "pubdate": "2026 Oct 21",
+              "publicationDate": "2026-10-21",
               "year": "2026",
               "authors": [
                 "Foucault A",
-                "Il Idrissi M",
+                "Idrissi MI",
                 "Iooss B",
                 "Lee C",
                 "Bernier MO",
