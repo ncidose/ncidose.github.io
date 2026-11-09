@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-11-02T14:09:33.990Z",
+  "generatedAt": "2026-11-09T14:08:37.125Z",
   "source": "NCBI E-utilities PubMed and PubMed Central searches",
   "note": "Searches combine tool-specific identifiers with modality terms to reduce unrelated full-text matches.",
   "tools": [
@@ -222,8 +222,8 @@
               "pmcid": null,
               "title": "Inter-software variability in CT organ-dose calculation under identical scan conditions: implications for users and dose evaluation in the Japanese population",
               "journal": "Radiological physics and technology",
-              "pubdate": "2026 Oct 3",
-              "publicationDate": "2026-10-03",
+              "pubdate": "2026 Dec",
+              "publicationDate": "2026-12-01",
               "year": "2026",
               "authors": [
                 "Fujibuchi T",
