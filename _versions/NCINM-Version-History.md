@@ -2,16 +2,15 @@
 
 _Scientific and maintenance update record for the National Cancer Institute dosimetry system for Nuclear Medicine._
 
-Latest release: **October 6, 2026**
-Latest scientific update: **October 6, 2026**
+Latest release: **November 11, 2026**
+Latest scientific update: **November 11, 2026**
 Record begins: **2019**
 
 ## 2026
 
-### October 6, 2026 — Scientific Update — NCINM4
+### November 11, 2026 — Scientific Update — NCINM4
 
-Desktop version prepared: **4.20261006**. Distribution is pending; the
-published macOS and Windows installers remain at **4.20261002**.
+Desktop release: **4.20261111**.
 
 #### Desktop GUI
 

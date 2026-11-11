@@ -1,9 +1,10 @@
 # NCINM 4
+
 _**NCI Dosimetry System for Nuclear Medicine**_
 
-Current documented release: **October 2, 2026 (4.20261002)**
-Current release type: **Maintenance Update**
-Latest scientific update: **September 30, 2026**
+Current documented release: **November 11, 2026 (4.20261111)**
+Current release type: **Scientific Update**
+Latest scientific update: **November 11, 2026**
 
 ![NCINM 4 main window showing the ICRP mesh phantom, source-region inputs, and target-organ dose output](images/ncinm4-mesh-interface.png)
 
@@ -19,23 +20,26 @@ nuclear medicine procedures.
 NCINM4 uses pre-calculated S values and, when available, predefined biokinetic
 data to calculate organ doses for selected computational human phantoms. The
 current release includes NCI, ICRP voxel, ICRP mesh, and fetus phantom
-libraries, with mother-to-fetus S values for fetal dose calculations. It
-supports population-based dose evaluation, benchmarking, and research
-workflows. It is not intended for patient-specific clinical decision support.
+libraries, with mother-to-fetus S values for fetal dose calculations. The ICRP
+mesh library also supports alpha-emitting radionuclides and optional daughter
+scenarios. NCINM4 supports population-based dose evaluation, benchmarking, and
+research workflows. It is not intended for patient-specific clinical decision
+support.
 
 ---
 
 ## Calculation Workflow
 
-| Step | Description |
-|---|---|
-| 1 | Select the phantom library and available phantom characteristics |
-| 2 | Select a radionuclide or radiopharmaceutical, depending on the selected phantom library |
-| 3 | Enter administered activity |
-| 4 | Review or edit the source-region table |
-| 5 | Review the target-organ dose output table |
-| 6 | Optionally select source-region rows and click **Export S Values** |
-| 7 | Optionally run multiple NCI, ICRP voxel, or ICRP mesh radiopharmaceutical cases through Batch Manager |
+| Step | Description                                                                            |
+| ---- | -------------------------------------------------------------------------------------- |
+| 1    | Select the phantom library and available phantom characteristics                       |
+| 2    | Select a radionuclide or radiopharmaceutical                                           |
+| 3    | Enter administered activity                                                            |
+| 4    | Review or edit the source-region table                                                 |
+| 5    | For a supported alpha chain, optionally choose a daughter scenario                     |
+| 6    | Review the target-organ dose output table                                              |
+| 7    | Save or restore a calculation with **Export Result** and **Import Result** |
+| 8    | Optionally export S values from the **File** menu or use Batch Manager           |
 
 Numeric fields accept either dot or comma decimal notation regardless of the
 operating-system regional setting.
@@ -105,17 +109,40 @@ NCINM4 provides two calculation pathways.
 Use the **Radionuclide** tab when source-region residence times or cumulated
 activities are known and will be entered manually.
 
-Select the radionuclide from the popup menu, then enter source-region residence
-times or cumulated activities in the source-region table.
+Select an element in the first menu, then select its isotope in the second
+menu. For example, select **Ac** and then **225** for Ac-225. Enter
+source-region residence times or cumulated activities in the source-region
+table.
 
-The radionuclide library contains 1070 radionuclides with photon and/or electron
-emissions based on ICRP Publication 107 radiation spectrum data.
+The library contains 1,252 radionuclides based on ICRP Publication 107,
+including 182 directly alpha-emitting radionuclides. Alpha S values are
+currently available with the **ICRP-mesh** phantom library.
 
 For fetus phantom calculations, use this tab and enter maternal source-region
 data manually. In this mode, source regions correspond to maternal organs and
 target regions correspond to fetal organs.
 
-### 2.2 Radiopharmaceutical Tab
+### 2.2 Alpha Daughter Scenarios
+
+For a supported alpha chain, select **Alpha daughters...** and choose:
+
+- **Retained chain** when the parent and its daughters are assumed to remain in
+  the same source region.
+- **Redistributed daughters...** when each chain member has its own organ
+  distribution. Select a member in the daughter window, then enter its source
+  residence time or cumulated activity in the main table. The dose updates
+  automatically. Repeat for other members and select **Done** when finished.
+
+The two input columns are linked: entering residence time updates cumulated
+activity, and entering cumulated activity updates residence time. Inputs are
+remembered while moving between daughter members. They are cleared when a
+different parent radionuclide is selected or **Clear** is pressed.
+
+Supported scenarios are available for Ac-225, Bi-213, Ra-223, Th-227, At-211,
+and Pb-212. NCINM does not predict daughter migration or organ distribution;
+use measured or modelled member-specific inputs for a redistributed scenario.
+
+### 2.3 Radiopharmaceutical Tab
 
 Use the **Radiopharmaceutical** tab when predefined biokinetic data should be
 loaded automatically for NCI, ICRP voxel, or ICRP mesh phantom calculations.
@@ -148,9 +175,9 @@ linked:
 The default activity is:
 
 | Unit | Default |
-|---|---:|
-| MBq | 3700 |
-| mCi | 100 |
+| ---- | ------: |
+| MBq  |    3700 |
+| mCi  |     100 |
 
 The example below shows an entered activity of 370 MBq (10 mCi).
 
@@ -162,15 +189,18 @@ The example below shows an entered activity of 370 MBq (10 mCi).
 
 The source-region table has column headers:
 
-| Column | Purpose |
-|---|---|
-| Source Region | Source organ or region |
-| Resid Time h | Residence time in hours |
+| Column        | Purpose                     |
+| ------------- | --------------------------- |
+| Source Region | Source organ or region      |
+| Resid Time h  | Residence time in hours     |
 | Cum Act MBq-s | Cumulated activity in MBq-s |
 
 The first column is labeled **Source Region** for NCI and ICRP phantoms. On
 the Fetus tab, it changes to **Maternal Source region** to identify the source
 regions as maternal anatomy.
+
+When editing redistributed daughters, the first header shows the selected
+member, such as **Fr-221 Source Region**.
 
 ![ICRP mesh source-region table with residence-time and cumulated-activity columns](images/ncinm4-mesh-source-region-table.png)
 
@@ -192,6 +222,12 @@ cumulated activities manually.
 
 Rows with non-zero residence time are shaded automatically. If the residence
 time is changed back to zero, the row returns to the default background.
+
+Direct alpha calculations with ICRP-mesh also provide mucosa sources for the
+stomach, small intestine, right colon, left colon, and rectosigmoid, plus an
+**SI-villi near-wall** source. An unavailable source displays `n/a`. NCINM does
+not allow activity to be entered simultaneously in overlapping wall and mucosa
+sources, or in both small-intestine contents and SI-villi near-wall.
 
 For S-value export, select one or more source-region rows in this table. There
 is no separate S-value export column.
@@ -215,13 +251,13 @@ quantified.
 
 The target-region output table has column headers:
 
-| Column | Purpose |
-|---|---|
-| Target Region | Target organ or tissue |
-| Mass g | Target-organ mass in grams |
-| Dose mGy | Absorbed dose in mGy |
-| Dose/Act mGy/MBq | Absorbed dose per administered activity |
-| MC uncert % | Monte Carlo uncertainty for ICRP mesh results |
+| Column           | Purpose                                       |
+| ---------------- | --------------------------------------------- |
+| Target Region    | Target organ or tissue                        |
+| Mass g           | Target-organ mass in grams                    |
+| Dose mGy         | Absorbed dose in mGy                          |
+| Dose/Act mGy/MBq | Absorbed dose per administered activity       |
+| MC uncert %      | Monte Carlo uncertainty for ICRP mesh results |
 
 The first column is labeled **Target Region** for NCI and ICRP phantoms. On
 the Fetus tab, it changes to **Fetal Target Region**.
@@ -240,6 +276,9 @@ NCINM4 calculates dose from S values, administered activity, and source-region
 residence time. Effective dose is reported in the final row for NCI and ICRP
 voxel or mesh phantom calculations.
 
+For an alpha daughter scenario, the displayed result is the summed parent and
+daughter dose under the selected assumption.
+
 The **MC uncert %** column is populated for ICRP mesh calculations and
 left blank for the other phantom libraries. It reports calculation-library
 uncertainty and does not include uncertainty in administered activity,
@@ -250,23 +289,39 @@ target organs using mother-to-fetus S values.
 
 ---
 
-## 6. Export S Values
+## 6. Export And Import Results
+
+Select **Export Result** to save the current calculation as a readable CSV
+report. The report includes the phantom and radionuclide selection,
+administered activity, source inputs, calculated doses, and any daughter inputs.
+
+Select **Import Result** to restore a saved report. NCINM changes the phantom
+and calculation settings to match the report, restores all inputs, and
+recalculates the dose. No separate confirmation appears after a successful
+import; invalid files display an error message.
+
+NCINM asks before replacing an existing result file.
+
+---
+
+## 7. Export S Values
 
 To export S values:
 
-1. Select one or more source-region rows in the source-region table.
-2. Click **Export S Values**.
+1. Select one or more source-region rows in the source-region table. Use
+   Command-click on macOS or Ctrl-click on Windows for multiple rows.
+2. Choose **File > Export S Values...**.
 3. Save the generated CSV file.
 
 The exported file contains S values in `mGy/MBq-s` for the selected source
 regions and the currently selected phantom. For fetus phantoms, the exported
 values are mother-to-fetus S values for the selected maternal source regions and
 fetal target organs. The CSV columns are `Source Region`, `Target Region`, and
-`S Value (mGy/MBq-s)`.
+`S Value (mGy/MBq-s)`. NCINM asks before replacing an existing file.
 
 ---
 
-## 7. Batch Manager
+## 8. Batch Manager
 
 Batch Manager runs multiple NCI, ICRP voxel, or ICRP mesh
 radiopharmaceutical dose calculations from a CSV input file. Use phantom
@@ -302,8 +357,8 @@ not calculate a fetal dose.
 
 ---
 
-## 8. Clear Tables
+## 9. Clear
 
-Click **Clear Tables** to reset administered activity to the default values,
+Click **Clear** to reset administered activity to the default values,
 clear source-region residence times and cumulated activities, clear dose output,
-and refresh the phantom display.
+clear stored daughter inputs, and refresh the phantom display.

@@ -194,7 +194,7 @@ describe("public manuals", () => {
 
   it.each([
     ["ncict", "September 9, 2026", "Maintenance Update", "Maintenance Update"],
-    ["ncinm", "October 2, 2026", "Maintenance Update", "Maintenance Update"],
+    ["ncinm", "November 11, 2026", "Scientific Update", "Scientific Update"],
     ["ncirf", "September 10, 2026", "Scientific Update", "Scientific Update"],
     ["phantom", "August 20, 2026", "Scientific Update", "Scientific Update"],
   ])("renders the declared classification for the latest %s release", (toolId, date, classification, badgeLabel) => {
@@ -243,9 +243,12 @@ describe("public manuals", () => {
       </MemoryRouter>,
     );
 
-    expect(screen.getByText("Documented release October 2, 2026 (4.20261002)")).toBeInTheDocument();
-    expect(screen.getByText("Maintenance Update")).toBeInTheDocument();
-    expect(screen.getByText("Latest scientific update September 30, 2026")).toBeInTheDocument();
+    expect(screen.getByText("Documented release November 11, 2026 (4.20261111)")).toBeInTheDocument();
+    expect(screen.getAllByText("Scientific Update").length).toBeGreaterThan(0);
+    expect(screen.getByText("Latest scientific update November 11, 2026")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "2.2 Alpha Daughter Scenarios", level: 3 })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "6. Export And Import Results", level: 2 })).toBeInTheDocument();
+    expect(screen.queryByText(/documented here in preparation for release|currently published macOS and Windows installers/i)).not.toBeInTheDocument();
 
     const expectedImages = [
       [
@@ -334,7 +337,7 @@ describe("public manuals", () => {
 
   it.each([
     ["ncirf", "NCIRF Release History", "September 10, 2026"],
-    ["ncinm", "NCINM Release History", "October 2, 2026"],
+    ["ncinm", "NCINM Release History", "November 11, 2026"],
     ["phantom", "PHANTOM Library History", "August 20, 2026"],
   ])("renders the %s release record", (toolId, title, latestRelease) => {
     render(
