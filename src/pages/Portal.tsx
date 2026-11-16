@@ -734,6 +734,19 @@ const PortalLoading = () => (
   </div>
 );
 
+const StaSignatureRequirement = () => (
+  <section aria-label="Required STA signatures" className="mt-7 border border-l-4 border-amber-500 bg-amber-50 p-4 text-left text-amber-950 sm:p-5">
+    <h2 className="text-lg font-bold">Two signatures are required</h2>
+    <ol className="mt-3 list-decimal space-y-1 pl-5 text-sm font-semibold">
+      <li>Requesting Investigator</li>
+      <li>Authorized Recipient Official</li>
+    </ol>
+    <p className="mt-3 text-sm leading-relaxed">
+      <strong>NCI cannot process your STA without both signatures.</strong> Obtain both before emailing your STA.
+    </p>
+  </section>
+);
+
 const AccessRequest = () => {
   const location = useLocation();
   const [submitted, setSubmitted] = useState(false);
@@ -769,8 +782,9 @@ const AccessRequest = () => {
             <div className="mt-7 font-mono text-xs uppercase tracking-widest text-primary">STA PDF prepared</div>
             <h1 className="mt-3 text-3xl font-light">Your prefilled STA has been downloaded.</h1>
             <p className="mx-auto mt-5 max-w-lg text-sm leading-relaxed text-muted-foreground">
-              Review every entry in the official PDF, complete any signing-official details you left blank, obtain the required recipient signatures, and email the signed agreement to the NCI Technology Transfer Center.
+              Review every entry in the official PDF and complete the recipient details. Obtain both signatures listed below, then email the signed agreement to the NCI Technology Transfer Center.
             </p>
+            <div className="mx-auto max-w-lg"><StaSignatureRequirement /></div>
             <div className="mx-auto mt-8 max-w-lg border border-border bg-slate-50 p-5 text-left">
               <div className="font-mono text-xs uppercase tracking-wider text-slate-500">Next step</div>
               <p className="mt-2 text-sm leading-relaxed text-slate-700">
@@ -820,7 +834,7 @@ const AccessRequest = () => {
             {[
               ["01", "Check eligibility", "Confirm that this is non-commercial research use."],
               ["02", "Prepare the official PDF", "Enter only the details needed to prefill the STA."],
-              ["03", "Review, sign, and email", "Complete any remaining PDF fields, sign, and email the agreement to the NCI Technology Transfer Center at lisa.gallmon@nih.gov."],
+              ["03", "Obtain both signatures and email", "Have the Requesting Investigator and Authorized Recipient Official sign the STA, then email it to the NCI Technology Transfer Center at lisa.gallmon@nih.gov."],
               ["04", "Receive access", "NCI reviews the agreement and activates your portal account."],
             ].map(([number, title, detail]) => (
               <div key={number} className="grid grid-cols-[42px_1fr] gap-4 border border-border bg-white p-4">
@@ -873,13 +887,12 @@ const AccessRequest = () => {
           }}
         >
           <div className="flex items-start justify-between gap-5 border-b border-border pb-6">
-            <div><h2 className="text-2xl font-light">Access request</h2><p className="mt-2 text-sm text-muted-foreground">No signed agreement document is uploaded to this portal.</p></div>
+            <h2 className="text-2xl font-light">Access request</h2>
             <ShieldCheck className="h-6 w-6 shrink-0 text-primary" />
           </div>
 
           <div className="mt-7 border border-border p-5 sm:p-6">
             <div className="font-mono text-xs uppercase tracking-widest text-primary">First, check your research use</div>
-            <p className="mt-2 text-sm leading-relaxed text-muted-foreground">These answers are copied into the official STA.</p>
             <div className="mt-5 space-y-5">
               <EligibilityQuestion
                 name="nonprofit"
@@ -940,7 +953,6 @@ const AccessRequest = () => {
             <>
               <section className="mt-7">
                 <div className="font-mono text-xs uppercase tracking-widest text-primary">About you</div>
-                <p className="mt-2 text-sm leading-relaxed text-muted-foreground">Use your institutional contact details. They will be copied into the official PDF.</p>
                 <div className="mt-5 grid gap-5 sm:grid-cols-2">
                   <PortalField label="Your full name" name="fullName" placeholder="Full legal name" />
                   <PortalField label="Your job title" name="investigatorTitle" placeholder="Job title" />
@@ -963,29 +975,30 @@ const AccessRequest = () => {
               </fieldset>
 
               <section className="mt-7">
-                <label htmlFor="research-purpose" className="font-mono text-xs uppercase tracking-wider text-slate-600">Main research purpose</label>
+                <label htmlFor="research-purpose" className="font-mono text-xs uppercase tracking-wider text-slate-600">Research purpose</label>
                 <select id="research-purpose" name="researchPurpose" defaultValue="dose_research" className="mt-2 h-11 w-full border border-input bg-background px-3 text-sm outline-none focus:border-primary">
-                  <option value="dose_research">Radiation dose research</option>
-                  <option value="method_development">Research method development or validation</option>
-                  <option value="education">Academic teaching or training</option>
-                  <option value="other_research">Other non-commercial research</option>
+                  <option value="dose_research">Dose research</option>
+                  <option value="method_development">Method development</option>
+                  <option value="education">Teaching or training</option>
+                  <option value="other_research">Other research</option>
                 </select>
-                <label htmlFor="research-details" className="mt-4 block text-xs font-medium text-slate-700">Optional: one sentence about your study</label>
+                <label htmlFor="research-details" className="mt-4 block text-xs font-medium text-slate-700">Study description (optional)</label>
                 <textarea id="research-details" name="researchDetails" className="mt-2 min-h-20 w-full border border-input bg-background p-3 text-sm outline-none focus:border-primary" placeholder="Example: Retrospective organ-dose estimates for CT examinations." />
-                <p className="mt-2 text-xs leading-relaxed text-muted-foreground">We will combine your selection, requested tools, and optional detail into the STA’s scope-of-use statement. You can edit it in the PDF.</p>
               </section>
 
-              <details className="mt-7 border border-border p-5 sm:p-6">
-                <summary className="cursor-pointer text-sm font-medium text-slate-800">Person authorized to sign for your organization <span className="font-normal text-muted-foreground">(you can add this later)</span></summary>
-                <p className="mt-3 text-xs leading-relaxed text-muted-foreground">The STA calls this the “Authorized Recipient Official.” This may be your supervisor or principal investigator, but only if your organization has authorized that person to sign legal agreements such as this STA. It may instead be someone in research administration, contracts, or technology transfer. If you are unsure, leave these fields blank and complete the editable PDF after checking with your organization.</p>
+              <section aria-labelledby="sta-authorized-signer" className="mt-7 border border-border p-5 sm:p-6">
+                <h2 id="sta-authorized-signer" className="text-sm font-medium text-slate-800">Person authorized to sign for your organization</h2>
+                <p className="mt-3 text-sm leading-relaxed text-slate-700">The <strong>Authorized Recipient Official</strong> is a person authorized by your organization to sign legal agreements on its behalf, such as someone in research administration, contracts, or technology transfer.</p>
+                <p className="mt-3 text-sm leading-relaxed text-slate-700">Your supervisor or principal investigator can sign only if your organization has granted them this authority. If you are unsure who can sign, check with your organization before submitting your STA.</p>
                 <div className="mt-5 grid gap-5 sm:grid-cols-2">
-                  <PortalField label="Authorized signer’s name" name="officialName" placeholder="Full legal name" required={false} />
-                  <PortalField label="Authorized signer’s job title" name="officialTitle" placeholder="Job title" required={false} />
+                  <PortalField label="Authorized signer’s name" name="officialName" placeholder="Full legal name" />
+                  <PortalField label="Authorized signer’s job title" name="officialTitle" placeholder="Job title" />
                 </div>
-              </details>
+              </section>
 
-              <div className="mt-7 flex flex-col-reverse items-stretch justify-between gap-4 border-t border-border pt-6 sm:flex-row sm:items-center">
-                <p className="max-w-sm text-xs leading-relaxed text-muted-foreground">This prepares the original NCI STA. It does not itself grant software access.</p>
+              <StaSignatureRequirement />
+
+              <div className="mt-7 flex flex-col border-t border-border pt-6 sm:flex-row sm:justify-end">
                 <Button type="submit" disabled={preparingPdf} className="h-11 rounded-none px-6"><Send className="h-4 w-4" /> {preparingPdf ? "Preparing PDF…" : "Download prefilled STA"}</Button>
               </div>
             </>

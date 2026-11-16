@@ -319,7 +319,7 @@ describe("portal migration experience", () => {
 
     expect(screen.getByRole("heading", { name: /prepare your research access agreement/i })).toBeInTheDocument();
     expect(screen.getByText(/three quick eligibility questions/i)).toBeInTheDocument();
-    expect(screen.getByText(/No signed agreement document is uploaded/i)).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /^Access request$/i })).toBeInTheDocument();
     expect(screen.queryByText("DCC")).not.toBeInTheDocument();
     expect(screen.getByText(/Answer the three questions above to continue/i)).toBeInTheDocument();
     expect(screen.queryByLabelText(/Your full name/i)).not.toBeInTheDocument();
@@ -341,7 +341,7 @@ describe("portal migration experience", () => {
     expect(screen.queryByLabelText(/Your full name/i)).not.toBeInTheDocument();
   });
 
-  it("reveals a shorter STA form and explains the authorized signer", () => {
+  it("shows the authorized signer explanation and both required STA signatures", () => {
     render(
       <MemoryRouter initialEntries={["/portal/request-access"]}>
         <Portal />
@@ -355,9 +355,17 @@ describe("portal migration experience", () => {
     expect(screen.getByLabelText(/Phone/i)).toBeRequired();
     expect(screen.queryByLabelText(/^Country$/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/Legal notices/i)).not.toBeInTheDocument();
-    fireEvent.click(screen.getByText(/Person authorized to sign for your organization/i));
-    expect(screen.getByText(/may be your supervisor or principal investigator, but only if/i)).toBeInTheDocument();
-    expect(screen.getByLabelText(/Authorized signer’s name/i)).not.toBeRequired();
+    const signer = screen.getByRole("region", { name: /Person authorized to sign for your organization/i });
+    expect(within(signer).getByText(/is a person authorized by your organization to sign legal agreements on its behalf/i)).toBeVisible();
+    expect(within(signer).getByText(/Your supervisor or principal investigator can sign only if your organization has granted them this authority/i)).toBeVisible();
+    expect(screen.queryByText(/you can add this later/i)).not.toBeInTheDocument();
+    const signatures = screen.getByRole("region", { name: /Required STA signatures/i });
+    expect(signatures).toBeVisible();
+    expect(signatures).toHaveTextContent("Requesting Investigator");
+    expect(signatures).toHaveTextContent("Authorized Recipient Official");
+    expect(signatures).toHaveTextContent("NCI cannot process your STA without both signatures.");
+    expect(screen.getByLabelText(/Authorized signer’s name/i)).toBeRequired();
+    expect(screen.getByLabelText(/Authorized signer’s job title/i)).toBeRequired();
   });
 
   it("opens the STA workflow directly for the generated trailing-slash URL", () => {
@@ -382,15 +390,20 @@ describe("portal migration experience", () => {
     fireEvent.click(screen.getByRole("checkbox", { name: "NCICT" }));
     fireEvent.change(screen.getByLabelText(/Work email/i), { target: { value: "researcher@example.edu" } });
     fireEvent.change(screen.getByLabelText(/Phone/i), { target: { value: "+1 555 0100" } });
-    fireEvent.change(screen.getByLabelText(/one sentence about your study/i), { target: { value: "Retrospective CT organ-dose study." } });
+    fireEvent.change(screen.getByLabelText(/Authorized signer’s name/i), { target: { value: "Example Official" } });
+    fireEvent.change(screen.getByLabelText(/Authorized signer’s job title/i), { target: { value: "Contracts Director" } });
+    fireEvent.change(screen.getByLabelText(/Study description \(optional\)/i), { target: { value: "Retrospective CT organ-dose study." } });
     const form = screen.getByRole("button", { name: /download prefilled STA/i }).closest("form");
     expect(form).not.toBeNull();
     fireEvent.submit(form!);
 
     expect(await screen.findByRole("heading", { name: /prefilled STA has been downloaded/i })).toBeInTheDocument();
+    expect(screen.getByRole("region", { name: /Required STA signatures/i })).toHaveTextContent("NCI cannot process your STA without both signatures.");
     expect(portalTestMocks.downloadStaPdf).toHaveBeenCalledWith(expect.objectContaining({
       legalEmail: "researcher@example.edu",
       legalPhone: "+1 555 0100",
+      officialName: "Example Official",
+      officialTitle: "Contracts Director",
       researchUse: "Non-clinical radiation dosimetry research using NCICT. Planned work: Retrospective CT organ-dose study.",
     }));
     expect(portalTestMocks.trackResearchAccessPdfPrepared).toHaveBeenCalledWith(
